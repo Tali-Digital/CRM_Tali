@@ -38,7 +38,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
       setAssignedUserIds(card?.assignees || []);
       setStartDate(card?.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card?.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
-      setSelectedClientId(card?.clientId || '');
+      setSelectedClientId(card?.clientId || client.id || '');
     } else if (card) {
       setClientName(card.type === 'custom' ? (card.title || '') : (card.clientName || ''));
       setNotes(card.notes || '');
@@ -50,6 +50,18 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
     }
   }, [card, client]);
 
+  // Update fields when selecting a different client
+  useEffect(() => {
+    if (selectedClientId) {
+      const selectedClient = clients.find(c => c.id === selectedClientId);
+      if (selectedClient && (!client || selectedClient.id !== client.id)) {
+        setClientName(selectedClient.name);
+        setNotes(selectedClient.notes || '');
+        setChecklist(selectedClient.checklist || []);
+      }
+    }
+  }, [selectedClientId, clients, client]);
+
   if (!card) return null;
 
   const isCustom = card.type === 'custom';
@@ -58,48 +70,47 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
     e.preventDefault();
     setIsSaving(true);
     
-    if (client || selectedClientId) {
-      const finalClientId = client?.id || selectedClientId;
-      const finalClient = clients.find(c => c.id === finalClientId);
-      
-      if (finalClient && !client) {
-         // Newly linking a client - update card to client type
-         await updateOperationCard(card.id, {
-           clientId: finalClientId,
-           type: 'client',
-           title: '',
-           assignees: assignedUserIds,
-           startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-           deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-           updatedAt: new Date()
-         });
-      } else if (finalClient && client) {
-        await updateClient(finalClient.id, {
-          name: clientName,
-          notes,
-          checklist
-        });
+    try {
+      if (selectedClientId) {
+        const finalClient = clients.find(c => c.id === selectedClientId);
+        
+        // Update client data if linked
+        if (finalClient) {
+          await updateClient(finalClient.id, {
+            notes,
+            checklist
+          });
+        }
+        
         await updateOperationCard(card.id, {
+          clientId: selectedClientId,
+          type: 'client',
+          title: '', // Custom title is cleared when linked to a client
+          assignees: assignedUserIds,
+          startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+          deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+          updatedAt: new Date()
+        });
+      } else {
+        await updateOperationCard(card.id, {
+          clientId: '',
+          type: 'custom',
+          title: clientName,
+          notes,
+          checklist,
           assignees: assignedUserIds,
           startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
           deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
           updatedAt: new Date()
         });
       }
-    } else {
-      await updateOperationCard(card.id, {
-        ...(isCustom ? { title: clientName } : { clientName }),
-        notes,
-        checklist,
-        assignees: assignedUserIds,
-        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-        deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-        updatedAt: new Date()
-      });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar card.');
+    } finally {
+      setIsSaving(false);
     }
-    
-    setIsSaving(false);
-    onClose();
   };
 
   const toggleUser = (userId: string) => {
@@ -151,38 +162,40 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-            {isCustom ? <Edit2 size={14} /> : <User size={14} />}
-            {isCustom ? "Título do Card" : "Nome do Cliente"}
+            {selectedClientId ? <User size={14} /> : <Edit2 size={14} />}
+            {selectedClientId ? "Nome do Cliente" : "Título do Card"}
           </label>
           <input 
             required
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            disabled={!!client} // Disable if it's a central client, they should edit in the Clients tab
+            disabled={!!selectedClientId}
           />
-          {client && <p className="text-xs text-stone-400">Para alterar o nome, acesse a aba Clientes.</p>}
+          {selectedClientId && <p className="text-xs text-stone-400">Para alterar o nome, acesse a aba Clientes.</p>}
         </div>
 
-        {!client && (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-              <Users size={14} />
-              Vincular Cliente Central
-            </label>
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            >
-              <option value="">Nenhum cliente central vinculado</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-stone-400">Ao vincular, este card passará a usar os dados do cliente central.</p>
-          </div>
-        )}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+            <User size={14} />
+            Cliente
+          </label>
+          <select
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+          >
+            <option value="">Nenhum cliente vinculado (Card Personalizado)</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-stone-400">
+            {selectedClientId 
+              ? "Este card está vinculado a um cliente central e usará seus dados." 
+              : "Defina um cliente para este card ou mantenha como um card personalizado."}
+          </p>
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
