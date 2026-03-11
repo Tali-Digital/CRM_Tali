@@ -1,26 +1,7 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
 
-  # Regras para forçar a não-cache de arquivos HTML (incluindo o index)
-  <IfModule mod_headers.c>
-    <FilesMatch "\.(html|htm)$">
-      Header set Cache-Control "no-cache, no-store, must-revalidate"
-      Header set Pragma "no-cache"
-      Header set Expires "0"
-    </FilesMatch>
-  </IfModule>
-
-  # Se tentar acessar um arquivo que não existe na raiz (como uma URL do react-router)
-  # direciona direto pro index.html de dentro da pasta dist
-  RewriteCond %{REQUEST_URI} !^/dist/
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^(.*)$ dist/index.html [L]
-
-  # Se for um arquivo válido (como o map, favicon etc)
-  # Ou se estiver acessando a raiz geral (/), busca ela de dentro do dist
+  # Passa todas as requisições que não começam com /dist para dentro da pasta /dist/
   RewriteCond %{REQUEST_URI} !^/dist/
   RewriteRule ^(.*)$ dist/$1 [L]
-
 </IfModule>
