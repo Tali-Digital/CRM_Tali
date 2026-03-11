@@ -456,6 +456,9 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
 
   return (
     <div className="h-full flex flex-col">
+      <div className="bg-red-600 text-white p-6 text-center font-black animate-bounce text-4xl mb-4 z-[9999] relative">
+        DEBUG GLOBAL: SE VOCÊ ESTÁ VENDO ISSO, O CÓDIGO ESTÁ ATUALIZADO
+      </div>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Tarefas Internas</h1>
