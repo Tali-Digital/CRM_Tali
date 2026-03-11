@@ -1,0 +1,516 @@
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  Timestamp,
+  getDocs,
+  getDoc,
+  setDoc
+} from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, Client, Tag, Notification } from '../types';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export const subscribeToTags = (companyId: CompanyType, callback: (tags: Tag[]) => void) => {
+  const q = query(collection(db, 'tags'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const tags = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tag));
+    callback(tags);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'tags');
+  });
+};
+
+export const addTag = async (tag: Omit<Tag, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'tags'), tag);
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'tags');
+  }
+};
+
+export const updateTag = async (tagId: string, data: Partial<Tag>) => {
+  try {
+    const tagRef = doc(db, 'tags', tagId);
+    await updateDoc(tagRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `tags/${tagId}`);
+  }
+};
+
+export const deleteTag = async (tagId: string) => {
+  try {
+    await deleteDoc(doc(db, 'tags', tagId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `tags/${tagId}`);
+  }
+};
+
+export const subscribeToClients = (companyId: CompanyType, callback: (clients: Client[]) => void) => {
+  const q = query(collection(db, 'clients'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+    callback(clients);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'clients');
+  });
+};
+
+export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'clients'), {
+      ...client,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'clients');
+  }
+};
+
+export const updateClient = async (clientId: string, data: Partial<Client>) => {
+  try {
+    const clientRef = doc(db, 'clients', clientId);
+    await updateDoc(clientRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `clients/${clientId}`);
+  }
+};
+
+export const deleteClient = async (clientId: string) => {
+  try {
+    // 1. Delete the client document
+    await deleteDoc(doc(db, 'clients', clientId));
+
+    // 2. Find and delete all associated cards in all funnels
+    const collections = ['commercial_cards', 'financial_cards', 'operation_cards'];
+    
+    for (const collName of collections) {
+      const q = query(collection(db, collName), where('clientId', '==', clientId));
+      const snapshot = await getDocs(q);
+      
+      const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+      await Promise.all(deletePromises);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `clients/${clientId}`);
+  }
+};
+
+export const saveUser = async (user: any) => {
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    
+    let role = 'client';
+    if (userSnap.exists() && userSnap.data().role) {
+      role = userSnap.data().role;
+    }
+    
+    if (user.email === 'tali.agenciadigital@gmail.com') {
+      role = 'admin';
+    }
+
+    await setDoc(userRef, {
+      name: user.displayName || user.email?.split('@')[0] || 'Usuário',
+      email: user.email,
+      photoURL: user.photoURL || '',
+      role: role
+    }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+  }
+};
+
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import firebaseConfig from '../../firebase-applet-config.json';
+
+export const adminCreateUser = async (email: string, name: string, role: 'admin' | 'client' | 'outsourced') => {
+  try {
+    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+    const secondaryAuth = getAuth(secondaryApp);
+    
+    // Create user with a random password
+    const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, randomPassword);
+    
+    // Save user document
+    const userRef = doc(db, 'users', userCredential.user.uid);
+    await setDoc(userRef, {
+      name: name,
+      email: email,
+      photoURL: '',
+      role: role
+    });
+
+    // Sign out the secondary app
+    await secondaryAuth.signOut();
+    
+    return { success: true, password: randomPassword };
+  } catch (error: any) {
+    console.error("Error creating user:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 'outsourced') => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { role });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+  }
+};
+
+export const subscribeToNotifications = (userId: string, callback: (notifications: Notification[]) => void) => {
+  const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+  return onSnapshot(q, (snapshot) => {
+    const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+    callback(notifications.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis()));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'notifications');
+  });
+};
+
+export const createNotification = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'notifications'), {
+      ...notification,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'notifications');
+  }
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+  try {
+    const notifRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notifRef, { read: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `notifications/${notificationId}`);
+  }
+};
+
+export const subscribeToUsers = (callback: (users: UserProfile[]) => void) => {
+  const q = query(collection(db, 'users'));
+  return onSnapshot(q, (snapshot) => {
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+    callback(users);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'users');
+  });
+};
+
+export const subscribeToCommercialLists = (companyId: CompanyType, callback: (lists: CommercialList[]) => void) => {
+  const q = query(collection(db, 'commercial_lists'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommercialList));
+    callback(lists.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'commercial_lists');
+  });
+};
+
+export const subscribeToCommercialCards = (companyId: CompanyType, callback: (cards: CommercialCard[]) => void) => {
+  const q = query(collection(db, 'commercial_cards'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommercialCard));
+    callback(cards.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'commercial_cards');
+  });
+};
+
+export const subscribeToFinancialLists = (companyId: CompanyType, callback: (lists: FinancialList[]) => void) => {
+  const q = query(collection(db, 'financial_lists'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FinancialList));
+    callback(lists.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'financial_lists');
+  });
+};
+
+export const subscribeToFinancialCards = (companyId: CompanyType, callback: (cards: FinancialCard[]) => void) => {
+  const q = query(collection(db, 'financial_cards'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FinancialCard));
+    callback(cards.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'financial_cards');
+  });
+};
+
+export const subscribeToOperationLists = (companyId: CompanyType, callback: (lists: OperationList[]) => void) => {
+  const q = query(collection(db, 'operation_lists'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OperationList));
+    callback(lists.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'operation_lists');
+  });
+};
+
+export const subscribeToOperationCards = (companyId: CompanyType, callback: (cards: OperationCard[]) => void) => {
+  const q = query(collection(db, 'operation_cards'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OperationCard));
+    callback(cards.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'operation_cards');
+  });
+};
+
+export const addCommercialList = async (list: Omit<CommercialList, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'commercial_lists'), {
+      ...list,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'commercial_lists');
+  }
+};
+
+export const updateCommercialList = async (listId: string, data: Partial<CommercialList>) => {
+  try {
+    const listRef = doc(db, 'commercial_lists', listId);
+    await updateDoc(listRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `commercial_lists/${listId}`);
+  }
+};
+
+export const deleteCommercialList = async (listId: string) => {
+  try {
+    // 1. Delete the list
+    await deleteDoc(doc(db, 'commercial_lists', listId));
+
+    // 2. Delete all cards in this list
+    const q = query(collection(db, 'commercial_cards'), where('listId', '==', listId));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `commercial_lists/${listId}`);
+  }
+};
+
+export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'commercial_cards'), {
+      ...card,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'commercial_cards');
+  }
+};
+
+export const updateCommercialCard = async (cardId: string, data: Partial<CommercialCard>) => {
+  try {
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    await updateDoc(cardRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
+  }
+};
+
+export const deleteCommercialCard = async (cardId: string) => {
+  try {
+    await deleteDoc(doc(db, 'commercial_cards', cardId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
+  }
+};
+
+export const addFinancialList = async (list: Omit<FinancialList, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'financial_lists'), {
+      ...list,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'financial_lists');
+  }
+};
+
+export const updateFinancialList = async (listId: string, data: Partial<FinancialList>) => {
+  try {
+    const listRef = doc(db, 'financial_lists', listId);
+    await updateDoc(listRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `financial_lists/${listId}`);
+  }
+};
+
+export const deleteFinancialList = async (listId: string) => {
+  try {
+    // 1. Delete the list
+    await deleteDoc(doc(db, 'financial_lists', listId));
+
+    // 2. Delete all cards in this list
+    const q = query(collection(db, 'financial_cards'), where('listId', '==', listId));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `financial_lists/${listId}`);
+  }
+};
+
+export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'financial_cards'), {
+      ...card,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'financial_cards');
+  }
+};
+
+export const updateFinancialCard = async (cardId: string, data: Partial<FinancialCard>) => {
+  try {
+    const cardRef = doc(db, 'financial_cards', cardId);
+    await updateDoc(cardRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
+  }
+};
+
+export const deleteFinancialCard = async (cardId: string) => {
+  try {
+    await deleteDoc(doc(db, 'financial_cards', cardId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
+  }
+};
+
+export const addOperationList = async (list: Omit<OperationList, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'operation_lists'), {
+      ...list,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'operation_lists');
+  }
+};
+
+export const updateOperationList = async (listId: string, data: Partial<OperationList>) => {
+  try {
+    const listRef = doc(db, 'operation_lists', listId);
+    await updateDoc(listRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `operation_lists/${listId}`);
+  }
+};
+
+export const deleteOperationList = async (listId: string) => {
+  try {
+    // 1. Delete the list
+    await deleteDoc(doc(db, 'operation_lists', listId));
+
+    // 2. Delete all cards in this list
+    const q = query(collection(db, 'operation_cards'), where('listId', '==', listId));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `operation_lists/${listId}`);
+  }
+};
+
+export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'operation_cards'), {
+      ...card,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'operation_cards');
+  }
+};
+
+export const updateOperationCard = async (cardId: string, data: Partial<OperationCard>) => {
+  try {
+    const cardRef = doc(db, 'operation_cards', cardId);
+    await updateDoc(cardRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
+  }
+};
+
+export const deleteOperationCard = async (cardId: string) => {
+  try {
+    await deleteDoc(doc(db, 'operation_cards', cardId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
+  }
+};

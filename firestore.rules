@@ -1,0 +1,229 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: companies
+    // Fields: name, description, id
+    //
+    // Collection: projects
+    // Fields: name, clientName, type, monthlyFee, companyId, createdAt
+    //
+    // Collection: tasks
+    // Fields: title, description, stage, deadline, priority, projectId, companyId
+    //
+    // Collection: operation_lists
+    // Fields: name, companyId, order, defaultChecklist, createdAt
+    //
+    // Collection: operation_cards
+    // Fields: clientId, listId, companyId, order, createdAt
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "tali.agenciadigital@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidCommercialList(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             data.defaultChecklist is list &&
+             (!('assignees' in data) || data.assignees is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTag(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+             data.color is string && data.color.size() > 0 && data.color.size() < 20 &&
+             data.companyId in ['digital', 'odonto'];
+    }
+
+    function isValidClient(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.themeColor in ['blue', 'yellow'] &&
+             data.serviceTags is list &&
+             data.checklist is list &&
+             data.notes is string &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidCommercialCard(data, isUpdate) {
+      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'clientName', 'assignees', 'startDate', 'deliveryDate'];
+      return data.keys().hasOnly(allowedFields) &&
+             (('clientId' in data && data.clientId is string) || 
+              ('title' in data && data.title is string) || 
+              ('clientName' in data && data.clientName is string)) &&
+             data.listId is string &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             (isUpdate || data.createdAt is timestamp) &&
+             (!('type' in data) || data.type in ['client', 'custom']) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('checklist' in data) || data.checklist is list) &&
+             (!('assignees' in data) || data.assignees is list) &&
+             (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
+             (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidFinancialList(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             data.defaultChecklist is list &&
+             (!('assignees' in data) || data.assignees is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidFinancialCard(data, isUpdate) {
+      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      return data.keys().hasOnly(allowedFields) &&
+             (('clientId' in data && data.clientId is string) || 
+              ('title' in data && data.title is string) ||
+              ('clientName' in data && data.clientName is string)) &&
+             data.listId is string &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             (isUpdate || data.createdAt is timestamp) &&
+             (!('type' in data) || data.type in ['client', 'custom']) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('checklist' in data) || data.checklist is list) &&
+             (!('assignees' in data) || data.assignees is list) &&
+             (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
+             (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidOperationList(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             data.defaultChecklist is list &&
+             (!('assignees' in data) || data.assignees is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidOperationCard(data, isUpdate) {
+      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      return data.keys().hasOnly(allowedFields) &&
+             (('clientId' in data && data.clientId is string) || 
+              ('title' in data && data.title is string) ||
+              ('clientName' in data && data.clientName is string)) &&
+             data.listId is string &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             (isUpdate || data.createdAt is timestamp) &&
+             (!('type' in data) || data.type in ['client', 'custom']) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('checklist' in data) || data.checklist is list) &&
+             (!('assignees' in data) || data.assignees is list) &&
+             (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
+             (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidNotification(data) {
+      return data.userId is string &&
+             data.title is string &&
+             data.message is string &&
+             data.read is bool &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /commercial_lists/{listId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidCommercialList(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /commercial_cards/{cardId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidCommercialCard(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidCommercialCard(request.resource.data, true);
+      allow delete: if isAuthenticated();
+    }
+
+    match /financial_lists/{listId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidFinancialList(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /financial_cards/{cardId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidFinancialCard(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidFinancialCard(request.resource.data, true);
+      allow delete: if isAuthenticated();
+    }
+
+    match /operation_lists/{listId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidOperationList(request.resource.data, false);
+      allow delete: if isAuthenticated();
+    }
+
+    match /operation_cards/{cardId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidOperationCard(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidOperationCard(request.resource.data, true);
+      allow delete: if isAuthenticated();
+    }
+
+    match /tags/{tagId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidTag(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidClient(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+  }
+}

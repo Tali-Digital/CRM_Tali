@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "Company": {
+      "title": "Empresa",
+      "description": "Uma das empresas do grupo Tali (Digital ou Odonto).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nome da empresa" },
+        "description": { "type": "string", "description": "Descrição da empresa" },
+        "id": { "type": "string", "description": "ID da empresa (digital ou odonto)" }
+      },
+      "required": ["name", "id"]
+    },
+    "OperationList": {
+      "title": "Setor de Operação",
+      "description": "Um setor no funil de operação contínua.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nome do setor" },
+        "companyId": { "type": "string", "description": "ID da empresa" },
+        "order": { "type": "number", "description": "Ordem de exibição" },
+        "defaultChecklist": { "type": "array", "items": { "type": "string" }, "description": "Checklist padrão para novos cards" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "companyId", "order"]
+    },
+    "OperationCard": {
+      "title": "Card de Operação",
+      "description": "Um card de cliente ou nota personalizada no funil de operação contínua.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "description": "ID do cliente (opcional se for custom)" },
+        "title": { "type": "string", "description": "Título do card (obrigatório se for custom)" },
+        "type": { "type": "string", "enum": ["client", "custom"], "description": "Tipo do card" },
+        "listId": { "type": "string", "description": "ID do setor" },
+        "companyId": { "type": "string", "description": "ID da empresa" },
+        "order": { "type": "number", "description": "Ordem no setor" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string", "description": "Anotações do card" },
+        "checklist": { "type": "array", "items": { "$ref": "ChecklistItem" } },
+        "assignees": { "type": "array", "items": { "type": "string" }, "description": "IDs dos usuários responsáveis" }
+      },
+      "required": ["listId", "companyId", "order"]
+    },
+    "CommercialCard": {
+      "title": "Card Comercial",
+      "description": "Um card de cliente ou nota personalizada no funil comercial.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "description": "ID do cliente (opcional se for custom)" },
+        "title": { "type": "string", "description": "Título do card (obrigatório se for custom)" },
+        "type": { "type": "string", "enum": ["client", "custom"], "description": "Tipo do card" },
+        "listId": { "type": "string", "description": "ID do setor" },
+        "companyId": { "type": "string", "description": "ID da empresa" },
+        "order": { "type": "number", "description": "Ordem no setor" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string", "description": "Anotações do card" },
+        "checklist": { "type": "array", "items": { "$ref": "ChecklistItem" } },
+        "assignees": { "type": "array", "items": { "type": "string" }, "description": "IDs dos usuários responsáveis" }
+      },
+      "required": ["listId", "companyId", "order"]
+    },
+    "FinancialCard": {
+      "title": "Card Financeiro",
+      "description": "Um card de cliente ou nota personalizada no funil financeiro.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "description": "ID do cliente (opcional se for custom)" },
+        "title": { "type": "string", "description": "Título do card (obrigatório se for custom)" },
+        "type": { "type": "string", "enum": ["client", "custom"], "description": "Tipo do card" },
+        "listId": { "type": "string", "description": "ID do setor" },
+        "companyId": { "type": "string", "description": "ID da empresa" },
+        "order": { "type": "number", "description": "Ordem no setor" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string", "description": "Anotações do card" },
+        "checklist": { "type": "array", "items": { "$ref": "ChecklistItem" } },
+        "assignees": { "type": "array", "items": { "type": "string" }, "description": "IDs dos usuários responsáveis" }
+      },
+      "required": ["listId", "companyId", "order"]
+    }
+  },
+  "firestore": {
+    "/companies/{companyId}": {
+      "schema": "Company",
+      "description": "Configurações das empresas"
+    },
+    "/operation_lists/{listId}": {
+      "schema": "OperationList",
+      "description": "Setores do funil de operação"
+    },
+    "/operation_cards/{cardId}": {
+      "schema": "OperationCard",
+      "description": "Cards do funil de operação"
+    },
+    "/commercial_cards/{cardId}": {
+      "schema": "CommercialCard",
+      "description": "Cards do funil comercial"
+    },
+    "/financial_cards/{cardId}": {
+      "schema": "FinancialCard",
+      "description": "Cards do funil financeiro"
+    }
+  }
+}
