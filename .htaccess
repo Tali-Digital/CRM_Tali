@@ -2,14 +2,25 @@
   RewriteEngine On
   RewriteBase /crm/
 
-  # Se tentar acessar um arquivo que não existe na raiz, direciona para o dist
+  # Regras para forçar a não-cache de arquivos HTML (incluindo o index)
+  <IfModule mod_headers.c>
+    <FilesMatch "\.(html|htm)$">
+      Header set Cache-Control "no-cache, no-store, must-revalidate"
+      Header set Pragma "no-cache"
+      Header set Expires "0"
+    </FilesMatch>
+  </IfModule>
+
+  # Se tentar acessar um arquivo que não existe na raiz (como uma URL do react-router)
+  # direciona direto pro index.html de dentro da pasta dist
   RewriteCond %{REQUEST_URI} !^/crm/dist/
-  # Exceções: não redirecionar arquivos .php, .html ou a própria pasta dist se já acessada
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^(.*)$ dist/index.html [L]
 
-  # Redireciona tudo que não for arquivo válido para dentro da dist
+  # Se for um arquivo válido na raiz (como o site map, robo.txt etc)
+  # Ou se estiver acessando a raiz geral vazia (/crm/), busca ela de dentro do dist
   RewriteCond %{REQUEST_URI} !^/crm/dist/
   RewriteRule ^(.*)$ dist/$1 [L]
+
 </IfModule>
