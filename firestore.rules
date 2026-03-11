@@ -231,7 +231,7 @@ service cloud.firestore {
 
     match /operation_lists/{listId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidOperationList(request.resource.data, false);
+      allow create, update: if isAuthenticated() && isValidOperationList(request.resource.data);
       allow delete: if isAuthenticated();
     }
 
