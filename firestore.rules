@@ -67,7 +67,7 @@ service cloud.firestore {
     }
 
     function isValidCommercialCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'clientName', 'assignees', 'startDate', 'deliveryDate'];
+      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'clientName', 'assignees', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
              (('clientId' in data && data.clientId is string) || 
               ('title' in data && data.title is string) || 
@@ -82,7 +82,8 @@ service cloud.firestore {
              (!('assignees' in data) || data.assignees is list) &&
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('deleted' in data) || data.deleted is bool);
     }
 
     function isValidFinancialList(data) {
@@ -95,7 +96,7 @@ service cloud.firestore {
     }
 
     function isValidFinancialCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
              (('clientId' in data && data.clientId is string) || 
               ('title' in data && data.title is string) ||
@@ -110,7 +111,8 @@ service cloud.firestore {
              (!('assignees' in data) || data.assignees is list) &&
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('deleted' in data) || data.deleted is bool);
     }
 
     function isValidOperationList(data) {
@@ -123,7 +125,7 @@ service cloud.firestore {
     }
 
     function isValidOperationCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
              (('clientId' in data && data.clientId is string) || 
               ('title' in data && data.title is string) ||
@@ -138,7 +140,8 @@ service cloud.firestore {
              (!('assignees' in data) || data.assignees is list) &&
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('deleted' in data) || data.deleted is bool);
     }
 
     function isValidInternalTaskList(data) {
@@ -151,7 +154,7 @@ service cloud.firestore {
     }
 
     function isValidInternalTaskCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
              (('clientId' in data && data.clientId is string) || 
               ('title' in data && data.title is string) ||
@@ -166,7 +169,8 @@ service cloud.firestore {
              (!('assignees' in data) || data.assignees is list) &&
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('deleted' in data) || data.deleted is bool);
     }
 
     function isValidNotification(data) {

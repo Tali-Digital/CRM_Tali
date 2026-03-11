@@ -11,6 +11,7 @@ import { FinancialView } from './components/FinancialView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
 import { InternalTasksView } from './components/InternalTasksView';
+import { AllCardsModal } from './components/AllCardsModal';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
 import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
@@ -39,7 +40,19 @@ import {
   subscribeToInternalTaskLists,
   subscribeToInternalTaskCards,
   subscribeToClients, 
-  subscribeToTags 
+  subscribeToTags,
+  restoreCommercialCard,
+  permanentDeleteCommercialCard,
+  restoreFinancialCard,
+  permanentDeleteFinancialCard,
+  restoreOperationCard,
+  permanentDeleteOperationCard,
+  restoreInternalTaskCard,
+  permanentDeleteInternalTaskCard,
+  deleteCommercialCard,
+  deleteFinancialCard,
+  deleteOperationCard,
+  deleteInternalTaskCard
 } from './services/firestoreService';
 
 export default function App() {
@@ -71,7 +84,7 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   // Modal states
-  
+  const [isAllCardsModalOpen, setIsAllCardsModalOpen] = useState(false);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -112,6 +125,53 @@ export default function App() {
       };
     }
   }, [user]);
+
+  const activeCommercialCards = commercialCards.filter(c => !c.deleted);
+  const activeFinancialCards = financialCards.filter(c => !c.deleted);
+  const activeOperationCards = operationCards.filter(c => !c.deleted);
+  const activeInternalTaskCards = internalTaskCards.filter(c => !c.deleted);
+
+  const totalCards = activeCommercialCards.length + 
+    activeFinancialCards.length + 
+    activeOperationCards.length + 
+    activeInternalTaskCards.length;
+
+  const handleRestoreCard = async (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => {
+    switch (type) {
+      case 'commercial': await restoreCommercialCard(cardId); break;
+      case 'financial': await restoreFinancialCard(cardId); break;
+      case 'operation': await restoreOperationCard(cardId); break;
+      case 'internal': await restoreInternalTaskCard(cardId); break;
+    }
+  };
+
+  const handlePermanentDelete = async (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => {
+    const allCards = [
+      ...commercialCards.map(c => ({...c, metaType: 'commercial' as const})),
+      ...financialCards.map(c => ({...c, metaType: 'financial' as const})),
+      ...operationCards.map(c => ({...c, metaType: 'operation' as const})),
+      ...internalTaskCards.map(c => ({...c, metaType: 'internal' as const}))
+    ];
+    const card = allCards.find(c => c.id === cardId);
+    
+    if (card?.deleted) {
+      if (!window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) return;
+      switch (type) {
+        case 'commercial': await permanentDeleteCommercialCard(cardId); break;
+        case 'financial': await permanentDeleteFinancialCard(cardId); break;
+        case 'operation': await permanentDeleteOperationCard(cardId); break;
+        case 'internal': await permanentDeleteInternalTaskCard(cardId); break;
+      }
+    } else {
+      if (!window.confirm('Deseja mover este card para a lixeira?')) return;
+      switch (type) {
+        case 'commercial': await deleteCommercialCard(cardId); break;
+        case 'financial': await deleteFinancialCard(cardId); break;
+        case 'operation': await deleteOperationCard(cardId); break;
+        case 'internal': await deleteInternalTaskCard(cardId); break;
+      }
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setIsAuthLoading(true);
@@ -314,10 +374,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Cards:</span>
+              <button 
+                onClick={() => setIsAllCardsModalOpen(true)}
+                className="flex items-center space-x-2 hover:bg-stone-100 p-2 rounded-xl transition-all cursor-pointer group"
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-stone-400 group-hover:text-stone-900">Cards:</span>
                 <span className="text-sm font-bold text-stone-900">{totalCards}</span>
-              </div>
+              </button>
             </section>
 
             <AnimatePresence mode="wait">
@@ -451,7 +514,18 @@ export default function App() {
 
         <div className="flex-1 min-h-0">
           {renderContent()}
-        </div>
+          <AllCardsModal 
+        isOpen={isAllCardsModalOpen}
+        onClose={() => setIsAllCardsModalOpen(false)}
+        commercialCards={commercialCards}
+        financialCards={financialCards}
+        operationCards={operationCards}
+        internalTaskCards={internalTaskCards}
+        clients={clients}
+        onRestoreCard={handleRestoreCard}
+        onPermanentDelete={handlePermanentDelete}
+      />
+    </div>
 
       </main>
     </div>

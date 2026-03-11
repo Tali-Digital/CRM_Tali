@@ -50,7 +50,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const filterCards = (cards: any[], lists: any[]) => {
     // Only show cards that belong to an existing list
     const existingListIds = lists.map(l => l.id);
-    const validCards = cards.filter(c => existingListIds.includes(c.listId));
+    const validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted);
 
     if (dashboardView === 'global') return validCards;
     

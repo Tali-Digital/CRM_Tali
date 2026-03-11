@@ -74,6 +74,7 @@ export interface CommercialCard {
   assignees?: string[]; // Array of UserProfile ids
   startDate?: any;
   deliveryDate?: any;
+  deleted?: boolean;
   // Legacy fields for backward compatibility
   clientName?: string;
 }
@@ -103,6 +104,7 @@ export interface FinancialCard {
   assignees?: string[]; // Array of UserProfile ids
   startDate?: any;
   deliveryDate?: any;
+  deleted?: boolean;
 }
 
 export interface OperationList {
@@ -130,6 +132,7 @@ export interface OperationCard {
   assignees?: string[]; // Array of UserProfile ids
   startDate?: any;
   deliveryDate?: any;
+  deleted?: boolean;
 }
 
 export interface InternalTaskList {
@@ -155,6 +158,7 @@ export interface InternalTaskCard {
   assignees?: string[]; // Array of UserProfile ids
   startDate?: any;
   deliveryDate?: any;
+  deleted?: boolean;
 }
 
 export interface Company {

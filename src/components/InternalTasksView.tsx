@@ -475,7 +475,7 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
                 <SortableList 
                   key={list.id} 
                   list={list} 
-                  cards={cards.filter(c => c.listId === list.id)} 
+                  cards={cards.filter(c => c.listId === list.id && !c.deleted)} 
                   clients={clients}
                   tags={tags}
                   users={users}

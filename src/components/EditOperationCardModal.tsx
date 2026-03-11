@@ -92,7 +92,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja remover este cliente deste setor? (O cadastro principal do cliente não será excluído)')) {
+    if (window.confirm('Deseja mover este card para a lixeira? Você poderá recuperá-lo no gestor de cards.')) {
       await deleteOperationCard(card.id);
       onClose();
     }
@@ -280,7 +280,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
             className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors flex items-center gap-2 text-sm font-bold"
           >
             <Trash2 size={16} />
-            Remover do Setor
+            Mover para Lixeira
           </button>
           
           <div className="flex gap-2">

@@ -396,6 +396,24 @@ export const updateCommercialCard = async (cardId: string, data: Partial<Commerc
 
 export const deleteCommercialCard = async (cardId: string) => {
   try {
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    await updateDoc(cardRef, { deleted: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
+  }
+};
+
+export const restoreCommercialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    await updateDoc(cardRef, { deleted: false });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
+  }
+};
+
+export const permanentDeleteCommercialCard = async (cardId: string) => {
+  try {
     await deleteDoc(doc(db, 'commercial_cards', cardId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
@@ -461,6 +479,24 @@ export const updateFinancialCard = async (cardId: string, data: Partial<Financia
 
 export const deleteFinancialCard = async (cardId: string) => {
   try {
+    const cardRef = doc(db, 'financial_cards', cardId);
+    await updateDoc(cardRef, { deleted: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
+  }
+};
+
+export const restoreFinancialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'financial_cards', cardId);
+    await updateDoc(cardRef, { deleted: false });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
+  }
+};
+
+export const permanentDeleteFinancialCard = async (cardId: string) => {
+  try {
     await deleteDoc(doc(db, 'financial_cards', cardId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
@@ -525,6 +561,24 @@ export const updateOperationCard = async (cardId: string, data: Partial<Operatio
 };
 
 export const deleteOperationCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'operation_cards', cardId);
+    await updateDoc(cardRef, { deleted: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
+  }
+};
+
+export const restoreOperationCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'operation_cards', cardId);
+    await updateDoc(cardRef, { deleted: false });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
+  }
+};
+
+export const permanentDeleteOperationCard = async (cardId: string) => {
   try {
     await deleteDoc(doc(db, 'operation_cards', cardId));
   } catch (error) {
@@ -612,6 +666,24 @@ export const updateInternalTaskCard = async (cardId: string, data: Partial<Inter
 };
 
 export const deleteInternalTaskCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    await updateDoc(cardRef, { deleted: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
+  }
+};
+
+export const restoreInternalTaskCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    await updateDoc(cardRef, { deleted: false });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
+  }
+};
+
+export const permanentDeleteInternalTaskCard = async (cardId: string) => {
   try {
     await deleteDoc(doc(db, 'internal_tasks_cards', cardId));
   } catch (error) {
