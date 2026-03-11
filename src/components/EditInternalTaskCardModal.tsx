@@ -26,6 +26,7 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
   const [selectedClientId, setSelectedClientId] = useState('');
 
   useEffect(() => {
+    console.log('Rendering EditInternalTaskCardModal', { card, clients });
     const unsubscribe = subscribeToUsers(setUsers);
     return () => unsubscribe();
   }, []);
@@ -160,6 +161,7 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"}>
+      <h1 className="bg-red-500 text-white p-2 text-center font-bold">DEBUG: COMPONENT UPDATED</h1>
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
