@@ -38,7 +38,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       setAssignedUserIds(card?.assignees || []);
       setStartDate(card?.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card?.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
-      setSelectedClientId(card?.clientId || client.id || '');
+      setSelectedClientId(card?.clientId || client?.id || '');
     } else if (card) {
       setClientName(card.type === 'custom' ? (card.title || '') : (card.clientName || ''));
       setNotes(card.notes || '');
@@ -176,27 +176,6 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
           {selectedClientId && <p className="text-xs text-stone-400">Para alterar o nome, acesse a aba Clientes.</p>}
         </div>
 
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-            <User size={14} />
-            Cliente
-          </label>
-          <select
-            value={selectedClientId}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-          >
-            <option value="">Nenhum cliente vinculado (Card Personalizado)</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <p className="text-[10px] text-stone-400">
-            {selectedClientId 
-              ? "Este card está vinculado a um cliente central e usará seus dados." 
-              : "Defina um cliente para este card ou mantenha como um card personalizado."}
-          </p>
-        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -223,6 +202,28 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
             />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+            <User size={14} />
+            Vincular Cliente Central
+          </label>
+          <select
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+          >
+            <option value="">Nenhum cliente vinculado (Card Personalizado)</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-stone-400">
+            {selectedClientId 
+              ? "Este card agora usa os dados do cliente central selecionado." 
+              : "Transforme este card em um cliente central selecionando um acima."}
+          </p>
         </div>
 
         <div className="space-y-2">
