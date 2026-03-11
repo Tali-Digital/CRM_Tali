@@ -23,7 +23,8 @@ import {
   User as FirebaseUser,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
+  signOut,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { 
   saveUser, 
@@ -103,11 +104,27 @@ export default function App() {
   }, [user]);
 
   const handleGoogleLogin = async () => {
+    setIsAuthLoading(true);
+    setAuthError('');
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
+      const result = await signInWithPopup(auth, provider);
+      const additionalInfo = getAdditionalUserInfo(result);
+      
+      const allowedEmails = ['tali.agenciadigital@gmail.com', 'diogotorres2907@gmail.com'];
+      
+      if (additionalInfo?.isNewUser && !allowedEmails.includes(result.user.email || '')) {
+        await result.user.delete();
+        await signOut(auth);
+        setAuthError('Você não possui autorização. Por favor, solicite o acesso ao administrador.');
+      }
+    } catch (error: any) {
       console.error('Login error:', error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        setAuthError('Erro ao entrar com o Google.');
+      }
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
