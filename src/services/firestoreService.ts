@@ -219,6 +219,15 @@ export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 
   }
 };
 
+export const deleteUserDoc = async (userId: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
+  }
+};
+
 export const subscribeToNotifications = (userId: string, callback: (notifications: Notification[]) => void) => {
   const q = query(collection(db, 'notifications'), where('userId', '==', userId));
   return onSnapshot(q, (snapshot) => {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { UserProfile } from '../types';
-import { subscribeToUsers, updateUserRole, adminCreateUser } from '../services/firestoreService';
-import { Shield, User, Briefcase, Plus, X, Check } from 'lucide-react';
+import { subscribeToUsers, updateUserRole, adminCreateUser, deleteUserDoc } from '../services/firestoreService';
+import { Shield, User, Briefcase, Plus, X, Check, Trash2 } from 'lucide-react';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -34,6 +34,12 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
 
   const handleRoleChange = async (userId: string, newRole: 'admin' | 'client' | 'outsourced') => {
     await updateUserRole(userId, newRole);
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o usuário ${userName}? Esta ação revogará o acesso dele ao sistema.`)) {
+      await deleteUserDoc(userId);
+    }
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -178,6 +184,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
                     <option value="client">Cliente</option>
                     <option value="outsourced">Terceirizado</option>
                   </select>
+                  <button
+                    onClick={() => handleDeleteUser(user.id, user.name)}
+                    className="p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
+                    title="Excluir usuário"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))}
