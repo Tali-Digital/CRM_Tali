@@ -141,6 +141,34 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    function isValidInternalTaskList(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             data.defaultChecklist is list &&
+             (!('assignees' in data) || data.assignees is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidInternalTaskCard(data, isUpdate) {
+      let allowedFields = ['clientId', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      return data.keys().hasOnly(allowedFields) &&
+             (('clientId' in data && data.clientId is string) || 
+              ('title' in data && data.title is string) ||
+              ('clientName' in data && data.clientName is string)) &&
+             data.listId is string &&
+             data.companyId in ['digital', 'odonto'] &&
+             data.order is number &&
+             (isUpdate || data.createdAt is timestamp) &&
+             (!('type' in data) || data.type in ['client', 'custom']) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('checklist' in data) || data.checklist is list) &&
+             (!('assignees' in data) || data.assignees is list) &&
+             (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
+             (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
     function isValidNotification(data) {
       return data.userId is string &&
              data.title is string &&
@@ -211,6 +239,19 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidOperationCard(request.resource.data, false);
       allow update: if isAuthenticated() && isValidOperationCard(request.resource.data, true);
+      allow delete: if isAuthenticated();
+    }
+
+    match /internal_tasks_lists/{listId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidInternalTaskList(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /internal_tasks_cards/{cardId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidInternalTaskCard(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidInternalTaskCard(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
 
