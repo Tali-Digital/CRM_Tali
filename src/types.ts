@@ -147,12 +147,15 @@ export interface InternalTaskList {
 
 export interface InternalTaskCard {
   id: string;
+  clientId?: string;
   listId: string;
   companyId: string;
   order: number;
   createdAt?: any;
   updatedAt?: any;
-  title: string;
+  type?: 'client' | 'custom';
+  title?: string;
+  clientName?: string;
   checklist?: ChecklistItem[];
   notes?: string;
   assignees?: string[]; // Array of UserProfile ids

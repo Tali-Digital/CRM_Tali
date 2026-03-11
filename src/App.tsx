@@ -124,7 +124,7 @@ export default function App() {
         unsubTags();
       };
     }
-  }, [user]);
+  }, [user, selectedCompanyId]);
 
   const activeCommercialCards = commercialCards.filter(c => !c.deleted);
   const activeFinancialCards = financialCards.filter(c => !c.deleted);

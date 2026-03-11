@@ -370,72 +370,82 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newListName.trim()) return;
-    await addInternalTaskList({
-      name: newListName.trim(),
-      companyId,
-      order: lists.length,
-      defaultChecklist: []
-    });
-    setNewListName('');
-    setIsAddListOpen(false);
+    try {
+      await addInternalTaskList({
+        name: newListName.trim(),
+        companyId,
+        order: lists.length,
+        defaultChecklist: []
+      });
+      setNewListName('');
+      setIsAddListOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao criar lista: ' + (error instanceof Error ? error.message : 'Erro no servidor'));
+    }
   };
 
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeListId) return;
 
-    if (addCardStep === 'client') {
-      if (!newCardClientName) return;
-      
-      const targetList = lists.find(l => l.id === activeListId);
-      const client = clients.find(c => c.id === newCardClientName);
-      
-      let newChecklist = client ? [...(client.checklist || [])] : [];
-      
-      if (targetList && targetList.defaultChecklist) {
-        targetList.defaultChecklist.forEach(itemText => {
-          if (!newChecklist.some(item => item.text === itemText)) {
-            newChecklist.push({
-              id: Date.now().toString() + Math.random().toString(36).substring(7),
-              text: itemText,
-              completed: false
-            });
-          }
+    try {
+      if (addCardStep === 'client') {
+        if (!newCardClientName) return;
+        
+        const targetList = lists.find(l => l.id === activeListId);
+        const client = clients.find(c => c.id === newCardClientName);
+        
+        let newChecklist = client ? [...(client.checklist || [])] : [];
+        
+        if (targetList && targetList.defaultChecklist) {
+          targetList.defaultChecklist.forEach(itemText => {
+            if (!newChecklist.some(item => item.text === itemText)) {
+              newChecklist.push({
+                id: Date.now().toString() + Math.random().toString(36).substring(7),
+                text: itemText,
+                completed: false
+              });
+            }
+          });
+        }
+
+        await addInternalTaskCard({
+          clientId: newCardClientName,
+          listId: activeListId,
+          companyId,
+          order: cards.filter(c => c.listId === activeListId).length,
+          type: 'client',
+          updatedAt: new Date(),
+          ...(!client ? { checklist: newChecklist, notes: '' } : {})
+        });
+        
+        if (client) {
+          await updateClient(client.id, { checklist: newChecklist });
+        }
+      } else if (addCardStep === 'custom') {
+        if (!newCardTitle.trim()) return;
+
+        await addInternalTaskCard({
+          title: newCardTitle.trim(),
+          listId: activeListId,
+          companyId,
+          order: cards.filter(c => c.listId === activeListId).length,
+          type: 'custom',
+          notes: '',
+          checklist: [],
+          updatedAt: new Date()
         });
       }
-
-      await addInternalTaskCard({
-        clientId: newCardClientName,
-        listId: activeListId,
-        companyId,
-        order: cards.filter(c => c.listId === activeListId).length,
-        type: 'client',
-        updatedAt: new Date(),
-        ...(!client ? { checklist: newChecklist, notes: '' } : {})
-      });
       
-      if (client) {
-        await updateClient(client.id, { checklist: newChecklist });
-      }
-    } else if (addCardStep === 'custom') {
-      if (!newCardTitle.trim()) return;
-
-      await addInternalTaskCard({
-        title: newCardTitle.trim(),
-        listId: activeListId,
-        companyId,
-        order: cards.filter(c => c.listId === activeListId).length,
-        type: 'custom',
-        notes: '',
-        checklist: [],
-        updatedAt: new Date()
-      });
+      setNewCardClientName('');
+      setNewCardTitle('');
+      setIsAddCardOpen(false);
+      setAddCardStep('selection');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao criar card: ' + (error instanceof Error ? error.message : 'Erro no servidor'));
     }
-    
-    setNewCardClientName('');
-    setNewCardTitle('');
-    setIsAddCardOpen(false);
-    setAddCardStep('selection');
   };
 
   const openAddCard = (listId: string) => {

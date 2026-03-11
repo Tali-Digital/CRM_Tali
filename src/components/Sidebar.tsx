@@ -22,7 +22,6 @@ interface Props {
 export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange }) => {
   const menuItems: any[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'clientes', icon: Users, label: 'Clientes' },
     { type: 'header', label: 'Blocos da Agência' },
     { id: 'comercial', icon: TrendingUp, label: 'Comercial' },
     { id: 'integracao', icon: UserPlus, label: 'Integração do Cliente' },
@@ -77,6 +76,17 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange }) =
       </nav>
 
       <div className="pt-4 border-t space-y-1 border-white/10">
+        <button
+          onClick={() => onTabChange('clientes')}
+          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+            activeTab === 'clientes' 
+              ? activeItemClasses 
+              : itemHoverClasses
+          }`}
+        >
+          <Users size={20} />
+          <span className="text-sm font-bold">Clientes</span>
+        </button>
         <button 
           onClick={onLogout}
           className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all hover:bg-red-600 hover:text-white text-white/80"
