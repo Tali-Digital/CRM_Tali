@@ -23,7 +23,8 @@ import {
   User as FirebaseUser,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
+  signOut,
+  updatePassword
 } from 'firebase/auth';
 import { 
   saveUser, 
@@ -145,6 +146,23 @@ export default function App() {
     }
   };
 
+  const handleRecoverGoogle = async () => {
+    setIsAuthLoading(true);
+    setAuthError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      await updatePassword(result.user, '@Talih5tower');
+      alert('SUCESSO! Sua senha foi alterada forçadamente para @Talih5tower. Agora você já pode entrar apenas com email e senha normalmente.');
+      await signOut(auth);
+    } catch (error: any) {
+      console.error(error);
+      setAuthError('Falha ao redefinir a conta: ' + error.message);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center font-nunito">
@@ -209,6 +227,13 @@ export default function App() {
             </button>
           </form>
 
+          <button 
+            type="button"
+            onClick={handleRecoverGoogle}
+            className="text-xs text-stone-400 hover:text-stone-900 transition-colors font-medium underline mt-4"
+          >
+            Erro no link do email? Clique aqui para forçar a nova senha (@Talih5tower) usando seu Google.
+          </button>
 
         </div>
       </div>
