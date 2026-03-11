@@ -161,7 +161,9 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"}>
-      <h1 className="bg-red-500 text-white p-2 text-center font-bold">DEBUG: COMPONENT UPDATED</h1>
+      <div className="bg-red-600 text-white p-4 text-center font-black animate-pulse text-2xl mb-4">
+        ESTA É A VERSÃO COM DROPDOWN DE CLIENTES
+      </div>
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
