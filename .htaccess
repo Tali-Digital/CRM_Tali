@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /crm/
+
+  # Se tentar acessar um arquivo que não existe na raiz, direciona para o dist
+  RewriteCond %{REQUEST_URI} !^/crm/dist/
+  # Exceções: não redirecionar arquivos .php, .html ou a própria pasta dist se já acessada
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ dist/index.html [L]
+
+  # Redireciona tudo que não for arquivo válido para dentro da dist
+  RewriteCond %{REQUEST_URI} !^/crm/dist/
+  RewriteRule ^(.*)$ dist/$1 [L]
+</IfModule>
