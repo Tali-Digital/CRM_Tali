@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /crm/
+  RewriteBase /
 
   # Regras para forçar a não-cache de arquivos HTML (incluindo o index)
   <IfModule mod_headers.c>
@@ -13,14 +13,14 @@
 
   # Se tentar acessar um arquivo que não existe na raiz (como uma URL do react-router)
   # direciona direto pro index.html de dentro da pasta dist
-  RewriteCond %{REQUEST_URI} !^/crm/dist/
+  RewriteCond %{REQUEST_URI} !^/dist/
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^(.*)$ dist/index.html [L]
 
-  # Se for um arquivo válido na raiz (como o site map, robo.txt etc)
-  # Ou se estiver acessando a raiz geral vazia (/crm/), busca ela de dentro do dist
-  RewriteCond %{REQUEST_URI} !^/crm/dist/
+  # Se for um arquivo válido (como o map, favicon etc)
+  # Ou se estiver acessando a raiz geral (/), busca ela de dentro do dist
+  RewriteCond %{REQUEST_URI} !^/dist/
   RewriteRule ^(.*)$ dist/$1 [L]
 
 </IfModule>
