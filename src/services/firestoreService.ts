@@ -163,7 +163,7 @@ export const saveUser = async (user: any) => {
       role = userSnap.data().role;
     }
     
-    if (user.email === 'tali.agenciadigital@gmail.com') {
+    if (user.email === 'tali.agenciadigital@gmail.com' || user.email === 'diogotorres2907@gmail.com') {
       role = 'admin';
     }
 
