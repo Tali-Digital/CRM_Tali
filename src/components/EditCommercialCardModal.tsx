@@ -10,9 +10,10 @@ interface EditCommercialCardModalProps {
   onClose: () => void;
   card: CommercialCard | null;
   client?: Client;
+  clients: Client[];
 }
 
-export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = ({ isOpen, onClose, card, client }) => {
+export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = ({ isOpen, onClose, card, client, clients }) => {
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -22,6 +23,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState('');
 
   useEffect(() => {
     const unsubscribe = subscribeToUsers(setUsers);
@@ -36,6 +38,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       setAssignedUserIds(card?.assignees || []);
       setStartDate(card?.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card?.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
+      setSelectedClientId(card?.clientId || '');
     } else if (card) {
       setClientName(card.type === 'custom' ? (card.title || '') : (card.clientName || ''));
       setNotes(card.notes || '');
@@ -43,6 +46,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
+      setSelectedClientId(card.clientId || '');
     }
   }, [card, client]);
 
@@ -54,19 +58,34 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
     e.preventDefault();
     setIsSaving(true);
     
-    if (client) {
-      await updateClient(client.id, {
-        name: clientName,
-        notes,
-        checklist
-      });
-      // Also update the card's assignees if it's a client card
-      await updateCommercialCard(card.id, {
-        assignees: assignedUserIds,
-        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-        deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-        updatedAt: new Date()
-      });
+    if (client || selectedClientId) {
+      const finalClientId = client?.id || selectedClientId;
+      const finalClient = clients.find(c => c.id === finalClientId);
+      
+      if (finalClient && !client) {
+         // Newly linking a client - update card to client type
+         await updateCommercialCard(card.id, {
+           clientId: finalClientId,
+           type: 'client',
+           title: '',
+           assignees: assignedUserIds,
+           startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+           deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+           updatedAt: new Date()
+         });
+      } else if (finalClient && client) {
+        await updateClient(finalClient.id, {
+          name: clientName,
+          notes,
+          checklist
+        });
+        await updateCommercialCard(card.id, {
+          assignees: assignedUserIds,
+          startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+          deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+          updatedAt: new Date()
+        });
+      }
     } else {
       await updateCommercialCard(card.id, {
         ...(isCustom ? { title: clientName } : { clientName }),
@@ -144,6 +163,26 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
           />
           {client && <p className="text-xs text-stone-400">Para alterar o nome, acesse a aba Clientes.</p>}
         </div>
+
+        {!client && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+              <Users size={14} />
+              Vincular Cliente Central
+            </label>
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+            >
+              <option value="">Nenhum cliente central vinculado</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-stone-400">Ao vincular, este card passará a usar os dados do cliente central.</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">

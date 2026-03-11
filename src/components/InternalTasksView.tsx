@@ -639,6 +639,7 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
           onClose={() => setEditingCard(null)} 
           card={editingCard} 
           client={clients.find(c => c.id === editingCard.clientId)}
+          clients={clients}
         />
       )}
     </div>

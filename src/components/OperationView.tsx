@@ -637,6 +637,7 @@ export const OperationView: React.FC<OperationViewProps> = ({ companyId, lists, 
           onClose={() => setEditingCard(null)} 
           card={editingCard} 
           client={clients.find(c => c.id === editingCard.clientId)}
+          clients={clients}
         />
       )}
     </div>
