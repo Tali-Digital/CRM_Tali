@@ -242,10 +242,7 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-stone-900 flex flex-col items-center justify-center p-6 font-nunito">
-        <div className="bg-red-600 text-white p-6 text-center font-black animate-bounce text-4xl mb-8 w-full max-w-2xl rounded-3xl z-[9999]">
-          DEBUG LOGIN: SE VOCÊ ESTÁ VENDO ISSO, O CÓDIGO ESTÁ ATUALIZADO NO NAVEGADOR
-        </div>
+      <div className="min-h-screen bg-stone-900 flex items-center justify-center p-6 font-nunito">
         <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-stone-200 text-center">
           <div className="w-16 h-16 bg-stone-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Briefcase size={32} className="text-stone-800" />
