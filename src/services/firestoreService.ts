@@ -157,6 +157,12 @@ export const saveUser = async (user: any) => {
   try {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists() && userSnap.data().role === 'deleted') {
+      try { await user.delete(); } catch(e) {} // try to delete auth account
+      await auth.signOut();
+      throw new Error('Conta desativada.');
+    }
     
     let role = 'client';
     if (userSnap.exists() && userSnap.data().role) {
@@ -222,7 +228,7 @@ export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 
 export const deleteUserDoc = async (userId: string) => {
   try {
     const userRef = doc(db, 'users', userId);
-    await deleteDoc(userRef);
+    await updateDoc(userRef, { role: 'deleted' });
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
   }
@@ -262,7 +268,9 @@ export const markNotificationAsRead = async (notificationId: string) => {
 export const subscribeToUsers = (callback: (users: UserProfile[]) => void) => {
   const q = query(collection(db, 'users'));
   return onSnapshot(q, (snapshot) => {
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+    const users = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as UserProfile))
+      .filter((u: any) => u.role !== 'deleted');
     callback(users);
   }, (error) => {
     handleFirestoreError(error, OperationType.LIST, 'users');
