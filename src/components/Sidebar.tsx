@@ -8,14 +8,15 @@ import {
   Users,
   TrendingUp,
   UserPlus,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2
 } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface Props {
   onLogout: () => void;
-  activeTab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes';
-  onTabChange: (tab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes') => void;
+  activeTab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks';
+  onTabChange: (tab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks') => void;
 }
 
 export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange }) => {
@@ -26,6 +27,8 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange }) =
     { id: 'comercial', icon: TrendingUp, label: 'Comercial' },
     { id: 'integracao', icon: UserPlus, label: 'Integração do Cliente' },
     { id: 'operacao', icon: RefreshCw, label: 'Operação Contínua' },
+    { type: 'header', label: 'Tarefas Internas' },
+    { id: 'internal_tasks', icon: CheckCircle2, label: 'Tarefas Internas' },
   ];
 
   const themeClasses = 'bg-[#0C1122] text-white border-[#0C1122]';

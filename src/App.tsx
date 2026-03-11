@@ -10,9 +10,10 @@ import { CommercialView } from './components/CommercialView';
 import { FinancialView } from './components/FinancialView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
+import { InternalTasksView } from './components/InternalTasksView';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, Client, Tag } from './types';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock } from 'lucide-react';
 import { auth } from './firebase';
@@ -35,6 +36,8 @@ import {
   subscribeToFinancialCards, 
   subscribeToOperationLists,
   subscribeToOperationCards,
+  subscribeToInternalTaskLists,
+  subscribeToInternalTaskCards,
   subscribeToClients, 
   subscribeToTags 
 } from './services/firestoreService';
@@ -42,7 +45,7 @@ import {
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -52,6 +55,8 @@ export default function App() {
   const [financialCards, setFinancialCards] = useState<FinancialCard[]>([]);
   const [operationLists, setOperationLists] = useState<OperationList[]>([]);
   const [operationCards, setOperationCards] = useState<OperationCard[]>([]);
+  const [internalTaskLists, setInternalTaskLists] = useState<InternalTaskList[]>([]);
+  const [internalTaskCards, setInternalTaskCards] = useState<InternalTaskCard[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,18 +90,23 @@ export default function App() {
       const unsubCommCards = subscribeToCommercialCards(selectedCompanyId, setCommercialCards);
       const unsubFinLists = subscribeToFinancialLists(selectedCompanyId, setFinancialLists);
       const unsubFinCards = subscribeToFinancialCards(selectedCompanyId, setFinancialCards);
-      const unsubOpLists = subscribeToOperationLists(selectedCompanyId, setOperationLists);
-      const unsubOpCards = subscribeToOperationCards(selectedCompanyId, setOperationCards);
+      const unsubOperationLists = subscribeToOperationLists(selectedCompanyId, setOperationLists);
+      const unsubOperationCards = subscribeToOperationCards(selectedCompanyId, setOperationCards);
+      const unsubInternalLists = subscribeToInternalTaskLists(selectedCompanyId, setInternalTaskLists);
+      const unsubInternalCards = subscribeToInternalTaskCards(selectedCompanyId, setInternalTaskCards);
       const unsubClients = subscribeToClients(selectedCompanyId, setClients);
       const unsubTags = subscribeToTags(selectedCompanyId, setTags);
+      
       return () => {
         unsubUsers();
         unsubCommLists();
         unsubCommCards();
         unsubFinLists();
         unsubFinCards();
-        unsubOpLists();
-        unsubOpCards();
+        unsubOperationLists();
+        unsubOperationCards();
+        unsubInternalLists();
+        unsubInternalCards();
         unsubClients();
         unsubTags();
       };
@@ -403,6 +413,8 @@ export default function App() {
         return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards} clients={clients} tags={tags} users={users} />;
       case 'operacao':
         return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards} clients={clients} tags={tags} users={users} />;
+      case 'internal_tasks':
+        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards} clients={clients} tags={tags} users={users} />;
       default:
         return null;
     }
@@ -419,8 +431,8 @@ export default function App() {
       <main className="flex-1 ml-64 p-8 font-nunito h-screen flex flex-col">
         <header className="flex items-center justify-between mb-10 shrink-0">
           <div>
-            <h1 className="text-3xl font-bold text-stone-900">{selectedCompanyName}</h1>
-            <p className="text-stone-500 text-sm mt-1">Bem-vindo de volta, {user.displayName?.split(' ')[0] || 'Usuário'}.</p>
+            <h1 className="text-3xl font-bold text-stone-900">{user.displayName || user.email?.split('@')[0] || 'Usuário'}</h1>
+            <p className="text-stone-500 text-sm mt-1">Bem-vindo de volta!</p>
           </div>
 
           <div className="flex items-center space-x-6">

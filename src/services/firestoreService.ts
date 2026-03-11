@@ -13,7 +13,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, Client, Tag, Notification } from '../types';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -521,5 +521,92 @@ export const deleteOperationCard = async (cardId: string) => {
     await deleteDoc(doc(db, 'operation_cards', cardId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
+  }
+};
+
+
+export const subscribeToInternalTaskLists = (companyId: CompanyType, callback: (lists: InternalTaskList[]) => void) => {
+  const q = query(collection(db, 'internal_tasks_lists'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InternalTaskList));
+    callback(lists.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'internal_tasks_lists');
+  });
+};
+
+export const subscribeToInternalTaskCards = (companyId: CompanyType, callback: (cards: InternalTaskCard[]) => void) => {
+  const q = query(collection(db, 'internal_tasks_cards'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InternalTaskCard));
+    callback(cards.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'internal_tasks_cards');
+  });
+};
+
+
+export const addInternalTaskList = async (list: Omit<InternalTaskList, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'internal_tasks_lists'), {
+      ...list,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'internal_tasks_lists');
+  }
+};
+
+export const updateInternalTaskList = async (listId: string, data: Partial<InternalTaskList>) => {
+  try {
+    const listRef = doc(db, 'internal_tasks_lists', listId);
+    await updateDoc(listRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_lists/${listId}`);
+  }
+};
+
+export const deleteInternalTaskList = async (listId: string) => {
+  try {
+    // 1. Delete the list
+    await deleteDoc(doc(db, 'internal_tasks_lists', listId));
+
+    // 2. Delete all cards in this list
+    const q = query(collection(db, 'internal_tasks_cards'), where('listId', '==', listId));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `internal_tasks_lists/${listId}`);
+  }
+};
+
+export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'internal_tasks_cards'), {
+      ...card,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'internal_tasks_cards');
+  }
+};
+
+export const updateInternalTaskCard = async (cardId: string, data: Partial<InternalTaskCard>) => {
+  try {
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    await updateDoc(cardRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
+  }
+};
+
+export const deleteInternalTaskCard = async (cardId: string) => {
+  try {
+    await deleteDoc(doc(db, 'internal_tasks_cards', cardId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
   }
 };

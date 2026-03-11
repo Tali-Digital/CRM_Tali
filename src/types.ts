@@ -132,6 +132,31 @@ export interface OperationCard {
   deliveryDate?: any;
 }
 
+export interface InternalTaskList {
+  id: string;
+  name: string;
+  companyId: string;
+  order: number;
+  defaultChecklist: string[];
+  assignees?: string[]; // Array of UserProfile ids
+  createdAt?: any;
+}
+
+export interface InternalTaskCard {
+  id: string;
+  listId: string;
+  companyId: string;
+  order: number;
+  createdAt?: any;
+  updatedAt?: any;
+  title: string;
+  checklist?: ChecklistItem[];
+  notes?: string;
+  assignees?: string[]; // Array of UserProfile ids
+  startDate?: any;
+  deliveryDate?: any;
+}
+
 export interface Company {
   id: CompanyType;
   name: string;
