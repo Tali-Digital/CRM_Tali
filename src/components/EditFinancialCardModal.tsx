@@ -93,8 +93,13 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
 
   const handleDelete = async () => {
     if (window.confirm('Deseja mover este card para a lixeira? Você poderá recuperá-lo no gestor de cards.')) {
-      await deleteFinancialCard(card.id);
-      onClose();
+      try {
+        await deleteFinancialCard(card.id);
+        onClose();
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao mover card para lixeira. Verifique sua conexão ou permissões.');
+      }
     }
   };
 

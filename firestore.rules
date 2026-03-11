@@ -67,15 +67,17 @@ service cloud.firestore {
     }
 
     function isValidCommercialCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'clientName', 'assignees', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'clientName', 'assignees', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
-             (('clientId' in data && data.clientId is string) || 
-              ('title' in data && data.title is string) || 
-              ('clientName' in data && data.clientName is string)) &&
-             data.listId is string &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             (isUpdate || data.createdAt is timestamp) &&
+             (isUpdate || (
+               (('clientId' in data && data.clientId is string) || 
+                ('title' in data && data.title is string) || 
+                ('clientName' in data && data.clientName is string)) &&
+               data.listId is string &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
              (!('type' in data) || data.type in ['client', 'custom']) &&
              (!('notes' in data) || data.notes is string) &&
              (!('checklist' in data) || data.checklist is list) &&
@@ -96,15 +98,17 @@ service cloud.firestore {
     }
 
     function isValidFinancialCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
-             (('clientId' in data && data.clientId is string) || 
-              ('title' in data && data.title is string) ||
-              ('clientName' in data && data.clientName is string)) &&
-             data.listId is string &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             (isUpdate || data.createdAt is timestamp) &&
+             (isUpdate || (
+               (('clientId' in data && data.clientId is string) || 
+                ('title' in data && data.title is string) ||
+                ('clientName' in data && data.clientName is string)) &&
+               data.listId is string &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
              (!('type' in data) || data.type in ['client', 'custom']) &&
              (!('notes' in data) || data.notes is string) &&
              (!('checklist' in data) || data.checklist is list) &&
@@ -125,15 +129,17 @@ service cloud.firestore {
     }
 
     function isValidOperationCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
-             (('clientId' in data && data.clientId is string) || 
-              ('title' in data && data.title is string) ||
-              ('clientName' in data && data.clientName is string)) &&
-             data.listId is string &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             (isUpdate || data.createdAt is timestamp) &&
+             (isUpdate || (
+               (('clientId' in data && data.clientId is string) || 
+                ('title' in data && data.title is string) ||
+                ('clientName' in data && data.clientName is string)) &&
+               data.listId is string &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
              (!('type' in data) || data.type in ['client', 'custom']) &&
              (!('notes' in data) || data.notes is string) &&
              (!('checklist' in data) || data.checklist is list) &&
@@ -154,15 +160,17 @@ service cloud.firestore {
     }
 
     function isValidInternalTaskCard(data, isUpdate) {
-      let allowedFields = ['clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
       return data.keys().hasOnly(allowedFields) &&
-             (('clientId' in data && data.clientId is string) || 
-              ('title' in data && data.title is string) ||
-              ('clientName' in data && data.clientName is string)) &&
-             data.listId is string &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             (isUpdate || data.createdAt is timestamp) &&
+             (isUpdate || (
+               (('clientId' in data && data.clientId is string) || 
+                ('title' in data && data.title is string) ||
+                ('clientName' in data && data.clientName is string)) &&
+               data.listId is string &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
              (!('type' in data) || data.type in ['client', 'custom']) &&
              (!('notes' in data) || data.notes is string) &&
              (!('checklist' in data) || data.checklist is list) &&

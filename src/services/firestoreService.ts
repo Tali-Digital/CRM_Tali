@@ -397,7 +397,10 @@ export const updateCommercialCard = async (cardId: string, data: Partial<Commerc
 export const deleteCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, { deleted: true });
+    await updateDoc(cardRef, { 
+      deleted: true,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
   }
@@ -480,7 +483,10 @@ export const updateFinancialCard = async (cardId: string, data: Partial<Financia
 export const deleteFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, { deleted: true });
+    await updateDoc(cardRef, { 
+      deleted: true,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
   }
@@ -563,7 +569,10 @@ export const updateOperationCard = async (cardId: string, data: Partial<Operatio
 export const deleteOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, { deleted: true });
+    await updateDoc(cardRef, { 
+      deleted: true,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
   }
@@ -668,7 +677,10 @@ export const updateInternalTaskCard = async (cardId: string, data: Partial<Inter
 export const deleteInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, { deleted: true });
+    await updateDoc(cardRef, { 
+      deleted: true,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
   }

@@ -93,8 +93,13 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
 
   const handleDelete = async () => {
     if (window.confirm('Deseja mover este card para a lixeira? Você poderá recuperá-lo no gestor de cards.')) {
-      await deleteInternalTaskCard(card.id);
-      onClose();
+      try {
+        await deleteInternalTaskCard(card.id);
+        onClose();
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao mover card para lixeira. Verifique sua conexão ou permissões.');
+      }
     }
   };
 

@@ -93,8 +93,13 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
 
   const handleDelete = async () => {
     if (window.confirm('Deseja mover este card para a lixeira? Você poderá recuperá-lo no gestor de cards.')) {
-      await deleteCommercialCard(card.id);
-      onClose();
+      try {
+        await deleteCommercialCard(card.id);
+        onClose();
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao mover card para lixeira. Verifique sua conexão ou permissões.');
+      }
     }
   };
 
