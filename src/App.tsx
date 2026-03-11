@@ -434,11 +434,11 @@ export default function App() {
                   <div className="flex-1 min-h-0">
                     <UnifiedDashboardBoard 
                       commercialLists={commercialLists}
-                      commercialCards={commercialCards}
+                      commercialCards={commercialCards.filter(c => !c.deleted)}
                       financialLists={financialLists}
-                      financialCards={financialCards}
+                      financialCards={financialCards.filter(c => !c.deleted)}
                       operationLists={operationLists}
-                      operationCards={operationCards}
+                      operationCards={operationCards.filter(c => !c.deleted)}
                       clients={clients}
                       tags={tags}
                       users={users}
@@ -471,13 +471,13 @@ export default function App() {
           />
         );
       case 'comercial':
-        return <CommercialView companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards} clients={clients} tags={tags} users={users} />;
+        return <CommercialView companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
       case 'integracao':
-        return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards} clients={clients} tags={tags} users={users} />;
+        return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
       case 'operacao':
-        return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards} clients={clients} tags={tags} users={users} />;
+        return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
       case 'internal_tasks':
-        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards} clients={clients} tags={tags} users={users} />;
+        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
       default:
         return null;
     }

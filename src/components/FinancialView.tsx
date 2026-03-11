@@ -157,23 +157,6 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
         </div>
       )}
 
-      {(card.startDate || card.deliveryDate) && (
-        <div className="flex items-center gap-3 ml-6 mt-2">
-          {card.startDate && (
-            <div className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
-              <Calendar size={10} />
-              <span>{formatDate(card.startDate)}</span>
-            </div>
-          )}
-          {card.deliveryDate && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue(card.deliveryDate) ? 'text-red-500' : 'text-stone-500'}`}>
-              <Calendar size={10} />
-              <span>{formatDate(card.deliveryDate)}</span>
-            </div>
-          )}
-        </div>
-      )}
-
       {card.assignees && card.assignees.length > 0 && (
         <div className="flex -space-x-2 mt-2 ml-6">
           {card.assignees.map(userId => {
