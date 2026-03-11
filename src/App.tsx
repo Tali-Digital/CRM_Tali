@@ -232,26 +232,6 @@ export default function App() {
     }
   };
 
-  const handleDevLogin = () => {
-    // Mock user for local development
-    const mockUser = {
-      uid: 'dev-user-id',
-      email: 'diogotorres2907@gmail.com',
-      displayName: 'Desenvolvedor'
-    } as FirebaseUser;
-    
-    // Create a mock UserProfile for the dev user
-    const mockProfile: UserProfile = {
-      id: 'dev-user-id',
-      email: 'diogotorres2907@gmail.com',
-      name: 'Desenvolvedor',
-      photoURL: '',
-      role: 'admin'
-    };
-    
-    setUsers(prev => [...prev.filter(u => u.id !== 'dev-user-id'), mockProfile]);
-    setUser(mockUser);
-  };
 
   if (loading) {
     return (
@@ -337,15 +317,6 @@ export default function App() {
             <span>Entrar com Google</span>
           </button>
 
-          {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-            <button 
-              onClick={handleDevLogin}
-              type="button"
-              className="w-full flex items-center justify-center space-x-3 bg-red-50 border border-red-200 text-red-700 py-3.5 rounded-xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all font-bold group"
-            >
-              <span>Entrar como Desenvolvedor (Localhost)</span>
-            </button>
-          )}
 
         </div>
       </div>
