@@ -41,13 +41,18 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(fields);
     }
 
-    function isValidCommercialList(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             data.defaultChecklist is list &&
+    function isValidCommercialList(data, isUpdate) {
+      return (isUpdate || (
+               data.name is string && data.name.size() > 0 &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('order' in data) || data.order is number) &&
+             (!('defaultChecklist' in data) || data.defaultChecklist is list) &&
              (!('assignees' in data) || data.assignees is list) &&
-             data.createdAt is timestamp;
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidTag(data) {
@@ -56,14 +61,20 @@ service cloud.firestore {
              data.companyId in ['digital', 'odonto'];
     }
 
-    function isValidClient(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.themeColor in ['blue', 'yellow'] &&
-             data.serviceTags is list &&
-             data.checklist is list &&
-             data.notes is string &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.createdAt is timestamp;
+    function isValidClient(data, isUpdate) {
+      return (isUpdate || (
+               data.name is string && data.name.size() > 0 &&
+               data.themeColor in ['blue', 'yellow'] &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.createdAt is timestamp
+             )) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('themeColor' in data) || data.themeColor in ['blue', 'yellow']) &&
+             (!('serviceTags' in data) || data.serviceTags is list) &&
+             (!('checklist' in data) || data.checklist is list) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('companyId' in data) || data.companyId in ['digital', 'odonto']) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidCommercialCard(data, isUpdate) {
@@ -89,13 +100,18 @@ service cloud.firestore {
              (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
-    function isValidFinancialList(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             data.defaultChecklist is list &&
+    function isValidFinancialList(data, isUpdate) {
+      return (isUpdate || (
+               data.name is string && data.name.size() > 0 &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('order' in data) || data.order is number) &&
+             (!('defaultChecklist' in data) || data.defaultChecklist is list) &&
              (!('assignees' in data) || data.assignees is list) &&
-             data.createdAt is timestamp;
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidFinancialCard(data, isUpdate) {
@@ -121,13 +137,18 @@ service cloud.firestore {
              (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
-    function isValidOperationList(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             data.defaultChecklist is list &&
+    function isValidOperationList(data, isUpdate) {
+      return (isUpdate || (
+               data.name is string && data.name.size() > 0 &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('order' in data) || data.order is number) &&
+             (!('defaultChecklist' in data) || data.defaultChecklist is list) &&
              (!('assignees' in data) || data.assignees is list) &&
-             data.createdAt is timestamp;
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidOperationCard(data, isUpdate) {
@@ -153,13 +174,18 @@ service cloud.firestore {
              (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
-    function isValidInternalTaskList(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.companyId in ['digital', 'odonto'] &&
-             data.order is number &&
-             data.defaultChecklist is list &&
+    function isValidInternalTaskList(data, isUpdate) {
+      return (isUpdate || (
+               data.name is string && data.name.size() > 0 &&
+               data.companyId in ['digital', 'odonto'] &&
+               data.order is number &&
+               data.createdAt is timestamp
+             )) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('order' in data) || data.order is number) &&
+             (!('defaultChecklist' in data) || data.defaultChecklist is list) &&
              (!('assignees' in data) || data.assignees is list) &&
-             data.createdAt is timestamp;
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidInternalTaskCard(data, isUpdate) {
@@ -221,7 +247,8 @@ service cloud.firestore {
 
     match /commercial_lists/{listId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidCommercialList(request.resource.data);
+      allow create: if isAuthenticated() && isValidCommercialList(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidCommercialList(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
 
@@ -234,7 +261,8 @@ service cloud.firestore {
 
     match /financial_lists/{listId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidFinancialList(request.resource.data);
+      allow create: if isAuthenticated() && isValidFinancialList(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidFinancialList(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
 
@@ -247,7 +275,8 @@ service cloud.firestore {
 
     match /operation_lists/{listId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidOperationList(request.resource.data);
+      allow create: if isAuthenticated() && isValidOperationList(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidOperationList(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
 
@@ -260,7 +289,8 @@ service cloud.firestore {
 
     match /internal_tasks_lists/{listId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidInternalTaskList(request.resource.data);
+      allow create: if isAuthenticated() && isValidInternalTaskList(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidInternalTaskList(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
 
@@ -273,13 +303,15 @@ service cloud.firestore {
 
     match /tags/{tagId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidTag(request.resource.data);
+      allow create: if isAuthenticated() && isValidTag(request.resource.data);
+      allow update: if isAuthenticated() && isValidTag(request.resource.data);
       allow delete: if isAuthenticated();
     }
 
     match /clients/{clientId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidClient(request.resource.data);
+      allow create: if isAuthenticated() && isValidClient(request.resource.data, false);
+      allow update: if isAuthenticated() && isValidClient(request.resource.data, true);
       allow delete: if isAuthenticated();
     }
   }
