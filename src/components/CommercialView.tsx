@@ -293,12 +293,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
           >
             <CheckCircle2 size={16} />
           </button>
-          <button 
-            onClick={() => onEdit(card)}
-            className={`p-1 rounded-lg hover:bg-stone-100 ${iconColorClass}`}
-          >
-            <Edit2 size={14} />
-          </button>
         </div>
       </div>
       

@@ -11,6 +11,7 @@ import { FinancialView } from './components/FinancialView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
 import { InternalTasksView } from './components/InternalTasksView';
+import { ArchiveView } from './components/ArchiveView';
 import { AllCardsModal } from './components/AllCardsModal';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -68,7 +69,7 @@ import {
 export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'arquivo'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
@@ -589,6 +590,20 @@ export function App() {
         return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
         return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+      case 'arquivo':
+        return (
+          <ArchiveView 
+            commercialCards={commercialCards}
+            financialCards={financialCards}
+            operationCards={operationCards}
+            internalTaskCards={internalTaskCards}
+            users={users}
+            clients={clients}
+            tags={tags}
+            onRestore={handleRestoreCard}
+            onPermanentDelete={handlePermanentDelete}
+          />
+        );
       default:
         return null;
     }
