@@ -23,6 +23,7 @@ import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialC
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft } from 'lucide-react';
 import { auth } from './firebase';
+import logoLogin from './logo_login.png';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -418,9 +419,9 @@ export function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-stone-900 flex items-center justify-center p-6 font-nunito">
-        <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-stone-200 text-center">
-          <div className="mb-6 flex justify-center">
-            <Logo className="h-16 w-auto" />
+        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-stone-200 text-center">
+          <div className="mb-8 flex justify-center">
+            <img src={logoLogin} alt="CRM Talí Digital" className="h-20 w-auto" />
           </div>
           <h1 className="text-3xl font-bold text-stone-900 mb-2">CRM Talí Digital</h1>
           <p className="text-stone-500 mb-8">Faça login para gerenciar seus projetos.</p>
