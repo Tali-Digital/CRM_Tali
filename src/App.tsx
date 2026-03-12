@@ -8,11 +8,10 @@ import { Sidebar } from './components/Sidebar';
 import { UnifiedDashboardBoard } from './components/UnifiedDashboardBoard';
 import { CommercialView } from './components/CommercialView';
 import { FinancialView } from './components/FinancialView';
+import { InternalTasksView } from './components/InternalTasksView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
-import { InternalTasksView } from './components/InternalTasksView';
-import { ArchiveView } from './components/ArchiveView';
-import { AllCardsModal } from './components/AllCardsModal';
+import { UnifiedCardManagerModal } from './components/UnifiedCardManagerModal';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
@@ -69,7 +68,7 @@ import {
 export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'arquivo'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
@@ -97,7 +96,7 @@ export function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   // Modal states
-  const [isAllCardsModalOpen, setIsAllCardsModalOpen] = useState(false);
+  const [isCardManagerOpen, setIsCardManagerOpen] = useState(false);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -469,23 +468,6 @@ export function App() {
                 </div>
               </div>
 
-              <button 
-                onClick={() => setIsAllCardsModalOpen(true)}
-                className="flex items-center gap-3 bg-stone-900 text-white px-5 py-2.5 rounded-2xl transition-all cursor-pointer hover:bg-stone-800 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-stone-900/10 group"
-              >
-                <div className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
-                  <LayoutGrid size={18} className="text-white" />
-                </div>
-                <div className="flex flex-col items-start leading-tight">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Gestor Geral</span>
-                  <span className="text-sm font-black tracking-tight">Cards</span>
-                </div>
-                <div className="h-8 w-px bg-white/10 mx-1"></div>
-                <div className="flex flex-col items-center leading-tight">
-                  <span className="text-[10px] font-black text-white/60 mb-0.5">{totalActiveCards}</span>
-                  <span className="text-[8px] font-black uppercase tracking-tighter text-white/40 group-hover:text-white/60 transition-colors">Ativos</span>
-                </div>
-              </button>
             </section>
 
             <AnimatePresence mode="wait">
@@ -590,24 +572,15 @@ export function App() {
         return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
         return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
-      case 'arquivo':
-        return (
-          <ArchiveView 
-            commercialCards={commercialCards}
-            financialCards={financialCards}
-            operationCards={operationCards}
-            internalTaskCards={internalTaskCards}
-            users={users}
-            clients={clients}
-            tags={tags}
-            onRestore={handleRestoreCard}
-            onPermanentDelete={handlePermanentDelete}
-          />
-        );
       default:
         return null;
     }
   };
+
+  const activeCardsCount = commercialCards.filter(c => !c.deleted && !c.completed).length +
+    financialCards.filter(c => !c.deleted && !c.completed).length +
+    operationCards.filter(c => !c.deleted && !c.completed).length +
+    internalTaskCards.filter(c => !c.deleted && !c.completed).length;
 
   return (
     <div className="min-h-screen bg-stone-50 flex">
@@ -690,20 +663,22 @@ export function App() {
               />
             </div>
             <NotificationCenter userId={user.uid} />
-            <UserMenu user={user} userProfile={userProfile} />
+            <UserMenu user={user} userProfile={userProfile} onOpenCardManager={() => setIsCardManagerOpen(true)} />
           </div>
         </header>
 
         <div className="flex-1 min-h-0 p-8 pt-10">
           {renderContent()}
-          <AllCardsModal 
-        isOpen={isAllCardsModalOpen}
-        onClose={() => setIsAllCardsModalOpen(false)}
+      <UnifiedCardManagerModal 
+        isOpen={isCardManagerOpen}
+        onClose={() => setIsCardManagerOpen(false)}
         commercialCards={commercialCards}
         financialCards={financialCards}
         operationCards={operationCards}
         internalTaskCards={internalTaskCards}
         clients={clients}
+        users={users}
+        tags={tags}
         onRestoreCard={handleRestoreCard}
         onPermanentDelete={handlePermanentDelete}
       />

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { LogOut, User, Settings, Users, Key } from 'lucide-react';
+import { LogOut, User, Settings, Users, Key, Layers } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { UserManagementModal } from './UserManagementModal';
@@ -9,9 +9,10 @@ import { UserProfileModal } from './UserProfileModal';
 interface UserMenuProps {
   user: any;
   userProfile?: UserProfile;
+  onOpenCardManager: () => void;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -69,6 +70,14 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile }) => {
             >
               <Settings size={16} className="text-stone-400" />
               Meu Perfil
+            </button>
+
+            <button 
+              onClick={() => { onOpenCardManager(); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+            >
+              <Layers size={16} className="text-stone-400" />
+              Gestor de Cards
             </button>
             
             {userProfile?.role === 'admin' && (
