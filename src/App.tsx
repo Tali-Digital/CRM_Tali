@@ -131,10 +131,10 @@ export function App() {
     }
   }, [user, selectedCompanyId]);
 
-  const activeCommercialCards = commercialCards.filter(c => !c.deleted);
-  const activeFinancialCards = financialCards.filter(c => !c.deleted);
-  const activeOperationCards = operationCards.filter(c => !c.deleted);
-  const activeInternalTaskCards = internalTaskCards.filter(c => !c.deleted);
+  const activeCommercialCards = commercialCards.filter(c => !c.deleted && !c.completed);
+  const activeFinancialCards = financialCards.filter(c => !c.deleted && !c.completed);
+  const activeOperationCards = operationCards.filter(c => !c.deleted && !c.completed);
+  const activeInternalTaskCards = internalTaskCards.filter(c => !c.deleted && !c.completed);
 
   const totalCards = activeCommercialCards.length + 
     activeFinancialCards.length + 

@@ -50,13 +50,12 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
     try {
       await updateCommercialCard(card.id, {
         clientId: selectedClientId || '',
-        type: 'custom',
-        title: clientName,
+        title: isCustom ? clientName : null,
         notes,
         checklist,
         assignees: assignedUserIds,
-        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-        deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+        startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
+        deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date()
       });
       onClose();
@@ -115,46 +114,59 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"}>
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-            {selectedClientId ? <User size={14} /> : <Edit2 size={14} />}
-            Título do Card
-          </label>
-          <input 
-            required
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-          />
-        </div>
-
-
-        <div className="grid grid-cols-2 gap-4">
+        {isCustom ? (
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-              <Calendar size={14} />
-              Data de Início
+              <Edit2 size={14} />
+              Título do Card
             </label>
             <input 
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              required
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
             />
           </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-              <Calendar size={14} />
-              Data de Entrega
-            </label>
-            <input 
-              type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            />
+        ) : (
+          <div className="p-4 bg-stone-100 rounded-2xl border border-stone-200">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1">Cliente</label>
+            <div className="flex items-center gap-2">
+              <User size={16} className="text-stone-400" />
+              <span className="font-bold text-stone-900">{client?.name || card.clientName || 'Cliente vinculado'}</span>
+            </div>
+            <p className="text-[10px] text-stone-500 mt-2 italic font-medium">Nome gerido pela central de clientes.</p>
           </div>
-        </div>
+        )}
+
+
+        {isCustom && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                <Calendar size={14} />
+                Data de Início
+              </label>
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                <Calendar size={14} />
+                Data de Entrega
+              </label>
+              <input 
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">

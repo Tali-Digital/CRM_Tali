@@ -98,11 +98,71 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
+  if (isClient && client) {
+    return (
+      <div 
+        ref={setNodeRef}
+        style={style}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-3`}
+        onClick={() => onEdit(card)}
+      >
+        <div className={`p-3 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass}`}>
+              <GripVertical size={14} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
+                <User size={12} className={textColorClass} />
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+            }}
+            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+            title="Concluir Atendimento"
+          >
+            <CheckSquare size={14} />
+          </button>
+        </div>
+        
+        <div className="p-4">
+          <h4 className={`font-black text-base leading-tight ${textColorClass}`}>{title}</h4>
+          
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex -space-x-1.5">
+              {card.assignees?.map(userId => {
+                const u = users.find(user => user.id === userId);
+                if (!u) return null;
+                return (
+                  <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100" title={u.name}>
+                    {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {total > 0 && (
+              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
+                <CheckSquare size={10} />
+                {completed}/{total}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={setNodeRef}
       style={style}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative ${bgColorClass} ${isClient ? 'ring-2 ring-white ring-inset' : ''}`}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${bgColorClass} ${isClient ? 'ring-2 ring-white ring-inset' : ''}`}
       onClick={() => onEdit(card)}
     >
       <div className="flex justify-between items-start mb-2">
@@ -126,7 +186,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors"
             title="Marcar como concluído"
           >
-            <CheckCircle2 size={16} />
+            <CheckSquare size={16} />
           </button>
           <button 
             onClick={() => onEdit(card)}

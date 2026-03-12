@@ -94,15 +94,81 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       themeColor === 'blue' ? 'text-blue-900' :
       'text-stone-900';
 
+    if (isClient) {
+      return (
+        <div 
+          key={card.id} 
+          onClick={() => onNavigate(targetTab)}
+          className={`p-0 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset`}
+        >
+          <div className={`p-2 px-3 flex items-center justify-between border-b ${themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
+            <div className="flex items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500">
+              <div className={`p-1 rounded-lg ${themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
+                <User size={10} className={textColorClass} />
+              </div>
+              <span className={`text-[9px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
+            </div>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                const updateFn = 
+                  targetTab === 'comercial' ? onUpdateCommercialCard :
+                  targetTab === 'integracao' ? onUpdateFinancialCard :
+                  targetTab === 'operacao' ? onUpdateOperationCard :
+                  onUpdateInternalTaskCard;
+                updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+              title="Concluir Atendimento"
+            >
+              <CheckSquare size={14} />
+            </button>
+          </div>
+
+          <div className="p-4">
+            <h4 className={`font-black text-sm leading-tight ${textColorClass}`}>{clientName}</h4>
+            
+            {list && (
+              <div className="mt-2">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-stone-500 bg-stone-100/50 px-1.5 py-0.5 rounded-md">
+                  {list.name}
+                </span>
+              </div>
+            )}
+            
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex -space-x-1.5">
+                {card.assignees?.map((userId: string) => {
+                  const u = users.find(user => user.id === userId);
+                  if (!u) return null;
+                  return (
+                    <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100" title={u.name}>
+                      {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {total > 0 && (
+                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${completed === total ? (themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
+                  <CheckSquare size={10} />
+                  {completed}/{total}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div 
         key={card.id} 
         onClick={() => onNavigate(targetTab)}
-        className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass} ${isClient ? 'ring-2 ring-white ring-inset' : ''}`}
+        className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
       >
         <div className="flex justify-between items-start mb-2">
-          <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
-            {isClient && <User size={14} className="opacity-50" />}
+          <h4 className={`font-extrabold text-sm ${textColorClass}`}>
             {clientName}
           </h4>
           <button 
