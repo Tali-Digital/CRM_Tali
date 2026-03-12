@@ -71,16 +71,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
     try {
       if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: name,
-          photoURL: photoURL
-        });
+        // Try to update Auth profile if photoURL is not a long Base64 string
+        // Auth profile limits photoURL to ~2048 chars. Base64 is usually much longer.
+        const isLongBase64 = photoURL.startsWith('data:image') && photoURL.length > 2000;
+        
+        try {
+          await updateProfile(auth.currentUser, {
+            displayName: name,
+            photoURL: isLongBase64 ? auth.currentUser.photoURL : photoURL
+          });
+        } catch (authError: any) {
+          console.warn("Could not update Auth profile (likely URL too long), proceeding with Firestore update only.", authError);
+        }
 
         if (newPassword) {
           await updatePassword(auth.currentUser, newPassword);
         }
 
-        await saveUser(auth.currentUser);
+        // Always save to Firestore with the full photoURL (Base64 is supported here)
+        await saveUser(auth.currentUser, { name, photoURL });
+        
         setMessage({ text: 'Perfil atualizado com sucesso!', type: 'success' });
         setTimeout(() => onClose(), 2000);
       }

@@ -177,7 +177,7 @@ export const deleteClient = async (clientId: string) => {
   }
 };
 
-export const saveUser = async (user: any) => {
+export const saveUser = async (user: any, overrides?: { name?: string, photoURL?: string }) => {
   try {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
@@ -198,9 +198,9 @@ export const saveUser = async (user: any) => {
     }
 
     await setDoc(userRef, {
-      name: user.displayName || user.email?.split('@')[0] || 'Usuário',
+      name: overrides?.name || user.displayName || user.email?.split('@')[0] || 'Usuário',
       email: user.email,
-      photoURL: user.photoURL || '',
+      photoURL: overrides?.photoURL || user.photoURL || '',
       role: role
     }, { merge: true });
   } catch (error) {

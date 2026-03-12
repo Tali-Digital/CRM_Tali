@@ -48,13 +48,13 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
         onClick={() => setIsOpen(!isOpen)}
         className="w-10 h-10 bg-stone-200 rounded-full flex items-center justify-center text-stone-600 border border-stone-300 overflow-hidden hover:ring-2 hover:ring-stone-400 transition-all"
       >
-        {user.photoURL ? <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : <User size={20} />}
+        {(userProfile?.photoURL || user.photoURL) ? <img src={userProfile?.photoURL || user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : <User size={20} />}
       </button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
           <div className="px-4 py-3 border-b border-stone-100">
-            <p className="text-sm font-bold text-stone-900 truncate">{user.displayName || 'Usuário'}</p>
+            <p className="text-sm font-bold text-stone-900 truncate">{userProfile?.name || user.displayName || 'Usuário'}</p>
             <p className="text-xs text-stone-500 truncate">{user.email}</p>
             {userProfile?.role && (
               <span className="inline-block mt-1 bg-stone-100 text-stone-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">

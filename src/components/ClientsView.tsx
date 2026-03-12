@@ -187,13 +187,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             </thead>
             <tbody>
               {filteredClients.map(client => {
-                const commCard = commercialCards.find(c => c.clientId === client.id && !c.deleted);
+                // Prioritize 'client' type cards (primary client cards)
+                const commCard = commercialCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
                 const commList = commCard ? commercialLists.find(l => l.id === commCard.listId) : null;
                 
-                const finCard = financialCards.find(c => c.clientId === client.id && !c.deleted);
+                const finCard = financialCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
                 const finList = finCard ? financialLists.find(l => l.id === finCard.listId) : null;
 
-                const opCard = operationCards.find(c => c.clientId === client.id && !c.deleted);
+                const opCard = operationCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
                 const opList = opCard ? operationLists.find(l => l.id === opCard.listId) : null;
 
                 const handleRowClick = () => {
