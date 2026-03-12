@@ -6,13 +6,16 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { UnifiedDashboardBoard } from './components/UnifiedDashboardBoard';
+import { UnifiedDashboardList } from './components/UnifiedDashboardList';
 import { CommercialView } from './components/CommercialView';
 import { FinancialView } from './components/FinancialView';
 import { InternalTasksView } from './components/InternalTasksView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
-import { UnifiedCardManagerModal } from './components/UnifiedCardManagerModal';
+import { UnifiedCardManagerView } from './components/UnifiedCardManagerView';
 import { UserMenu } from './components/UserMenu';
+import { UserProfileModal } from './components/UserProfileModal';
+import { UserManagementModal } from './components/UserManagementModal';
 import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
@@ -68,7 +71,7 @@ import {
 export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
@@ -96,7 +99,9 @@ export function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   // Modal states
-  const [isCardManagerOpen, setIsCardManagerOpen] = useState(false);
+  const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -447,10 +452,6 @@ export function App() {
                     </button>
                   </div>
                 )}
-                <button className="flex items-center space-x-2 bg-white border border-stone-200 px-4 py-2 rounded-lg text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors">
-                  <Filter size={16} />
-                  <span>Filtrar</span>
-                </button>
                 <div className="h-6 w-px bg-stone-200"></div>
                 <div className="flex bg-stone-200 p-1 rounded-lg">
                   <button 
@@ -541,9 +542,16 @@ export function App() {
                     />
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-stone-400 flex-1">
-                    <p>Visualização em lista em desenvolvimento...</p>
-                  </div>
+                  <UnifiedDashboardList 
+                    commercialCards={commercialCards}
+                    financialCards={financialCards}
+                    operationCards={operationCards}
+                    internalTaskCards={internalTaskCards}
+                    clients={clients}
+                    tags={tags}
+                    users={users}
+                    onNavigate={setActiveTab}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>
@@ -572,6 +580,20 @@ export function App() {
         return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
         return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+      case 'gestao':
+        return (
+          <UnifiedCardManagerView 
+            commercialCards={commercialCards}
+            financialCards={financialCards}
+            operationCards={operationCards}
+            internalTaskCards={internalTaskCards}
+            clients={clients}
+            users={users}
+            tags={tags}
+            onRestoreCard={handleRestoreCard}
+            onPermanentDelete={handlePermanentDelete}
+          />
+        );
       default:
         return null;
     }
@@ -663,24 +685,29 @@ export function App() {
               />
             </div>
             <NotificationCenter userId={user.uid} />
-            <UserMenu user={user} userProfile={userProfile} onOpenCardManager={() => setIsCardManagerOpen(true)} />
+              <UserMenu 
+                user={user} 
+                userProfile={userProfile} 
+                onOpenCardManager={() => setActiveTab('gestao')}
+                onOpenProfile={() => setIsProfileOpen(true)}
+                onOpenManagement={() => setIsManagementOpen(true)}
+              />
           </div>
         </header>
 
         <div className="flex-1 min-h-0 p-8 pt-10">
           {renderContent()}
-      <UnifiedCardManagerModal 
-        isOpen={isCardManagerOpen}
-        onClose={() => setIsCardManagerOpen(false)}
-        commercialCards={commercialCards}
-        financialCards={financialCards}
-        operationCards={operationCards}
-        internalTaskCards={internalTaskCards}
-        clients={clients}
-        users={users}
-        tags={tags}
-        onRestoreCard={handleRestoreCard}
-        onPermanentDelete={handlePermanentDelete}
+      {userProfile?.role === 'admin' && (
+        <UserManagementModal 
+          isOpen={isManagementOpen} 
+          onClose={() => setIsManagementOpen(false)} 
+        />
+      )}
+
+      <UserProfileModal 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        user={user}
       />
     </div>
 

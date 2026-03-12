@@ -704,13 +704,6 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => setIsCompletedModalOpen(true)}
-            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
-          >
-            <Archive size={16} />
-            Ver Concluídos
-          </button>
-          <button 
             onClick={() => setIsAddListOpen(true)}
             className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
           >
@@ -906,16 +899,6 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
         />
       )}
 
-      <CompletedCardsModal 
-        isOpen={isCompletedModalOpen} 
-        onClose={() => setIsCompletedModalOpen(false)} 
-        cards={completedCards}
-        title="Cards Concluídos - Integração"
-        onRestore={async (cardId) => {
-          await updateFinancialCard(cardId, { completed: false, completedAt: null });
-        }}
-        onPermanentDelete={permanentDeleteFinancialCard}
-      />
     </div>
   );
 };

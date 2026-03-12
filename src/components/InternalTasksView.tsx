@@ -7,7 +7,6 @@ import { motion } from 'motion/react';
 import { Modal } from './Modal';
 import { ListSettingsModal } from './ListSettingsModal';
 import { EditInternalTaskCardModal } from './EditInternalTaskCardModal';
-import { CompletedCardsModal } from './CompletedCardsModal';
 import {
   DndContext,
   closestCorners,
@@ -705,13 +704,6 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
           <p className="text-stone-500 text-sm mt-1">Gerencie as suas tarefas internas e da sua equipe.</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={() => setIsCompletedModalOpen(true)}
-            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
-          >
-            <Archive size={16} />
-            Ver Concluídos
-          </button>
           <button 
             onClick={() => setIsAddListOpen(true)}
             className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"

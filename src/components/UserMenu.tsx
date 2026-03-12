@@ -10,12 +10,12 @@ interface UserMenuProps {
   user: any;
   userProfile?: UserProfile;
   onOpenCardManager: () => void;
+  onOpenProfile: () => void;
+  onOpenManagement: () => void;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isManagementOpen, setIsManagementOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
 
           <div className="py-2">
             <button 
-              onClick={() => { setIsProfileOpen(true); setIsOpen(false); }}
+              onClick={() => { onOpenProfile(); setIsOpen(false); }}
               className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
             >
               <Settings size={16} className="text-stone-400" />
@@ -82,7 +82,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
             
             {userProfile?.role === 'admin' && (
               <button 
-                onClick={() => { setIsManagementOpen(true); setIsOpen(false); }}
+                onClick={() => { onOpenManagement(); setIsOpen(false); }}
                 className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
               >
                 <Users size={16} className="text-stone-400" />
@@ -103,18 +103,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
         </div>
       )}
 
-      {userProfile?.role === 'admin' && (
-        <UserManagementModal 
-          isOpen={isManagementOpen} 
-          onClose={() => setIsManagementOpen(false)} 
-        />
-      )}
-
-      <UserProfileModal 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
-        user={user}
-      />
     </div>
   );
 };

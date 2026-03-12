@@ -11,7 +11,6 @@ import {
   permanentDeleteCommercialCard
 } from '../services/firestoreService';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive } from 'lucide-react';
-import { CompletedCardsModal } from './CompletedCardsModal';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
@@ -505,7 +504,6 @@ export const CommercialView: React.FC<CommercialViewProps> = ({ viewMode, cardFi
   
   const [editingList, setEditingList] = useState<CommercialList | null>(null);
   const [editingCard, setEditingCard] = useState<CommercialCard | null>(null);
-  const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const { pushAction } = useHistory();
 
   const activeCards = cards.filter(c => !c.completed && !c.deleted);
@@ -693,13 +691,6 @@ export const CommercialView: React.FC<CommercialViewProps> = ({ viewMode, cardFi
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => setIsCompletedModalOpen(true)}
-            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
-          >
-            <Archive size={16} />
-            Ver Concluídos
-          </button>
-          <button 
             onClick={() => setIsAddListOpen(true)}
             className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
           >
@@ -886,13 +877,6 @@ export const CommercialView: React.FC<CommercialViewProps> = ({ viewMode, cardFi
           onMoveToSector={(target) => editingCard && onMoveToSector(editingCard, target)}
         />
       )}
-
-      <CompletedCardsModal 
-        isOpen={isCompletedModalOpen}
-        onClose={() => setIsCompletedModalOpen(false)}
-        cards={completedCards}
-        title="Cards Concluídos - Comercial"
-      />
     </div>
   );
 };
