@@ -75,6 +75,8 @@ export interface CommercialCard {
   startDate?: any;
   deliveryDate?: any;
   deleted?: boolean;
+  completed?: boolean;
+  completedAt?: any;
   // Legacy fields for backward compatibility
   clientName?: string;
 }
@@ -105,6 +107,8 @@ export interface FinancialCard {
   startDate?: any;
   deliveryDate?: any;
   deleted?: boolean;
+  completed?: boolean;
+  completedAt?: any;
 }
 
 export interface OperationList {
@@ -133,6 +137,8 @@ export interface OperationCard {
   startDate?: any;
   deliveryDate?: any;
   deleted?: boolean;
+  completed?: boolean;
+  completedAt?: any;
 }
 
 export interface InternalTaskList {
@@ -162,6 +168,8 @@ export interface InternalTaskCard {
   startDate?: any;
   deliveryDate?: any;
   deleted?: boolean;
+  completed?: boolean;
+  completedAt?: any;
 }
 
 export interface Company {

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile } from '../types';
-import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient } from '../services/firestoreService';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar } from 'lucide-react';
+import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard } from '../services/firestoreService';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
 import { ListSettingsModal } from './ListSettingsModal';
 import { EditInternalTaskCardModal } from './EditInternalTaskCardModal';
+import { CompletedCardsModal } from './CompletedCardsModal';
 import {
   DndContext,
   closestCorners,
@@ -37,7 +38,7 @@ interface InternalTasksViewProps {
   users: UserProfile[];
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void> }) => {
   const {
     attributes,
     listeners,
@@ -96,12 +97,24 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
             <h4 className={`font-bold text-sm ${textColorClass}`}>{title}</h4>
           </div>
         </div>
-        <button 
-          onClick={() => onEdit(card)}
-          className={`opacity-0 group-hover:opacity-100 transition-opacity ${iconColorClass}`}
-        >
-          <Edit2 size={14} />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard(card.id, { completed: true, completedAt: new Date() });
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors"
+            title="Marcar como concluído"
+          >
+            <CheckCircle2 size={16} />
+          </button>
+          <button 
+            onClick={() => onEdit(card)}
+            className={`p-1 rounded-lg hover:bg-stone-100 ${iconColorClass}`}
+          >
+            <Edit2 size={14} />
+          </button>
+        </div>
       </div>
       
       {client?.serviceTags && client.serviceTags.length > 0 && (
@@ -183,7 +196,7 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
   );
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void> }) => {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
@@ -251,6 +264,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
               tags={tags}
               users={users}
               onEdit={onEditCard} 
+              onUpdateCard={onUpdateCard}
             />
           ))}
         </div>
@@ -279,7 +293,11 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
   
   const [editingList, setEditingList] = useState<InternalTaskList | null>(null);
   const [editingCard, setEditingCard] = useState<InternalTaskCard | null>(null);
+  const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const { pushAction } = useHistory();
+
+  const activeCards = cards.filter(c => !c.completed && !c.deleted);
+  const completedCards = cards.filter(c => c.completed);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -471,13 +489,22 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
           <h1 className="text-2xl font-bold text-stone-900">Tarefas Internas</h1>
           <p className="text-stone-500 text-sm mt-1">Gerencie as suas tarefas internas e da sua equipe.</p>
         </div>
-        <button 
-          onClick={() => setIsAddListOpen(true)}
-          className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
-        >
-          <Plus size={16} />
-          Nova Lista
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsCompletedModalOpen(true)}
+            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
+          >
+            <Archive size={16} />
+            Ver Concluídos
+          </button>
+          <button 
+            onClick={() => setIsAddListOpen(true)}
+            className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
+          >
+            <Plus size={16} />
+            Nova Lista
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto custom-scrollbar pb-4">
@@ -495,13 +522,14 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
                 <SortableList 
                   key={list.id} 
                   list={list} 
-                  cards={cards.filter(c => c.listId === list.id && !c.deleted)} 
+                  cards={activeCards.filter(c => c.listId === list.id)} 
                   clients={clients}
                   tags={tags}
                   users={users}
                   onEditCard={setEditingCard}
                   onSettings={() => setEditingList(list)}
                   onAddCard={() => openAddCard(list.id)}
+                  onUpdateCard={updateInternalTaskCard}
                 />
               ))}
 
@@ -650,8 +678,16 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
           card={editingCard} 
           client={clients.find(c => c.id === editingCard.clientId)}
           clients={clients}
+          users={users}
         />
       )}
+
+      <CompletedCardsModal 
+        isOpen={isCompletedModalOpen}
+        onClose={() => setIsCompletedModalOpen(false)}
+        cards={completedCards}
+        title="Cards Concluídos - Tarefas Internas"
+      />
     </div>
   );
 };

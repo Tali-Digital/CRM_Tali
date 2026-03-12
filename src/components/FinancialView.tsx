@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { FinancialList, FinancialCard, CompanyType, Client, Tag, UserProfile } from '../types';
-import { addFinancialList, addFinancialCard, updateFinancialCard, updateFinancialList, deleteFinancialList, updateClient } from '../services/firestoreService';
-import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar } from 'lucide-react';
+import { 
+  addFinancialList, 
+  addFinancialCard, 
+  updateFinancialCard, 
+  updateFinancialList, 
+  deleteFinancialList, 
+  updateClient, 
+  deleteFinancialCard 
+} from '../services/firestoreService';
+import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive } from 'lucide-react';
+import { CompletedCardsModal } from './CompletedCardsModal';
+import { useHistory } from '../context/HistoryContext';
 import { Timestamp } from 'firebase/firestore';
 import { Modal } from './Modal';
 import { ListSettingsModal } from './ListSettingsModal';
@@ -34,7 +44,7 @@ interface FinancialViewProps {
   users: UserProfile[];
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | number, card: FinancialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: FinancialCard) => void }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: FinancialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: FinancialCard) => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void> }) => {
   const {
     attributes,
     listeners,
@@ -93,12 +103,24 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
             <h4 className={`font-bold text-sm ${textColorClass}`}>{title}</h4>
           </div>
         </div>
-        <button 
-          onClick={() => onEdit(card)}
-          className={`opacity-0 group-hover:opacity-100 transition-opacity ${iconColorClass}`}
-        >
-          <Edit2 size={14} />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard(card.id, { completed: true, completedAt: new Date() });
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors"
+            title="Marcar como concluído"
+          >
+            <CheckCircle2 size={16} />
+          </button>
+          <button 
+            onClick={() => onEdit(card)}
+            className={`p-1 rounded-lg hover:bg-stone-100 ${iconColorClass}`}
+          >
+            <Edit2 size={14} />
+          </button>
+        </div>
       </div>
       
       {client?.serviceTags && client.serviceTags.length > 0 && (
@@ -180,7 +202,7 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
   );
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard }: { key?: string | number, list: FinancialList, cards: FinancialCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: FinancialCard) => void, onSettings: () => void, onAddCard: () => void }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard }: { key?: string | number, list: FinancialList, cards: FinancialCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: FinancialCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void> }) => {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
@@ -248,6 +270,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
               tags={tags}
               users={users}
               onEdit={onEditCard} 
+              onUpdateCard={onUpdateCard}
             />
           ))}
         </div>
@@ -276,6 +299,11 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
   
   const [editingList, setEditingList] = useState<FinancialList | null>(null);
   const [editingCard, setEditingCard] = useState<FinancialCard | null>(null);
+  const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
+  const { pushAction } = useHistory();
+
+  const activeCards = cards.filter(c => !c.completed && !c.deleted);
+  const completedCards = cards.filter(c => c.completed);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -339,10 +367,18 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
         });
       }
 
-      await updateFinancialCard(activeId, { 
-        listId: overListId,
-        order: cards.filter(c => c.listId === overListId).length,
-        ...(!activeClient ? { checklist: newChecklist } : {})
+      const previousListId = activeCard.listId;
+      const previousOrder = activeCard.order;
+      const newOrder = cards.filter(c => c.listId === overListId).length;
+
+      const executeMove = (listId: string, order: number) => updateFinancialCard(activeId, { listId, order });
+
+      await executeMove(overListId, newOrder);
+      
+      pushAction({
+        name: 'Mover Card',
+        undo: () => executeMove(previousListId, previousOrder),
+        redo: () => executeMove(overListId, newOrder)
       });
       
       if (activeClient) {
@@ -449,13 +485,22 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
           <h1 className="text-2xl font-bold text-stone-900">Integração do Cliente</h1>
           <p className="text-stone-500 text-sm mt-1">Gerencie o fluxo de integração e acompanhamento de novos clientes.</p>
         </div>
-        <button 
-          onClick={() => setIsAddListOpen(true)}
-          className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
-        >
-          <Plus size={16} />
-          Novo Setor
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsCompletedModalOpen(true)}
+            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
+          >
+            <Archive size={16} />
+            Ver Concluídos
+          </button>
+          <button 
+            onClick={() => setIsAddListOpen(true)}
+            className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
+          >
+            <Plus size={16} />
+            Novo Setor
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto custom-scrollbar pb-4">
@@ -473,13 +518,14 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
                 <SortableList 
                   key={list.id} 
                   list={list} 
-                  cards={cards.filter(c => c.listId === list.id && !c.deleted)} 
+                  cards={activeCards.filter(c => c.listId === list.id)} 
                   clients={clients}
                   tags={tags}
                   users={users}
                   onEditCard={setEditingCard}
                   onSettings={() => setEditingList(list)}
                   onAddCard={() => openAddCard(list.id)}
+                  onUpdateCard={updateFinancialCard}
                 />
               ))}
 
@@ -634,10 +680,17 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
           isOpen={!!editingCard} 
           onClose={() => setEditingCard(null)} 
           card={editingCard} 
-          client={clients.find(c => c.id === editingCard.clientId)}
           clients={clients}
+          users={users}
         />
       )}
+
+      <CompletedCardsModal 
+        isOpen={isCompletedModalOpen}
+        onClose={() => setIsCompletedModalOpen(false)}
+        cards={completedCards}
+        title="Cards Concluídos - Interação"
+      />
     </div>
   );
 };

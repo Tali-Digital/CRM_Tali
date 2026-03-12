@@ -11,37 +11,24 @@ interface EditInternalTaskCardModalProps {
   card: InternalTaskCard | null;
   client?: Client;
   clients: Client[];
+  users: UserProfile[];
 }
 
-export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps> = ({ isOpen, onClose, card, client, clients }) => {
+export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps> = ({ isOpen, onClose, card, client, clients, users }) => {
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [users, setUsers] = useState<UserProfile[]>([]);
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
 
-  useEffect(() => {
-    console.log('Rendering EditInternalTaskCardModal', { card, clients });
-    const unsubscribe = subscribeToUsers(setUsers);
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
-    if (client) {
-      setClientName(client.name);
-      setNotes(client.notes || '');
-      setChecklist(client.checklist || []);
-      setAssignedUserIds(card?.assignees || []);
-      setStartDate(card?.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
-      setDeliveryDate(card?.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
-      setSelectedClientId(card?.clientId || client?.id || '');
-    } else if (card) {
-      setClientName(card.type === 'custom' ? (card.title || '') : (card.clientName || ''));
+    if (card) {
+      setClientName(card.title || card.clientName || '');
       setNotes(card.notes || '');
       setChecklist(card.checklist || []);
       setAssignedUserIds(card.assignees || []);
