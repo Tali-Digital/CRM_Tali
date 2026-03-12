@@ -143,6 +143,82 @@ export function App() {
     }
   }, [user, selectedCompanyId]);
 
+  // Recurrence logic: Check every hour if any cards need to trigger a notification
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const checkRecurrence = async () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      // Only process at or after 6:00 AM
+      if (currentHour < 6) return;
+      
+      const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dayOfWeek = now.getDay(); // 0-6
+
+      const allActiveCards = [
+        ...commercialCards.filter(c => !c.deleted && !c.completed).map(c => ({...c, sector: 'comercial' as const, updateFn: updateCommercialCard})),
+        ...financialCards.filter(c => !c.deleted && !c.completed).map(c => ({...c, sector: 'integracao' as const, updateFn: updateFinancialCard})),
+        ...operationCards.filter(c => !c.deleted && !c.completed).map(c => ({...c, sector: 'operacao' as const, updateFn: updateOperationCard})),
+        ...internalTaskCards.filter(c => !c.deleted && !c.completed).map(c => ({...c, sector: 'internal_tasks' as const, updateFn: updateInternalTaskCard}))
+      ];
+
+      for (const card of allActiveCards) {
+        if (!card.recurrence?.enabled) continue;
+        if (card.recurrence.lastTriggeredDate === todayStr) continue;
+
+        let shouldTrigger = false;
+
+        if (card.recurrence.period === 'daily') {
+          shouldTrigger = true;
+        } else if (card.recurrence.period === 'weekly') {
+          if (card.recurrence.daysOfWeek?.includes(dayOfWeek)) {
+            shouldTrigger = true;
+          }
+        } else if (card.recurrence.period === 'monthly' || card.recurrence.period === 'yearly') {
+          // Simplification for now: trigger on the same day as created, or same day/month
+          const createdDate = card.createdAt instanceof Timestamp ? card.createdAt.toDate() : new Date(card.createdAt);
+          if (card.recurrence.period === 'monthly' && createdDate.getDate() === now.getDate()) {
+            shouldTrigger = true;
+          } else if (card.recurrence.period === 'yearly' && createdDate.getDate() === now.getDate() && createdDate.getMonth() === now.getMonth()) {
+            shouldTrigger = true;
+          }
+        }
+
+        if (shouldTrigger) {
+          // Trigger notification for all assignees
+          if (card.assignees && card.assignees.length > 0) {
+            const cardTitle = card.title || card.clientName || 'Card sem título';
+            
+            for (const assigneeId of card.assignees) {
+              await createNotification({
+                userId: assigneeId,
+                title: `Lembrete Recorrente: ${cardTitle}`,
+                message: `Este card está programado para lembrete ${card.recurrence.period}. Verifique as tarefas pendentes no setor ${card.sector}.`,
+                read: false,
+                link: card.sector
+              });
+            }
+
+            // Update lastTriggeredDate to avoid double trigger
+            await (card as any).updateFn(card.id, {
+              recurrence: {
+                ...card.recurrence,
+                lastTriggeredDate: todayStr
+              }
+            });
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkRecurrence, 1000 * 60 * 60); // Check every hour
+    checkRecurrence(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [user, loading, commercialCards, financialCards, operationCards, internalTaskCards]);
+
   const moveCardBetweenSectors = async (card: any, sourceSector: string, targetSector: string) => {
     if (!selectedCompanyId) return;
 

@@ -1,5 +1,14 @@
 export type CompanyType = 'odonto' | 'digital';
 export type SectorCardFilter = 'activities' | 'clients' | 'both';
+export type RecurrencePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface RecurrenceSettings {
+  enabled: boolean;
+  period: RecurrencePeriod;
+  interval: number;
+  daysOfWeek?: number[];
+  lastTriggeredDate?: string;
+}
 
 export interface Service {
   id: string;
@@ -80,6 +89,7 @@ export interface CommercialCard {
   completedAt?: any;
   // Legacy fields for backward compatibility
   clientName?: string;
+  recurrence?: RecurrenceSettings;
 }
 
 export interface FinancialList {
