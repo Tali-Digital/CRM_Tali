@@ -156,126 +156,14 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     const client = clients.find(c => c.id === card.clientId);
     const list = lists.find(l => l.id === card.listId);
     const isClient = card.type === 'client' && client;
-    const clientName = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
-    const themeColor = client?.themeColor || 'neutral';
+    const displayName = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
     const checklist = client?.checklist || card.checklist || [];
     const completed = checklist.filter((i: any) => i.completed).length;
     const total = checklist.length;
 
-    const bgColorClass = 
-      themeColor === 'yellow' ? 'bg-yellow-50 border-yellow-300 shadow-yellow-900/5' : 
-      themeColor === 'blue' ? 'bg-blue-50 border-blue-300 shadow-blue-900/5' :
-      'bg-stone-50 border-stone-200';
-    const textColorClass = 
-      themeColor === 'yellow' ? 'text-yellow-900' : 
-      themeColor === 'blue' ? 'text-blue-900' :
-      'text-stone-900';
-
-    if (isClient) {
-      return (
-        <div 
-          key={card.id} 
-          onClick={() => {
-            setQuickViewCard(card);
-            setQuickViewTab(targetTab);
-          }}
-          className={`p-0 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset`}
-        >
-          <div className={`p-2 px-3 flex items-center justify-between border-b ${themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
-            <div className="flex items-center gap-1.5 focus-within:ring-2 focus-within:ring-blue-500">
-              <div className={`p-1 rounded-lg ${themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
-                <User size={10} className={textColorClass} />
-              </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button 
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onNavigate(targetTab);
-                }}
-                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-                title="Ver no Setor"
-              >
-                <Edit2 size={12} />
-              </button>
-              <button 
-                type="button"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                    if (targetTab === 'comercial') await deleteCommercialCard(card.id);
-                    else if (targetTab === 'integracao') await deleteFinancialCard(card.id);
-                    else if (targetTab === 'operacao') await deleteOperationCard(card.id);
-                    else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
-                  }
-                }}
-                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-                title="Excluir Atendimento"
-              >
-                <Trash2 size={14} />
-              </button>
-              <button 
-                type="button"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (targetTab === 'comercial') await completeCommercialCard(card.id);
-                  else if (targetTab === 'integracao') await completeFinancialCard(card.id);
-                  else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                  else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
-                }}
-                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-                title="Concluir Atendimento"
-              >
-                <CheckSquare size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className={`font-black text-sm leading-tight ${textColorClass}`}>{clientName}</h4>
-              {card.recurrence?.enabled && (
-                <RotateCcw size={12} className={textColorClass} />
-              )}
-            </div>
-            
-            {list && (
-              <div className="mt-2">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-stone-500 bg-stone-100/50 px-1.5 py-0.5 rounded-md">
-                  {list.name}
-                </span>
-              </div>
-            )}
-            
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex -space-x-1.5">
-                {card.assignees?.map((userId: string) => {
-                  const u = users.find(user => user.id === userId);
-                  if (!u) return null;
-                  return (
-                    <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100" title={u.name}>
-                      {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {total > 0 && (
-                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${completed === total ? (themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
-                  <CheckSquare size={10} />
-                  {completed}/{total}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
+    // Background is now unified to white/stone-50
+    const bgColorClass = 'bg-white border-stone-200';
+    const textColorClass = 'text-stone-900';
 
     return (
       <div 
@@ -286,16 +174,24 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         }}
         className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
       >
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex items-center gap-2">
-            <h4 className={`font-extrabold text-sm ${textColorClass}`}>
-              {clientName}
-            </h4>
-            {card.recurrence?.enabled && (
-              <RotateCcw size={12} className={textColorClass} />
+        <div className="flex justify-between items-start mb-2 gap-2">
+          <div className="flex flex-col gap-1 min-w-0">
+            {/* Client Indicator (for both client-type cards and linked cards) */}
+            {client && (
+              <div className="flex items-center gap-1.5 mb-1 bg-stone-50 border border-stone-100 px-2 py-0.5 rounded-lg w-fit">
+                <User size={10} className="text-stone-400" />
+                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 truncate max-w-[150px]">
+                  {client.name}
+                </span>
+              </div>
             )}
+            
+            <h4 className={`font-extrabold text-sm leading-tight ${textColorClass} truncate`}>
+              {isClient ? 'Atendimento Geral' : displayName}
+            </h4>
           </div>
-          <div className="flex items-center gap-1">
+          
+          <div className="flex items-center gap-1 shrink-0">
             <button 
               type="button"
               onClick={(e) => {
@@ -303,7 +199,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 e.stopPropagation();
                 onNavigate(targetTab);
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Ver no Setor"
             >
               <Edit2 size={12} />
@@ -320,7 +216,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                   else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
                 }
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Excluir Atendimento"
             >
               <Trash2 size={12} />
@@ -335,7 +231,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 else if (targetTab === 'operacao') await completeOperationCard(card.id);
                 else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Marcar como concluído"
             >
               <CheckSquare size={16} />
@@ -343,13 +239,20 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           </div>
         </div>
         
-        {list && (
-          <div className="mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 bg-white/50 px-2 py-1 rounded-md">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {list && (
+            <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200/50">
               {list.name}
             </span>
-          </div>
-        )}
+          )}
+
+          {card.recurrence?.enabled && (
+            <div className="flex items-center gap-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-100">
+              <RotateCcw size={10} />
+              <span className="text-[9px] font-bold uppercase tracking-tighter">Recorrente</span>
+            </div>
+          )}
+        </div>
 
         {client?.serviceTags && client.serviceTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
@@ -369,47 +272,55 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           </div>
         )}
 
-        {total > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-stone-500 font-medium bg-white/50 w-fit px-2 py-1 rounded-md mb-2">
-            <CheckSquare size={12} className={completed === total ? 'text-green-500' : ''} />
-            <span className={completed === total ? 'text-green-600' : ''}>
-              {completed}/{total}
-            </span>
-          </div>
-        )}
-
-        {(card.startDate || card.deliveryDate || card.recurrence?.enabled) && (
-          <div className="flex flex-wrap items-center gap-3 mt-2">
-            {card.startDate && (
-              <div className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
-                <Calendar size={10} />
-                <span>{formatDate(card.startDate)}</span>
+        <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center gap-3">
+            {total > 0 && (
+              <div className={`flex items-center gap-1 text-[10px] font-bold ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
+                <CheckSquare size={12} />
+                <span>{completed}/{total}</span>
               </div>
             )}
-            {card.deliveryDate && (() => {
-              const proximity = getDateProximity(card.deliveryDate);
-              const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
-              return (
-                <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
-                  <Calendar size={10} />
-                  <span>{formatDate(card.deliveryDate)}</span>
-                </div>
-              );
-            })()}
-            {card.recurrence?.enabled && (() => {
-              const nextRec = getNextRecurrenceDate(card.recurrence);
-              if (!nextRec) return null;
-              const proximity = getDateProximity(nextRec);
-              const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
-              return (
-                <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
-                  <RotateCcw size={10} className={proximity === 'near' || proximity === 'overdue' ? 'animate-spin-slow' : ''} />
-                  <span>{formatDate(nextRec)}</span>
-                </div>
-              );
-            })()}
+
+            {(card.startDate || card.deliveryDate || card.recurrence?.enabled) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {card.deliveryDate && (() => {
+                  const proximity = getDateProximity(card.deliveryDate);
+                  const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
+                  return (
+                    <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
+                      <Calendar size={10} />
+                      <span>{formatDate(card.deliveryDate)}</span>
+                    </div>
+                  );
+                })()}
+                {card.recurrence?.enabled && (() => {
+                  const nextRec = getNextRecurrenceDate(card.recurrence);
+                  if (!nextRec) return null;
+                  const proximity = getDateProximity(nextRec);
+                  const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
+                  return (
+                    <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
+                      <RotateCcw size={10} />
+                      <span>{formatDate(nextRec)}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="flex -space-x-1.5">
+            {card.assignees?.map((userId: string) => {
+              const u = users.find(user => user.id === userId);
+              if (!u) return null;
+              return (
+                <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100 shadow-sm" title={u.name}>
+                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };

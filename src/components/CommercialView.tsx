@@ -78,17 +78,8 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   const isClient = card.type === 'client' && client;
   const title = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
   
-  const bgColorClass = isClient
-    ? client.themeColor === 'blue' 
-      ? 'bg-blue-50 border-blue-300 shadow-blue-900/5' 
-      : 'bg-yellow-50 border-yellow-300 shadow-yellow-900/5'
-    : 'bg-white border-stone-200';
-
-  const textColorClass = isClient
-    ? client.themeColor === 'blue' 
-      ? 'text-blue-900' 
-      : 'text-yellow-900'
-    : 'text-stone-900';
+  const bgColorClass = 'bg-white border-stone-200';
+  const textColorClass = 'text-stone-900';
 
   const iconColorClass = isClient
     ? client.themeColor === 'blue' 
