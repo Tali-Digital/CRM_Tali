@@ -892,16 +892,6 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
         />
       )}
 
-      <CompletedCardsModal 
-        isOpen={isCompletedModalOpen} 
-        onClose={() => setIsCompletedModalOpen(false)} 
-        cards={completedCards}
-        title="Cards Concluídos - Tarefas Internas"
-        onRestore={async (cardId) => {
-          await updateInternalTaskCard(cardId, { completed: false, completedAt: null });
-        }}
-        onPermanentDelete={permanentDeleteInternalTaskCard}
-      />
     </div>
   );
 };
