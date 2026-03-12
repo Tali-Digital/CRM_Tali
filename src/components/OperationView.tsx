@@ -18,6 +18,7 @@ import { Timestamp } from 'firebase/firestore';
 import { Modal } from './Modal';
 import { ListSettingsModal } from './ListSettingsModal';
 import { EditOperationCardModal } from './EditOperationCardModal';
+import { QuickViewCardModal } from './QuickViewCardModal';
 import {
   DndContext,
   closestCorners,
@@ -49,7 +50,7 @@ interface OperationViewProps {
   onMoveToSector: (card: OperationCard, targetSector: string) => void;
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMode }: { key?: string | number, card: OperationCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: OperationCard) => void, onUpdateCard: (cardId: string, data: Partial<OperationCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, viewMode }: { key?: string | number, card: OperationCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: OperationCard) => void, onQuickView: (card: OperationCard) => void, onUpdateCard: (cardId: string, data: Partial<OperationCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
   const {
     attributes,
     listeners,
@@ -119,7 +120,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
           ref={setNodeRef}
           style={style}
           className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} ring-2 ring-white ring-inset mb-1`}
-          onClick={() => onEdit(card)}
+          onClick={() => onQuickView(card)}
         >
           <div className="flex items-center gap-3 overflow-hidden">
             <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
@@ -136,18 +137,32 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
               </div>
             )}
           </div>
-          <button 
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await completeOperationCard(card.id);
-            }}
-            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
-            title="Concluir Atendimento"
-          >
-            <CheckSquare size={12} />
-          </button>
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit(card);
+              }}
+              className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Editar Card"
+            >
+              <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await completeOperationCard(card.id);
+              }}
+              className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
+              title="Concluir Atendimento"
+            >
+              <CheckSquare size={12} />
+            </button>
+          </div>
         </div>
       );
     }
@@ -156,7 +171,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
         ref={setNodeRef}
         style={style}
         className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-2`}
-        onClick={() => onEdit(card)}
+        onClick={() => onQuickView(card)}
       >
         <div className={`p-2 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
           <div className="flex items-center gap-1">
@@ -170,18 +185,32 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
               <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await completeOperationCard(card.id);
-            }}
-            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-            title="Concluir Atendimento"
-          >
-            <CheckSquare size={12} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit(card);
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Editar Card"
+            >
+              <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await completeOperationCard(card.id);
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Concluir Atendimento"
+            >
+              <CheckSquare size={12} />
+            </button>
+          </div>
         </div>
         
         <div className="p-3">
@@ -218,7 +247,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
         ref={setNodeRef}
         style={style}
         className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} mb-1`}
-        onClick={() => onEdit(card)}
+        onClick={() => onQuickView(card)}
       >
         <div className="flex items-center gap-3 overflow-hidden">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
@@ -246,6 +275,18 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
           </div>
           <button 
             type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit(card);
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+            title="Editar Card"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button 
+            type="button"
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -266,7 +307,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
       ref={setNodeRef}
       style={style}
       className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${bgColorClass}`}
-      onClick={() => onEdit(card)}
+      onClick={() => onQuickView(card)}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
@@ -374,7 +415,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
   );
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: OperationList, cards: OperationCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: OperationCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<OperationCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: OperationList, cards: OperationCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: OperationCard) => void, onQuickView: (card: OperationCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<OperationCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
@@ -457,6 +498,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
                       tags={tags}
                       users={users}
                       onEdit={onEditCard} 
+                      onQuickView={onQuickView}
                       onUpdateCard={onUpdateCard}
                       viewMode={viewMode}
                     />
@@ -484,6 +526,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
                       tags={tags}
                       users={users}
                       onEdit={onEditCard} 
+                      onQuickView={onQuickView}
                       onUpdateCard={onUpdateCard}
                       viewMode={viewMode}
                     />
@@ -517,6 +560,7 @@ export const OperationView: React.FC<OperationViewProps> = ({ viewMode, cardFilt
   
   const [editingList, setEditingList] = useState<OperationList | null>(null);
   const [editingCard, setEditingCard] = useState<OperationCard | null>(null);
+  const [quickViewCard, setQuickViewCard] = useState<OperationCard | null>(null);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const { pushAction } = useHistory();
 
@@ -617,6 +661,14 @@ export const OperationView: React.FC<OperationViewProps> = ({ viewMode, cardFilt
         });
       }
     }
+  };
+
+  const onEditCard = (card: OperationCard) => {
+    setEditingCard(card);
+  };
+
+  const onQuickView = (card: OperationCard) => {
+    setQuickViewCard(card);
   };
 
   const handleAddList = async (e: React.FormEvent) => {
@@ -735,6 +787,7 @@ export const OperationView: React.FC<OperationViewProps> = ({ viewMode, cardFilt
                   tags={tags}
                   users={users}
                   onEditCard={setEditingCard}
+                  onQuickView={setQuickViewCard}
                   onSettings={() => setEditingList(list)}
                   onAddCard={() => openAddCard(list.id)}
                   onUpdateCard={updateOperationCard}
@@ -900,6 +953,20 @@ export const OperationView: React.FC<OperationViewProps> = ({ viewMode, cardFilt
         />
       )}
 
+      <QuickViewCardModal 
+        isOpen={!!quickViewCard}
+        onClose={() => setQuickViewCard(null)}
+        card={quickViewCard}
+        client={clients.find(c => c.id === quickViewCard?.clientId)}
+        users={users}
+        tags={tags}
+        onEdit={() => {
+          if (quickViewCard) {
+            setEditingCard(quickViewCard);
+          }
+        }}
+        sector="operation"
+      />
     </div>
   );
 };

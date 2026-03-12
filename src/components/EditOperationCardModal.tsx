@@ -57,7 +57,8 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
         assignees: assignedUserIds,
         startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
         deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        recurrence: (card as any).recurrence || null
       });
 
       if (selectedClientId) {

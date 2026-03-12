@@ -62,7 +62,7 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
         startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
         deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date(),
-        recurrence: isCustom ? recurrence : undefined
+        recurrence: isCustom ? (recurrence || null) : null
       });
 
       if (selectedClientId) {

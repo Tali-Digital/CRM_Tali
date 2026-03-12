@@ -3,6 +3,8 @@ import { CommercialList, CommercialCard, FinancialList, FinancialCard, Operation
 import { CheckSquare, Calendar, User } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard } from '../services/firestoreService';
+import { QuickViewCardModal } from './QuickViewCardModal';
+import { Edit2, CheckCircle2 } from 'lucide-react';
 
 interface Props {
   commercialLists: CommercialList[];
@@ -43,8 +45,11 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   onUpdateCommercialCard,
   onUpdateFinancialCard,
   onUpdateOperationCard,
-  onUpdateInternalTaskCard
+  onUpdateInternalTaskCard,
 }) => {
+  const [quickViewCard, setQuickViewCard] = React.useState<any>(null);
+  const [quickViewTab, setQuickViewTab] = React.useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
+
   const isOverdue = (date: any) => {
     if (!date) return false;
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
@@ -99,7 +104,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       return (
         <div 
           key={card.id} 
-          onClick={() => onNavigate(targetTab)}
+          onClick={() => {
+            setQuickViewCard(card);
+            setQuickViewTab(targetTab);
+          }}
           className={`p-0 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset`}
         >
           <div className={`p-2 px-3 flex items-center justify-between border-b ${themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
@@ -109,21 +117,35 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               </div>
               <span className={`text-[9px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (targetTab === 'comercial') await completeCommercialCard(card.id);
-                else if (targetTab === 'integracao') await completeFinancialCard(card.id);
-                else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                else await completeInternalTaskCard(card.id);
-              }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-              title="Concluir Atendimento"
-            >
-              <CheckSquare size={14} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onNavigate(targetTab);
+                }}
+                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+                title="Ver no Setor"
+              >
+                <Edit2 size={12} />
+              </button>
+              <button 
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (targetTab === 'comercial') await completeCommercialCard(card.id);
+                  else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+                  else if (targetTab === 'operacao') await completeOperationCard(card.id);
+                  else await completeInternalTaskCard(card.id);
+                }}
+                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+                title="Concluir Atendimento"
+              >
+                <CheckSquare size={14} />
+              </button>
+            </div>
           </div>
 
           <div className="p-4">
@@ -165,28 +187,45 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     return (
       <div 
         key={card.id} 
-        onClick={() => onNavigate(targetTab)}
+        onClick={() => {
+          setQuickViewCard(card);
+          setQuickViewTab(targetTab);
+        }}
         className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
       >
         <div className="flex justify-between items-start mb-2">
           <h4 className={`font-extrabold text-sm ${textColorClass}`}>
             {clientName}
           </h4>
-          <button 
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (targetTab === 'comercial') await completeCommercialCard(card.id);
-              else if (targetTab === 'integracao') await completeFinancialCard(card.id);
-              else if (targetTab === 'operacao') await completeOperationCard(card.id);
-              else await completeInternalTaskCard(card.id);
-            }}
-            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-            title="Marcar como concluído"
-          >
-            <CheckSquare size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onNavigate(targetTab);
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Ver no Setor"
+            >
+              <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (targetTab === 'comercial') await completeCommercialCard(card.id);
+                else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+                else if (targetTab === 'operacao') await completeOperationCard(card.id);
+                else await completeInternalTaskCard(card.id);
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Marcar como concluído"
+            >
+              <CheckSquare size={16} />
+            </button>
+          </div>
         </div>
         
         {list && (
@@ -301,6 +340,24 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           {filteredInternalCards.map(card => renderCard(card, internalTaskLists, 'internal_tasks'))}
         </div>
       </div>
+
+      <QuickViewCardModal 
+        isOpen={!!quickViewCard}
+        onClose={() => {
+          setQuickViewCard(null);
+          setQuickViewTab(null);
+        }}
+        card={quickViewCard}
+        client={clients.find(c => c.id === quickViewCard?.clientId)}
+        users={users}
+        tags={tags}
+        onEdit={() => {
+          if (quickViewTab) {
+            onNavigate(quickViewTab);
+          }
+        }}
+        sector={quickViewTab === 'integracao' ? 'financial' : quickViewTab === 'operacao' ? 'operation' : quickViewTab === 'internal_tasks' ? 'internal' : (quickViewTab as any)}
+      />
     </div>
   );
 };

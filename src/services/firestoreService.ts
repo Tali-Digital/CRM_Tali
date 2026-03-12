@@ -43,6 +43,25 @@ export interface FirestoreErrorInfo {
   }
 }
 
+function sanitizeData(data: any): any {
+  if (data === null || typeof data !== 'object') {
+    return data;
+  }
+  
+  if (Array.isArray(data)) {
+    return data.map(sanitizeData);
+  }
+
+  const result: any = {};
+  Object.keys(data).forEach(key => {
+    const value = data[key];
+    if (value !== undefined) {
+      result[key] = sanitizeData(value);
+    }
+  });
+  return result;
+}
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -339,10 +358,10 @@ export const subscribeToOperationCards = (companyId: CompanyType, callback: (car
 
 export const addCommercialList = async (list: Omit<CommercialList, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'commercial_lists'), {
+    const docRef = await addDoc(collection(db, 'commercial_lists'), sanitizeData({
       ...list,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'commercial_lists');
@@ -352,7 +371,7 @@ export const addCommercialList = async (list: Omit<CommercialList, 'id'>) => {
 export const updateCommercialList = async (listId: string, data: Partial<CommercialList>) => {
   try {
     const listRef = doc(db, 'commercial_lists', listId);
-    await updateDoc(listRef, data);
+    await updateDoc(listRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `commercial_lists/${listId}`);
   }
@@ -375,10 +394,10 @@ export const deleteCommercialList = async (listId: string) => {
 
 export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'commercial_cards'), {
+    const docRef = await addDoc(collection(db, 'commercial_cards'), sanitizeData({
       ...card,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'commercial_cards');
@@ -388,7 +407,7 @@ export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
 export const updateCommercialCard = async (cardId: string, data: Partial<CommercialCard>) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, data);
+    await updateDoc(cardRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
   }
@@ -442,10 +461,10 @@ export const permanentDeleteCommercialCard = async (cardId: string) => {
 
 export const addFinancialList = async (list: Omit<FinancialList, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'financial_lists'), {
+    const docRef = await addDoc(collection(db, 'financial_lists'), sanitizeData({
       ...list,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'financial_lists');
@@ -455,7 +474,7 @@ export const addFinancialList = async (list: Omit<FinancialList, 'id'>) => {
 export const updateFinancialList = async (listId: string, data: Partial<FinancialList>) => {
   try {
     const listRef = doc(db, 'financial_lists', listId);
-    await updateDoc(listRef, data);
+    await updateDoc(listRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `financial_lists/${listId}`);
   }
@@ -478,10 +497,10 @@ export const deleteFinancialList = async (listId: string) => {
 
 export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'financial_cards'), {
+    const docRef = await addDoc(collection(db, 'financial_cards'), sanitizeData({
       ...card,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'financial_cards');
@@ -491,7 +510,7 @@ export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
 export const updateFinancialCard = async (cardId: string, data: Partial<FinancialCard>) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, data);
+    await updateDoc(cardRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
   }
@@ -545,10 +564,10 @@ export const permanentDeleteFinancialCard = async (cardId: string) => {
 
 export const addOperationList = async (list: Omit<OperationList, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'operation_lists'), {
+    const docRef = await addDoc(collection(db, 'operation_lists'), sanitizeData({
       ...list,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'operation_lists');
@@ -558,7 +577,7 @@ export const addOperationList = async (list: Omit<OperationList, 'id'>) => {
 export const updateOperationList = async (listId: string, data: Partial<OperationList>) => {
   try {
     const listRef = doc(db, 'operation_lists', listId);
-    await updateDoc(listRef, data);
+    await updateDoc(listRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `operation_lists/${listId}`);
   }
@@ -581,10 +600,10 @@ export const deleteOperationList = async (listId: string) => {
 
 export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'operation_cards'), {
+    const docRef = await addDoc(collection(db, 'operation_cards'), sanitizeData({
       ...card,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'operation_cards');
@@ -594,7 +613,7 @@ export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
 export const updateOperationCard = async (cardId: string, data: Partial<OperationCard>) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, data);
+    await updateDoc(cardRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
   }
@@ -670,10 +689,10 @@ export const subscribeToInternalTaskCards = (companyId: CompanyType, callback: (
 
 export const addInternalTaskList = async (list: Omit<InternalTaskList, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'internal_tasks_lists'), {
+    const docRef = await addDoc(collection(db, 'internal_tasks_lists'), sanitizeData({
       ...list,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'internal_tasks_lists');
@@ -683,7 +702,7 @@ export const addInternalTaskList = async (list: Omit<InternalTaskList, 'id'>) =>
 export const updateInternalTaskList = async (listId: string, data: Partial<InternalTaskList>) => {
   try {
     const listRef = doc(db, 'internal_tasks_lists', listId);
-    await updateDoc(listRef, data);
+    await updateDoc(listRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_lists/${listId}`);
   }
@@ -706,10 +725,10 @@ export const deleteInternalTaskList = async (listId: string) => {
 
 export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, 'internal_tasks_cards'), {
+    const docRef = await addDoc(collection(db, 'internal_tasks_cards'), sanitizeData({
       ...card,
       createdAt: Timestamp.now()
-    });
+    }));
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'internal_tasks_cards');
@@ -719,7 +738,7 @@ export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) =>
 export const updateInternalTaskCard = async (cardId: string, data: Partial<InternalTaskCard>) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, data);
+    await updateDoc(cardRef, sanitizeData(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
   }
