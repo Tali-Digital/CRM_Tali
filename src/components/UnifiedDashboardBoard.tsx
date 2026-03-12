@@ -109,16 +109,18 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               <span className={`text-[9px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
             <button 
-              onClick={(e) => {
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 const updateFn = 
                   targetTab === 'comercial' ? onUpdateCommercialCard :
                   targetTab === 'integracao' ? onUpdateFinancialCard :
                   targetTab === 'operacao' ? onUpdateOperationCard :
                   onUpdateInternalTaskCard;
-                updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+                await updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Concluir Atendimento"
             >
               <CheckSquare size={14} />
@@ -172,16 +174,18 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
             {clientName}
           </h4>
           <button 
-            onClick={(e) => {
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
               e.stopPropagation();
               const updateFn = 
                 targetTab === 'comercial' ? onUpdateCommercialCard :
                 targetTab === 'integracao' ? onUpdateFinancialCard :
                 targetTab === 'operacao' ? onUpdateOperationCard :
                 onUpdateInternalTaskCard;
-              updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+              await updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
             title="Marcar como concluído"
           >
             <CheckSquare size={16} />

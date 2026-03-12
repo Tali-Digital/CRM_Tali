@@ -593,15 +593,20 @@ export function App() {
       />
       
       <main className="flex-1 ml-64 font-nunito h-screen flex flex-col overflow-hidden bg-stone-50">
-        <header className="flex items-center justify-between p-8 pb-4 shrink-0 bg-stone-50/80 backdrop-blur-md sticky top-0 z-20">
-          <div>
-            <h1 className="text-3xl font-bold text-stone-900">{user.displayName || user.email?.split('@')[0] || 'Usuário'}</h1>
-            <p className="text-stone-500 text-sm mt-1">Bem-vindo de volta!</p>
-          </div>
+        <header className="flex items-center justify-between p-8 py-5 shrink-0 bg-white/70 backdrop-blur-xl sticky top-0 z-20 border-b border-stone-200/50 shadow-sm">
+          <div className="flex items-center gap-8">
+            <div>
+              <h1 className="text-2xl font-black text-stone-900 tracking-tight">Talí Agência Digital</h1>
+              <div className="flex items-center gap-2 text-stone-500 text-xs mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span>Olá, {user.displayName || user.email?.split('@')[0] || 'Usuário'}</span>
+              </div>
+            </div>
+            
+            <div className="h-8 w-[1px] bg-stone-200"></div>
 
-          <div className="flex items-center space-x-6">
             {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
-              <div className="flex bg-stone-200 p-1 rounded-lg">
+              <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
                 <button 
                   onClick={() => setSectorViewMode('kanban')}
                   className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'kanban' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
@@ -642,19 +647,21 @@ export function App() {
                 </button>
                 <button 
                   onClick={() => setSectorCardFilter('both')}
-                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
                 >
                   Duo
                 </button>
               </div>
             )}
+          </div>
 
+          <div className="flex items-center space-x-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
               <input 
                 type="text" 
                 placeholder="Buscar..." 
-                className="bg-white border border-stone-200 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 w-64 transition-all"
+                className="bg-stone-100 border border-stone-200 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 w-64 transition-all"
               />
             </div>
             <NotificationCenter userId={user.uid} />

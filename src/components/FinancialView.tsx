@@ -135,14 +135,16 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             )}
           </div>
           <button 
-            onClick={(e) => {
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0"
+            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
             title="Concluir Atendimento"
           >
-            <CheckCircle2 size={12} />
+            <CheckSquare size={12} />
           </button>
         </div>
       );
@@ -168,14 +170,16 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             </div>
           </div>
           <button 
-            onClick={(e) => {
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
             title="Concluir Atendimento"
           >
-            <CheckCircle2 size={12} />
+            <CheckSquare size={12} />
           </button>
         </div>
         
@@ -240,11 +244,13 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             })}
           </div>
           <button 
-            onClick={(e) => {
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0"
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
             title="Marcar como concluído"
           >
             <CheckCircle2 size={16} />
@@ -274,11 +280,13 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
-            onClick={(e) => {
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors"
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
             title="Marcar como concluído"
           >
             <CheckCircle2 size={16} />
