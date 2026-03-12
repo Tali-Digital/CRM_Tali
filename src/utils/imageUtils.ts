@@ -83,16 +83,55 @@ export async function getCroppedImg(
 
   // As a blob
   return new Promise((resolve, reject) => {
-    canvas.toBlob((file) => {
-      if (file) {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-          resolve(reader.result as string);
-        };
+    // Determine the resizing scale to keep the image small enough for Firestore (1MB limit for Base64)
+    // 400x400 is plenty for a profile picture
+    const MAX_SIZE = 400;
+    let targetWidth = pixelCrop.width;
+    let targetHeight = pixelCrop.height;
+
+    if (targetWidth > MAX_SIZE || targetHeight > MAX_SIZE) {
+      if (targetWidth > targetHeight) {
+        targetHeight = (targetHeight / targetWidth) * MAX_SIZE;
+        targetWidth = MAX_SIZE;
       } else {
-        reject(new Error('Canvas is empty'));
+        targetWidth = (targetWidth / targetHeight) * MAX_SIZE;
+        targetHeight = MAX_SIZE;
       }
-    }, 'image/jpeg', 0.8);
+    }
+
+    // Create a new canvas for the resized image
+    const resizedCanvas = document.createElement('canvas');
+    resizedCanvas.width = targetWidth;
+    resizedCanvas.height = targetHeight;
+    const resizedCtx = resizedCanvas.getContext('2d');
+    
+    if (resizedCtx) {
+      resizedCtx.drawImage(canvas, 0, 0, pixelCrop.width, pixelCrop.height, 0, 0, targetWidth, targetHeight);
+      
+      resizedCanvas.toBlob((file) => {
+        if (file) {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+        } else {
+          reject(new Error('Canvas is empty'));
+        }
+      }, 'image/jpeg', 0.7); // Low quality to ensure small file size
+    } else {
+      // Fallback if resizedCtx fails
+      canvas.toBlob((file) => {
+        if (file) {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+        } else {
+          reject(new Error('Canvas is empty'));
+        }
+      }, 'image/jpeg', 0.8);
+    }
   });
 }
