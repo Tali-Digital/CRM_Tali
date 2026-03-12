@@ -14,6 +14,7 @@ import { InternalTasksView } from './components/InternalTasksView';
 import { AllCardsModal } from './components/AllCardsModal';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
+import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock } from 'lucide-react';
@@ -55,7 +56,7 @@ import {
   deleteInternalTaskCard
 } from './services/firestoreService';
 
-export default function App() {
+export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
@@ -531,6 +532,14 @@ export default function App() {
 
       </main>
     </div>
+  );
+}
+
+export default function AppWithHistory() {
+  return (
+    <HistoryProvider>
+      <App />
+    </HistoryProvider>
   );
 }
 

@@ -51,17 +51,6 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
     }
   }, [card, client]);
 
-  // Update fields when selecting a different client
-  useEffect(() => {
-    if (selectedClientId) {
-      const selectedClient = clients.find(c => c.id === selectedClientId);
-      if (selectedClient && (!client || selectedClient.id !== client.id)) {
-        setClientName(selectedClient.name);
-        setNotes(selectedClient.notes || '');
-        setChecklist(selectedClient.checklist || []);
-      }
-    }
-  }, [selectedClientId, clients, client]);
 
   if (!card) return null;
 
@@ -72,40 +61,17 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
     setIsSaving(true);
     
     try {
-      if (selectedClientId) {
-        const finalClient = clients.find(c => c.id === selectedClientId);
-        
-        // Update client data if linked
-        if (finalClient) {
-          await updateClient(finalClient.id, {
-            notes,
-            checklist
-          });
-        }
-        
-        await updateInternalTaskCard(card.id, {
-          clientId: selectedClientId,
-          type: 'client',
-          title: '', // Custom title is cleared when linked to a client
-          clientName: '', // Use clientName from joined data in views
-          assignees: assignedUserIds,
-          startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-          deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-          updatedAt: new Date()
-        });
-      } else {
-        await updateInternalTaskCard(card.id, {
-          clientId: '',
-          type: 'custom',
-          title: clientName,
-          notes,
-          checklist,
-          assignees: assignedUserIds,
-          startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
-          deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
-          updatedAt: new Date()
-        });
-      }
+      await updateInternalTaskCard(card.id, {
+        clientId: selectedClientId || '',
+        type: 'custom', // Always treat as custom internally to keep its own data
+        title: clientName,
+        notes,
+        checklist,
+        assignees: assignedUserIds,
+        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+        deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+        updatedAt: new Date()
+      });
       onClose();
     } catch (err) {
       console.error(err);
@@ -165,16 +131,14 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
             {selectedClientId ? <User size={14} /> : <Edit2 size={14} />}
-            {selectedClientId ? "Nome do Cliente" : "Título do Card"}
+            Título do Card
           </label>
           <input 
             required
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            disabled={!!selectedClientId}
           />
-          {selectedClientId && <p className="text-xs text-stone-400">Para alterar o nome, acesse a aba Clientes.</p>}
         </div>
 
 

@@ -54,25 +54,14 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
     ...(isDragging ? { zIndex: 50, position: 'relative' as const } : {}),
   };
 
-  const isCustom = card.type === 'custom' || (!card.clientId && !!card.title);
   const checklist = client?.checklist || card.checklist || [];
   const completed = checklist.filter(i => i.completed).length;
   const total = checklist.length;
   
-  const clientName = isCustom ? (card.title || 'Nota Interna') : (client?.name || 'Cliente Desconhecido');
-  const themeColor = client?.themeColor || 'blue';
-  
-  const bgColorClass = isCustom 
-    ? 'bg-white border-stone-200 shadow-sm' 
-    : (themeColor === 'yellow' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200');
-  
-  const textColorClass = isCustom 
-    ? 'text-stone-900' 
-    : (themeColor === 'yellow' ? 'text-yellow-900' : 'text-blue-900');
-  
-  const iconColorClass = isCustom 
-    ? 'text-stone-400 hover:text-stone-600' 
-    : (themeColor === 'yellow' ? 'text-yellow-400 hover:text-yellow-600' : 'text-blue-400 hover:text-blue-600');
+  const title = card.title || client?.name || 'Card sem Título';
+  const bgColorClass = 'bg-white border-stone-200';
+  const textColorClass = 'text-stone-900';
+  const iconColorClass = 'text-stone-400 hover:text-stone-600';
 
   const isOverdue = (date: any) => {
     if (!date) return false;
@@ -101,10 +90,7 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
             <GripVertical size={14} />
           </div>
           <div className="flex flex-col">
-            {isCustom && (
-              <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Nota Interna</span>
-            )}
-            <h4 className={`font-bold text-sm ${textColorClass}`}>{clientName}</h4>
+            <h4 className={`font-bold text-sm ${textColorClass}`}>{title}</h4>
           </div>
         </div>
         <button 
@@ -115,7 +101,7 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
         </button>
       </div>
       
-      {!isCustom && client?.serviceTags && client.serviceTags.length > 0 && (
+      {client?.serviceTags && client.serviceTags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2 ml-6">
           {client.serviceTags.map(tagId => {
             const tag = tags.find(t => t.id === tagId);
@@ -157,27 +143,39 @@ const SortableCard = ({ card, client, tags, users, onEdit }: { key?: string | nu
         </div>
       )}
 
-      {card.assignees && card.assignees.length > 0 && (
-        <div className="flex -space-x-2 mt-2 ml-6">
-          {card.assignees.map(userId => {
-            const user = users.find(u => u.id === userId);
-            if (!user) return null;
-            return (
-              <div 
-                key={user.id} 
-                title={user.name}
-                className="w-5 h-5 rounded-full border border-white overflow-hidden bg-stone-200 flex items-center justify-center"
-              >
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[8px] font-bold text-stone-600">{user.name.charAt(0)}</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between mt-3 ml-6">
+          <div className="flex -space-x-2">
+            {card.assignees?.map(userId => {
+              const user = users.find(u => u.id === userId);
+              if (!user) return null;
+              return (
+                <div 
+                  key={user.id} 
+                  title={user.name}
+                  className="w-5 h-5 rounded-full border border-white overflow-hidden bg-stone-200 flex items-center justify-center shadow-sm"
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[8px] font-bold text-stone-600">{user.name.charAt(0)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {client && (
+            <div 
+              title={`Cliente: ${client.name}`}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-50 border border-stone-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${client.themeColor === 'yellow' ? 'bg-yellow-400' : 'bg-blue-400'}`} />
+              <span className="text-[9px] font-bold text-stone-500 truncate max-w-[80px] uppercase tracking-tight">
+                {client.name}
+              </span>
+            </div>
+          )}
         </div>
-      )}
     </div>
   );
 };
