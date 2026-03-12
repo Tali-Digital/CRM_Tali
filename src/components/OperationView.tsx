@@ -190,7 +190,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
               type="button"
               onClick={(e) => {
@@ -198,10 +198,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 e.stopPropagation();
                 onEdit(card);
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
               title="Editar Card"
             >
-              <Edit2 size={12} />
+              <Edit2 size={14} />
             </button>
             <button 
               type="button"
@@ -212,10 +212,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                   await deleteOperationCard(card.id);
                 }
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all z-30 relative cursor-pointer"
               title="Excluir Card"
             >
-              <Trash2 size={12} />
+              <Trash2 size={14} />
             </button>
             <button 
               type="button"
@@ -224,10 +224,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 e.stopPropagation();
                 await completeOperationCard(card.id);
               }}
-              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
               title="Concluir Atendimento"
             >
-              <CheckSquare size={12} />
+              <CheckSquare size={14} />
             </button>
           </div>
         </div>
@@ -369,6 +369,32 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
             type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit(card);
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
+            title="Editar Card"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button 
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                await deleteOperationCard(card.id);
+              }
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all z-30 relative cursor-pointer"
+            title="Excluir Card"
+          >
+            <Trash2 size={14} />
+          </button>
+          <button 
+            type="button"
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -377,28 +403,11 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
             title="Marcar como concluído"
           >
-            <CheckCircle2 size={16} />
+            <CheckSquare size={16} />
           </button>
         </div>
       </div>
       
-      {client?.serviceTags && client.serviceTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2 ml-6">
-          {client.serviceTags.map(tagId => {
-            const tag = tags.find(t => t.id === tagId);
-            if (!tag) return null;
-            return (
-              <span 
-                key={tag.id} 
-                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ backgroundColor: `${tag.color}20`, color: tag.color, border: `1px solid ${tag.color}40` }}
-              >
-                {tag.name}
-              </span>
-            );
-          })}
-        </div>
-      )}
 
       {total > 0 && (
         <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>

@@ -191,7 +191,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
             </h4>
           </div>
           
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
               type="button"
               onClick={(e) => {
@@ -199,10 +199,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 e.stopPropagation();
                 onNavigate(targetTab);
               }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
               title="Ver no Setor"
             >
-              <Edit2 size={12} />
+              <Edit2 size={14} />
             </button>
             <button 
               type="button"
@@ -216,10 +216,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                   else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
                 }
               }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-500 transition-all z-30 relative cursor-pointer"
               title="Excluir Atendimento"
             >
-              <Trash2 size={12} />
+              <Trash2 size={14} />
             </button>
             <button 
               type="button"
@@ -231,7 +231,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 else if (targetTab === 'operacao') await completeOperationCard(card.id);
                 else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
               }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
               title="Marcar como concluído"
             >
               <CheckSquare size={16} />
@@ -254,23 +254,6 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           )}
         </div>
 
-        {client?.serviceTags && client.serviceTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {client.serviceTags.map(tagId => {
-              const tag = tags.find(t => t.id === tagId);
-              if (!tag) return null;
-              return (
-                <span 
-                  key={tag.id} 
-                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: `${tag.color}20`, color: tag.color, border: `1px solid ${tag.color}40` }}
-                >
-                  {tag.name}
-                </span>
-              );
-            })}
-          </div>
-        )}
 
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-3">
