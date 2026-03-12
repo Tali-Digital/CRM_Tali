@@ -47,6 +47,11 @@ function sanitizeData(data: any): any {
   if (data === null || typeof data !== 'object') {
     return data;
   }
+
+  // Se for Date ou Timestamp, retornar como está (o SDK do Firebase cuidará da conversão)
+  if (data instanceof Date || (data && typeof data.toDate === 'function')) {
+    return data;
+  }
   
   if (Array.isArray(data)) {
     return data.map(sanitizeData);
