@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard } from '../types';
+import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, UserProfile } from '../types';
 import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
-import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus, ExternalLink } from 'lucide-react';
 import { Modal } from './Modal';
+import { QuickViewCardModal } from './QuickViewCardModal';
 
 interface ClientsViewProps {
   companyId: CompanyType;
@@ -14,7 +15,16 @@ interface ClientsViewProps {
   financialCards: FinancialCard[];
   operationLists: OperationList[];
   operationCards: OperationCard[];
+  users: UserProfile[];
 }
+
+const DriveIcon = ({ size = 20 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 125 111.6" width={size} height={(size * 111.6) / 125}>
+    <path d="M43.1 1.2L0 75.8l20.4 34.6 43.1-74.6z" fill="#34A853"/>
+    <path d="M82.2 1.2L39 1.2l-20.4 34.6 43.1 74.6 20.4-34.6z" fill="#4285F4"/>
+    <path d="M125 75.8L104.6 110.4H19.6l20.4-34.6H125z" fill="#FBBC04"/>
+  </svg>
+);
 
 const isLightColor = (color: string) => {
   const hex = color.replace('#', '');
@@ -35,10 +45,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   financialLists,
   financialCards,
   operationLists,
-  operationCards
+  operationCards,
+  users
 }) => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [selectedCardForQuickView, setSelectedCardForQuickView] = useState<any>(null);
+  const [selectedSectorForQuickView, setSelectedSectorForQuickView] = useState<any>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +62,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [clientTheme, setClientTheme] = useState<'blue' | 'yellow'>('blue');
   const [clientTags, setClientTags] = useState<string[]>([]);
   const [clientNotes, setClientNotes] = useState('');
+  const [clientDriveLink, setClientDriveLink] = useState('');
 
   // Tag Form State
   const [tagName, setTagName] = useState('');
@@ -59,6 +74,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setClientTheme('blue');
     setClientTags([]);
     setClientNotes('');
+    setClientDriveLink('');
     setIsClientModalOpen(true);
   };
 
@@ -68,6 +84,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setClientTheme(client.themeColor);
     setClientTags(client.serviceTags || []);
     setClientNotes(client.notes || '');
+    setClientDriveLink(client.driveLink || '');
     setIsClientModalOpen(true);
   };
 
@@ -80,6 +97,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       themeColor: clientTheme,
       serviceTags: clientTags,
       notes: clientNotes,
+      driveLink: clientDriveLink,
       companyId,
       checklist: editingClient?.checklist || []
     };
@@ -163,6 +181,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500">Nome do Cliente</th>
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500">Setores</th>
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500">Serviços Atribuídos</th>
+                <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500 text-center">Drive</th>
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500 w-24">Ações</th>
               </tr>
             </thead>
@@ -177,15 +196,29 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 const opCard = operationCards.find(c => c.clientId === client.id && !c.deleted);
                 const opList = opCard ? operationLists.find(l => l.id === opCard.listId) : null;
 
+                const handleRowClick = () => {
+                  const firstCard = commCard || finCard || opCard;
+                  if (firstCard) {
+                    setSelectedCardForQuickView(firstCard);
+                    setSelectedSectorForQuickView(
+                      commCard ? 'commercial' : (finCard ? 'financial' : 'operation')
+                    );
+                    setIsQuickViewOpen(true);
+                  }
+                };
+
                 return (
-                  <tr key={client.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors">
-                    <td className="p-4">
+                  <tr key={client.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors group">
+                    <td className="p-4 cursor-pointer" onClick={handleRowClick}>
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${client.themeColor === 'blue' ? 'bg-[#5271FF]' : 'bg-[#FFD166]'}`} />
-                        <span className="font-bold text-stone-900">{client.name}</span>
+                        <span className="font-bold text-stone-900 group-hover:text-stone-900 transition-colors">{client.name}</span>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ExternalLink size={14} className="text-stone-300" />
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 cursor-pointer" onClick={handleRowClick}>
                       <div className="flex flex-col gap-1">
                         {commList && (
                           <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-600">
@@ -231,8 +264,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
+                    <td className="p-4 text-center">
+                      {client.driveLink && (
+                        <a 
+                          href={client.driveLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center p-2 hover:bg-stone-100 rounded-lg transition-all hover:scale-110 active:scale-95"
+                          title="Abrir Google Drive"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DriveIcon size={24} />
+                        </a>
+                      )}
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button onClick={() => openEditClientModal(client)} className="p-1.5 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors">
                           <Edit2 size={16} />
                         </button>
@@ -246,7 +293,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               })}
               {filteredClients.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-stone-500">
+                  <td colSpan={5} className="p-8 text-center text-stone-500">
                     Nenhum cliente encontrado.
                   </td>
                 </tr>
@@ -328,6 +375,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Link do Google Drive</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                <DriveIcon size={18} />
+              </div>
+              <input 
+                type="url"
+                value={clientDriveLink}
+                onChange={(e) => setClientDriveLink(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                placeholder="https://drive.google.com/..."
+              />
+            </div>
+          </div>
+
           <button type="submit" className="w-full bg-stone-900 text-white py-4 rounded-2xl hover:bg-stone-800 transition-all font-bold">
             {editingClient ? "Salvar Alterações" : "Criar Cliente"}
           </button>
@@ -384,6 +447,17 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           </div>
         </div>
       </Modal>
+
+      <QuickViewCardModal 
+        isOpen={isQuickViewOpen}
+        onClose={() => setIsQuickViewOpen(false)}
+        card={selectedCardForQuickView}
+        client={clients.find(c => c.id === selectedCardForQuickView?.clientId)}
+        users={users}
+        tags={tags}
+        sector={selectedSectorForQuickView}
+        onEdit={() => {}} // Could be implemented to open specific edit modal
+      />
     </div>
   );
 };

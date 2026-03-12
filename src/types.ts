@@ -58,6 +58,7 @@ export interface Client {
   checklist: ChecklistItem[];
   notes: string;
   companyId: string;
+  driveLink?: string;
   createdAt?: any;
 }
 

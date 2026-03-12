@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
+import { Logo } from './components/Logo';
 import { Sidebar } from './components/Sidebar';
 import { UnifiedDashboardBoard } from './components/UnifiedDashboardBoard';
 import { CommercialView } from './components/CommercialView';
@@ -418,10 +419,10 @@ export function App() {
     return (
       <div className="min-h-screen bg-stone-900 flex items-center justify-center p-6 font-nunito">
         <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-stone-200 text-center">
-          <div className="w-16 h-16 bg-stone-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Briefcase size={32} className="text-stone-800" />
+          <div className="mb-6 flex justify-center">
+            <Logo className="h-16 w-auto" />
           </div>
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">CRM Talí</h1>
+          <h1 className="text-3xl font-bold text-stone-900 mb-2">CRM Talí Digital</h1>
           <p className="text-stone-500 mb-8">Faça login para gerenciar seus projetos.</p>
           
           <form onSubmit={handleEmailAuth} className="space-y-4 mb-6 text-left">
@@ -606,6 +607,7 @@ export function App() {
             financialCards={financialCards}
             operationLists={operationLists}
             operationCards={operationCards}
+            users={users}
           />
         );
       case 'comercial':
