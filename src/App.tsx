@@ -669,7 +669,7 @@ export function App() {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 px-8">
+        <div className="flex-1 min-h-0 p-8 pt-10">
           {renderContent()}
           <AllCardsModal 
         isOpen={isAllCardsModalOpen}
