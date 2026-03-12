@@ -71,8 +71,8 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
   const completed = checklist.filter(i => i.completed).length;
   const total = checklist.length;
   
-  const title = card.title || card.clientName || 'Card sem Título';
   const isClient = card.type === 'client' && client;
+  const title = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
   
   const bgColorClass = isClient
     ? client.themeColor === 'blue' 

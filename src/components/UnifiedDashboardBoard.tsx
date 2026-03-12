@@ -78,8 +78,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const renderCard = (card: any, lists: any[], targetTab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => {
     const client = clients.find(c => c.id === card.clientId);
     const list = lists.find(l => l.id === card.listId);
-    const clientName = client?.name || card.clientName || card.title || 'Cliente Desconhecido';
     const isClient = card.type === 'client' && client;
+    const clientName = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
     const themeColor = client?.themeColor || 'neutral';
     const checklist = client?.checklist || card.checklist || [];
     const completed = checklist.filter((i: any) => i.completed).length;
