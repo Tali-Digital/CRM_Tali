@@ -111,19 +111,19 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
       <div 
         ref={setNodeRef}
         style={style}
-        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-3`}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-2`}
         onClick={() => onEdit(card)}
       >
-        <div className={`p-3 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
-          <div className="flex items-center gap-2">
+        <div className={`p-2 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
+          <div className="flex items-center gap-1">
             <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass}`}>
-              <GripVertical size={14} />
+              <GripVertical size={12} />
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
-                <User size={12} className={textColorClass} />
+            <div className="flex items-center gap-1">
+              <div className={`p-0.5 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
+                <User size={10} className={textColorClass} />
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
+              <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
           </div>
           <button 
@@ -131,32 +131,32 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
               e.stopPropagation();
               onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
-            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
             title="Concluir Atendimento"
           >
-            <CheckSquare size={14} />
+            <CheckSquare size={12} />
           </button>
         </div>
         
-        <div className="p-4">
-          <h4 className={`font-black text-base leading-tight ${textColorClass}`}>{title}</h4>
+        <div className="p-3">
+          <h4 className={`font-black text-xs leading-tight ${textColorClass}`}>{title}</h4>
           
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex -space-x-1.5">
-              {card.assignees?.map(userId => {
+          <div className="mt-2 flex items-center justify-between">
+            <div className="flex -space-x-1">
+              {card.assignees?.slice(0, 2).map(userId => {
                 const u = users.find(user => user.id === userId);
                 if (!u) return null;
                 return (
-                  <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100" title={u.name}>
-                    {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                  <div key={userId} className="w-4 h-4 rounded-full border border-white overflow-hidden bg-stone-100" title={u.name}>
+                    {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="w-full h-full flex items-center justify-center text-[6px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
                   </div>
                 );
               })}
             </div>
             
             {total > 0 && (
-              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
-                <CheckSquare size={10} />
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
+                <CheckSquare size={8} />
                 {completed}/{total}
               </div>
             )}
@@ -297,7 +297,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="w-80 bg-stone-100/50 rounded-3xl p-4 flex flex-col max-h-full border border-stone-200/50 shrink-0">
+    <div ref={setNodeRef} style={style} className="w-[500px] bg-stone-100/50 rounded-3xl p-4 flex flex-col max-h-full border border-stone-200/50 shrink-0">
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-600 transition-colors">
@@ -342,18 +342,54 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
         items={cards.map(c => c.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-h-[50px]">
-          {cards.sort((a, b) => (a.order || 0) - (b.order || 0)).map(card => (
-            <SortableCard 
-              key={card.id} 
-              card={card} 
-              client={clients.find(c => c.id === card.clientId)}
-              tags={tags}
-              users={users}
-              onEdit={onEditCard} 
-              onUpdateCard={onUpdateCard}
-            />
-          ))}
+        <div className="flex-1 flex gap-6 overflow-hidden min-h-[100px]">
+          {/* Coluna de Custom Cards */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+              <span>Atividades</span>
+              <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type !== 'client').length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+              {cards
+                .filter(c => c.type !== 'client')
+                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                .map(card => (
+                  <SortableCard 
+                    key={card.id} 
+                    card={card} 
+                    client={clients.find(c => c.id === card.clientId)}
+                    tags={tags}
+                    users={users}
+                    onEdit={onEditCard} 
+                    onUpdateCard={onUpdateCard}
+                  />
+                ))}
+            </div>
+          </div>
+
+          {/* Coluna de Clientes */}
+          <div className="w-40 flex flex-col border-l border-stone-200/50 pl-4">
+            <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+              <span>Clientes</span>
+              <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type === 'client').length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+              {cards
+                .filter(c => c.type === 'client')
+                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                .map(card => (
+                  <SortableCard 
+                    key={card.id} 
+                    card={card} 
+                    client={clients.find(c => c.id === card.clientId)}
+                    tags={tags}
+                    users={users}
+                    onEdit={onEditCard} 
+                    onUpdateCard={onUpdateCard}
+                  />
+                ))}
+            </div>
+          </div>
         </div>
       </SortableContext>
 
