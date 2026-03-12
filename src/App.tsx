@@ -528,13 +528,13 @@ export function App() {
                   <div className="flex-1 min-h-0">
                     <UnifiedDashboardBoard 
                       commercialLists={commercialLists}
-                      commercialCards={commercialCards.filter(c => !c.deleted)}
+                      commercialCards={commercialCards.filter(c => !c.deleted && !c.completed)}
                       financialLists={financialLists}
-                      financialCards={financialCards.filter(c => !c.deleted)}
+                      financialCards={financialCards.filter(c => !c.deleted && !c.completed)}
                       operationLists={operationLists}
-                      operationCards={operationCards.filter(c => !c.deleted)}
+                      operationCards={operationCards.filter(c => !c.deleted && !c.completed)}
                       internalTaskLists={internalTaskLists}
-                      internalTaskCards={internalTaskCards.filter(c => !c.deleted)}
+                      internalTaskCards={internalTaskCards.filter(c => !c.deleted && !c.completed)}
                       clients={clients}
                       tags={tags}
                       users={users}
@@ -572,13 +572,13 @@ export function App() {
           />
         );
       case 'comercial':
-        return <CommercialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
+        return <CommercialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
       case 'integracao':
-        return <FinancialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
+        return <FinancialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
       case 'operacao':
-        return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
+        return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
-        return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+        return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
       default:
         return null;
     }
