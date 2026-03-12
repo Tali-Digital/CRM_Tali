@@ -119,30 +119,31 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"}>
-      <form onSubmit={handleSave} className="space-y-6">
-        {isCustom ? (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-              <Edit2 size={14} />
-              Título do Card
-            </label>
-            <input 
-              required
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            />
-          </div>
-        ) : (
-          <div className="p-4 bg-stone-100 rounded-2xl border border-stone-200">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1">Cliente</label>
-            <div className="flex items-center gap-2">
-              <User size={16} className="text-stone-400" />
-              <span className="font-bold text-stone-900">{client?.name || card.clientName || 'Cliente vinculado'}</span>
+      <form onSubmit={handleSave} className="flex flex-col h-full">
+        <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1 custom-scrollbar space-y-6">
+          {isCustom ? (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                <Edit2 size={14} />
+                Título do Card
+              </label>
+              <input 
+                required
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+              />
             </div>
-            <p className="text-[10px] text-stone-500 mt-2 italic font-medium">Nome gerido pela central de clientes.</p>
-          </div>
-        )}
+          ) : (
+            <div className="p-4 bg-stone-100 rounded-2xl border border-stone-200">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1">Cliente</label>
+              <div className="flex items-center gap-2">
+                <User size={16} className="text-stone-400" />
+                <span className="font-bold text-stone-900">{client?.name || card.clientName || 'Cliente vinculado'}</span>
+              </div>
+              <p className="text-[10px] text-stone-500 mt-2 italic font-medium">Nome gerido pela central de clientes.</p>
+            </div>
+          )}
 
 
         {isCustom && (
@@ -230,7 +231,7 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
               <Briefcase size={14} />
-              Mover para outro Setor
+              Mover para outro Bloco
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -337,7 +338,9 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-stone-100">
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t border-stone-100 flex-shrink-0">
           <button 
             type="button"
             onClick={handleDelete}
