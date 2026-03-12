@@ -17,7 +17,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock } from 'lucide-react';
+import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft } from 'lucide-react';
 import { auth } from './firebase';
 import { 
   signInWithPopup, 
@@ -70,6 +70,7 @@ export function App() {
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [commercialLists, setCommercialLists] = useState<CommercialList[]>([]);
@@ -221,7 +222,7 @@ export function App() {
   const activeOperationCards = operationCards.filter(c => !c.deleted && !c.completed);
   const activeInternalTaskCards = internalTaskCards.filter(c => !c.deleted && !c.completed);
 
-  const totalCards = activeCommercialCards.length + 
+  const totalActiveCards = activeCommercialCards.length + 
     activeFinancialCards.length + 
     activeOperationCards.length + 
     activeInternalTaskCards.length;
@@ -470,8 +471,8 @@ export function App() {
                 onClick={() => setIsAllCardsModalOpen(true)}
                 className="flex items-center space-x-2 hover:bg-stone-100 p-2 rounded-xl transition-all cursor-pointer group"
               >
-                <span className="text-xs font-bold uppercase tracking-widest text-stone-400 group-hover:text-stone-900">Cards:</span>
-                <span className="text-sm font-bold text-stone-900">{totalCards}</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-stone-400 group-hover:text-stone-900">Ativos:</span>
+                <span className="text-sm font-bold text-stone-900">{totalActiveCards}</span>
               </button>
             </section>
 
@@ -570,13 +571,13 @@ export function App() {
           />
         );
       case 'comercial':
-        return <CommercialView companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
+        return <CommercialView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
       case 'integracao':
-        return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
+        return <FinancialView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
       case 'operacao':
-        return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
+        return <OperationView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
-        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+        return <InternalTasksView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
       default:
         return null;
     }
@@ -598,6 +599,31 @@ export function App() {
           </div>
 
           <div className="flex items-center space-x-6">
+            {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
+              <div className="flex bg-stone-200 p-1 rounded-lg">
+                <button 
+                  onClick={() => setSectorViewMode('kanban')}
+                  className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'kanban' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  title="Vista Kanban"
+                >
+                  <LayoutGrid size={18} />
+                </button>
+                <button 
+                  onClick={() => setSectorViewMode('vertical')}
+                  className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'vertical' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  title="Vista Vertical"
+                >
+                  <Layers size={18} />
+                </button>
+                <button 
+                  onClick={() => setSectorViewMode('list')}
+                  className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'list' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  title="Vista Lista"
+                >
+                  <AlignLeft size={18} />
+                </button>
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
               <input 

@@ -30,6 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useHistory } from '../context/HistoryContext';
 
 interface InternalTasksViewProps {
+  viewMode: 'kanban' | 'list' | 'vertical';
   companyId: CompanyType;
   lists: InternalTaskList[];
   cards: InternalTaskCard[];
@@ -39,7 +40,7 @@ interface InternalTasksViewProps {
   onMoveToSector: (card: InternalTaskCard, targetSector: string) => void;
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void> }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMode }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
   const {
     attributes,
     listeners,
@@ -99,7 +100,45 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
+  const isCompact = viewMode === 'list';
+
   if (isClient) {
+    if (isCompact) {
+      return (
+        <div 
+          ref={setNodeRef}
+          style={style}
+          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} ring-2 ring-white ring-inset mb-1`}
+          onClick={() => onEdit(card)}
+        >
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
+              <GripVertical size={12} />
+            </div>
+            <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'} shrink-0`}>
+              <User size={10} className={textColorClass} />
+            </div>
+            <h4 className={`font-black text-xs truncate ${textColorClass}`}>{title}</h4>
+            {total > 0 && (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
+                <CheckSquare size={8} />
+                {completed}/{total}
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+            }}
+            className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0"
+            title="Concluir Atendimento"
+          >
+            <CheckCircle2 size={12} />
+          </button>
+        </div>
+      );
+    }
     return (
       <div 
         ref={setNodeRef}
@@ -154,6 +193,53 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
               </div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCompact) {
+    return (
+      <div 
+        ref={setNodeRef}
+        style={style}
+        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} mb-1`}
+        onClick={() => onEdit(card)}
+      >
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
+            <GripVertical size={14} />
+          </div>
+          <h4 className={`font-extrabold text-xs truncate ${textColorClass}`}>{title}</h4>
+          {total > 0 && (
+            <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
+              <CheckSquare size={10} />
+              <span>{completed}/{total}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-1">
+            {card.assignees?.slice(0, 2).map(userId => {
+              const u = users.find(user => user.id === userId);
+              if (!u) return null;
+              return (
+                <div key={userId} className="w-4 h-4 rounded-full border border-white overflow-hidden bg-stone-100" title={u.name}>
+                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="w-full h-full flex items-center justify-center text-[6px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                </div>
+              );
+            })}
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0"
+            title="Marcar como concluído"
+          >
+            <CheckCircle2 size={16} />
+          </button>
         </div>
       </div>
     );
@@ -278,7 +364,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
   );
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void> }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard, viewMode }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
@@ -292,7 +378,11 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="w-[500px] bg-stone-100/50 rounded-3xl p-4 flex flex-col max-h-full border border-stone-200/50 shrink-0">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={`${viewMode === 'kanban' ? 'w-[500px]' : 'w-full'} bg-stone-100/50 rounded-3xl p-4 flex flex-col max-h-full border border-stone-200/50 shrink-0`}
+    >
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-600 transition-colors">
@@ -337,7 +427,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
         items={cards.map(c => c.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex-1 flex gap-6 overflow-hidden min-h-[100px]">
+        <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} overflow-hidden min-h-[100px]`}>
           {/* Coluna de Custom Cards */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
@@ -357,13 +447,14 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
                     users={users}
                     onEdit={onEditCard} 
                     onUpdateCard={onUpdateCard}
+                    viewMode={viewMode}
                   />
                 ))}
             </div>
           </div>
 
           {/* Coluna de Clientes */}
-          <div className="w-40 flex flex-col border-l border-stone-200/50 pl-4">
+          <div className={`${viewMode === 'kanban' ? 'w-40 border-l border-stone-200/50 pl-4' : 'w-full'} flex flex-col`}>
             <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
               <span>Clientes</span>
               <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type === 'client').length}</span>
@@ -381,6 +472,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
                     users={users}
                     onEdit={onEditCard} 
                     onUpdateCard={onUpdateCard}
+                    viewMode={viewMode}
                   />
                 ))}
             </div>
@@ -399,7 +491,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
+export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -625,7 +717,7 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto custom-scrollbar pb-4">
+      <div className={`flex-1 ${viewMode === 'kanban' ? 'overflow-x-auto px-1' : 'overflow-y-auto pr-4'} custom-scrollbar pb-8`}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -633,13 +725,14 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
         >
           <SortableContext
             items={lists.map(l => l.id)}
-            strategy={horizontalListSortingStrategy}
+            strategy={viewMode === 'kanban' ? horizontalListSortingStrategy : verticalListSortingStrategy}
           >
-            <div className="flex gap-6 h-full items-start min-w-max">
+            <div className={`flex ${viewMode === 'kanban' ? 'flex-row gap-6 h-full items-start min-w-max' : 'flex-col gap-10 w-full pb-10'}`}>
               {lists.map(list => (
                 <SortableList 
                   key={list.id} 
                   list={list} 
+                  viewMode={viewMode}
                   cards={activeCards.filter(c => c.listId === list.id)} 
                   clients={clients}
                   tags={tags}
