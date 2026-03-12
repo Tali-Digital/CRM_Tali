@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
-import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard } from '../services/firestoreService';
+import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard, completeInternalTaskCard } from '../services/firestoreService';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
@@ -129,7 +129,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              completeInternalTaskCard(card.id);
             }}
             className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0"
             title="Concluir Atendimento"
@@ -163,7 +163,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeInternalTaskCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
             title="Concluir Atendimento"
@@ -237,7 +237,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeInternalTaskCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
             title="Marcar como concluído"
@@ -275,7 +275,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeInternalTaskCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
             title="Marcar como concluído"

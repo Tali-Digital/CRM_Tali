@@ -2,6 +2,7 @@ import React from 'react';
 import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile } from '../types';
 import { CheckSquare, Calendar, User } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard } from '../services/firestoreService';
 
 interface Props {
   commercialLists: CommercialList[];
@@ -113,12 +114,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const updateFn = 
-                  targetTab === 'comercial' ? onUpdateCommercialCard :
-                  targetTab === 'integracao' ? onUpdateFinancialCard :
-                  targetTab === 'operacao' ? onUpdateOperationCard :
-                  onUpdateInternalTaskCard;
-                await updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+                if (targetTab === 'comercial') await completeCommercialCard(card.id);
+                else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+                else if (targetTab === 'operacao') await completeOperationCard(card.id);
+                else await completeInternalTaskCard(card.id);
               }}
               className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Concluir Atendimento"
@@ -178,12 +177,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const updateFn = 
-                targetTab === 'comercial' ? onUpdateCommercialCard :
-                targetTab === 'integracao' ? onUpdateFinancialCard :
-                targetTab === 'operacao' ? onUpdateOperationCard :
-                onUpdateInternalTaskCard;
-              await updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+              if (targetTab === 'comercial') await completeCommercialCard(card.id);
+              else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+              else if (targetTab === 'operacao') await completeOperationCard(card.id);
+              else await completeInternalTaskCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
             title="Marcar como concluído"

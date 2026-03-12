@@ -406,10 +406,27 @@ export const deleteCommercialCard = async (cardId: string) => {
   }
 };
 
+export const completeCommercialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    await updateDoc(cardRef, { 
+      completed: true,
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
+  }
+};
+
 export const restoreCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, { deleted: false });
+    await updateDoc(cardRef, { 
+      deleted: false,
+      completed: false,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
   }
@@ -492,10 +509,27 @@ export const deleteFinancialCard = async (cardId: string) => {
   }
 };
 
+export const completeFinancialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'financial_cards', cardId);
+    await updateDoc(cardRef, { 
+      completed: true,
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
+  }
+};
+
 export const restoreFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, { deleted: false });
+    await updateDoc(cardRef, { 
+      deleted: false,
+      completed: false,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
   }
@@ -578,10 +612,27 @@ export const deleteOperationCard = async (cardId: string) => {
   }
 };
 
+export const completeOperationCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'operation_cards', cardId);
+    await updateDoc(cardRef, { 
+      completed: true,
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
+  }
+};
+
 export const restoreOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, { deleted: false });
+    await updateDoc(cardRef, { 
+      deleted: false,
+      completed: false,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
   }
@@ -686,10 +737,27 @@ export const deleteInternalTaskCard = async (cardId: string) => {
   }
 };
 
+export const completeInternalTaskCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    await updateDoc(cardRef, { 
+      completed: true,
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
+  }
+};
+
 export const restoreInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, { deleted: false });
+    await updateDoc(cardRef, { 
+      deleted: false,
+      completed: false,
+      updatedAt: Timestamp.now()
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
   }

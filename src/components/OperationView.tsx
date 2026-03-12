@@ -8,7 +8,8 @@ import {
   deleteOperationList, 
   updateClient, 
   deleteOperationCard,
-  permanentDeleteOperationCard
+  permanentDeleteOperationCard,
+  completeOperationCard
 } from '../services/firestoreService';
 import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive, User } from 'lucide-react';
 import { CompletedCardsModal } from './CompletedCardsModal';
@@ -140,7 +141,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeOperationCard(card.id);
             }}
             className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
             title="Concluir Atendimento"
@@ -174,7 +175,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeOperationCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
             title="Concluir Atendimento"
@@ -248,7 +249,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeOperationCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
             title="Marcar como concluído"
@@ -284,7 +285,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              await onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
+              await completeOperationCard(card.id);
             }}
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
             title="Marcar como concluído"
