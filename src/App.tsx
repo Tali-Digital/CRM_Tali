@@ -15,7 +15,7 @@ import { AllCardsModal } from './components/AllCardsModal';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
+import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft } from 'lucide-react';
 import { auth } from './firebase';
@@ -71,6 +71,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks'>('dashboard');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
+  const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [commercialLists, setCommercialLists] = useState<CommercialList[]>([]);
@@ -571,13 +572,13 @@ export function App() {
           />
         );
       case 'comercial':
-        return <CommercialView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
+        return <CommercialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
       case 'integracao':
-        return <FinancialView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
+        return <FinancialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
       case 'operacao':
-        return <OperationView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
+        return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
-        return <InternalTasksView viewMode={sectorViewMode} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+        return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
       default:
         return null;
     }
@@ -591,8 +592,8 @@ export function App() {
         onTabChange={setActiveTab}
       />
       
-      <main className="flex-1 ml-64 p-8 font-nunito h-screen flex flex-col">
-        <header className="flex items-center justify-between mb-10 shrink-0">
+      <main className="flex-1 ml-64 font-nunito h-screen flex flex-col overflow-hidden bg-stone-50">
+        <header className="flex items-center justify-between p-8 pb-4 shrink-0 bg-stone-50/80 backdrop-blur-md sticky top-0 z-20">
           <div>
             <h1 className="text-3xl font-bold text-stone-900">{user.displayName || user.email?.split('@')[0] || 'Usuário'}</h1>
             <p className="text-stone-500 text-sm mt-1">Bem-vindo de volta!</p>
@@ -624,6 +625,30 @@ export function App() {
                 </button>
               </div>
             )}
+
+            {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
+              <div className="flex bg-stone-200 p-1 rounded-lg">
+                <button 
+                  onClick={() => setSectorCardFilter('activities')}
+                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'activities' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  Atividades
+                </button>
+                <button 
+                  onClick={() => setSectorCardFilter('clients')}
+                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'clients' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  Clientes
+                </button>
+                <button 
+                  onClick={() => setSectorCardFilter('both')}
+                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  Duo
+                </button>
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
               <input 
@@ -637,7 +662,7 @@ export function App() {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 px-8">
           {renderContent()}
           <AllCardsModal 
         isOpen={isAllCardsModalOpen}

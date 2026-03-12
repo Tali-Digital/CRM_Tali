@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile } from '../types';
-import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard } from '../services/firestoreService';
+import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
+import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard } from '../services/firestoreService';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
@@ -31,6 +31,7 @@ import { useHistory } from '../context/HistoryContext';
 
 interface InternalTasksViewProps {
   viewMode: 'kanban' | 'list' | 'vertical';
+  cardFilter: SectorCardFilter;
   companyId: CompanyType;
   lists: InternalTaskList[];
   cards: InternalTaskCard[];
@@ -364,7 +365,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard, viewMod
   );
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard, viewMode }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
@@ -428,55 +429,59 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
         strategy={verticalListSortingStrategy}
       >
         <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} overflow-hidden min-h-[100px]`}>
-          {/* Coluna de Custom Cards */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
-              <span>Atividades</span>
-              <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type !== 'client').length}</span>
+          {/* Coluna de Atividades */}
+          {(cardFilter === 'both' || cardFilter === 'activities') && (
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+                <span>Atividades</span>
+                <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type !== 'client').length}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                {cards
+                  .filter(c => c.type !== 'client')
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map(card => (
+                    <SortableCard 
+                      key={card.id} 
+                      card={card} 
+                      client={clients.find(c => c.id === card.clientId)}
+                      tags={tags}
+                      users={users}
+                      onEdit={onEditCard} 
+                      onUpdateCard={onUpdateCard}
+                      viewMode={viewMode}
+                    />
+                  ))}
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-              {cards
-                .filter(c => c.type !== 'client')
-                .sort((a, b) => (a.order || 0) - (b.order || 0))
-                .map(card => (
-                  <SortableCard 
-                    key={card.id} 
-                    card={card} 
-                    client={clients.find(c => c.id === card.clientId)}
-                    tags={tags}
-                    users={users}
-                    onEdit={onEditCard} 
-                    onUpdateCard={onUpdateCard}
-                    viewMode={viewMode}
-                  />
-                ))}
-            </div>
-          </div>
+          )}
 
           {/* Coluna de Clientes */}
-          <div className={`${viewMode === 'kanban' ? 'w-40 border-l border-stone-200/50 pl-4' : 'w-full'} flex flex-col`}>
-            <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
-              <span>Clientes</span>
-              <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type === 'client').length}</span>
+          {(cardFilter === 'both' || cardFilter === 'clients') && (
+            <div className={`${viewMode === 'kanban' && cardFilter === 'both' ? 'w-40 border-l border-stone-200/50 pl-4' : 'w-full'} flex flex-col`}>
+              <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+                <span>Clientes</span>
+                <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type === 'client').length}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                {cards
+                  .filter(c => c.type === 'client')
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map(card => (
+                    <SortableCard 
+                      key={card.id} 
+                      card={card} 
+                      client={clients.find(c => c.id === card.clientId)}
+                      tags={tags}
+                      users={users}
+                      onEdit={onEditCard} 
+                      onUpdateCard={onUpdateCard}
+                      viewMode={viewMode}
+                    />
+                  ))}
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-              {cards
-                .filter(c => c.type === 'client')
-                .sort((a, b) => (a.order || 0) - (b.order || 0))
-                .map(card => (
-                  <SortableCard 
-                    key={card.id} 
-                    card={card} 
-                    client={clients.find(c => c.id === card.clientId)}
-                    tags={tags}
-                    users={users}
-                    onEdit={onEditCard} 
-                    onUpdateCard={onUpdateCard}
-                    viewMode={viewMode}
-                  />
-                ))}
-            </div>
-          </div>
+          )}
         </div>
       </SortableContext>
 
@@ -491,7 +496,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
+export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, cardFilter, companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -741,6 +746,7 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
                   onSettings={() => setEditingList(list)}
                   onAddCard={() => openAddCard(list.id)}
                   onUpdateCard={updateInternalTaskCard}
+                  cardFilter={cardFilter}
                 />
               ))}
 
@@ -895,10 +901,14 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
       )}
 
       <CompletedCardsModal 
-        isOpen={isCompletedModalOpen}
-        onClose={() => setIsCompletedModalOpen(false)}
+        isOpen={isCompletedModalOpen} 
+        onClose={() => setIsCompletedModalOpen(false)} 
         cards={completedCards}
         title="Cards Concluídos - Tarefas Internas"
+        onRestore={async (cardId) => {
+          await updateInternalTaskCard(cardId, { completed: false, completedAt: null });
+        }}
+        onPermanentDelete={permanentDeleteInternalTaskCard}
       />
     </div>
   );

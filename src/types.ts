@@ -1,4 +1,5 @@
 export type CompanyType = 'odonto' | 'digital';
+export type SectorCardFilter = 'activities' | 'clients' | 'both';
 
 export interface Service {
   id: string;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
 import { Timestamp } from 'firebase/firestore';
-import { Calendar, CheckCircle2, Search } from 'lucide-react';
+import { Calendar, CheckCircle2, Search, Trash2, RotateCcw } from 'lucide-react';
 
 interface Card {
   id: string;
@@ -16,9 +16,18 @@ interface CompletedCardsModalProps {
   onClose: () => void;
   cards: Card[];
   title: string;
+  onRestore?: (cardId: string) => Promise<void>;
+  onPermanentDelete?: (cardId: string) => Promise<void>;
 }
 
-export const CompletedCardsModal: React.FC<CompletedCardsModalProps> = ({ isOpen, onClose, cards, title }) => {
+export const CompletedCardsModal: React.FC<CompletedCardsModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  cards, 
+  title,
+  onRestore,
+  onPermanentDelete
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const formatDate = (date: any) => {
@@ -97,8 +106,32 @@ export const CompletedCardsModal: React.FC<CompletedCardsModalProps> = ({ isOpen
                             <span>Concluído em {formatDate(card.completedAt)}</span>
                           </div>
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
-                          <CheckCircle2 size={16} />
+                        <div className="flex items-center gap-2">
+                          {onRestore && (
+                            <button 
+                              onClick={() => onRestore(card.id)}
+                              className="w-8 h-8 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-900 hover:text-white transition-all"
+                              title="Restaurar Card"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
+                          {onPermanentDelete && (
+                            <button 
+                              onClick={() => {
+                                if (window.confirm('Excluir permanentemente este card concluído?')) {
+                                  onPermanentDelete(card.id);
+                                }
+                              }}
+                              className="w-8 h-8 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"
+                              title="Excluir Permanentemente"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                          <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
+                            <CheckCircle2 size={16} />
+                          </div>
                         </div>
                       </div>
                     </div>
