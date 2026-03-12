@@ -9,7 +9,7 @@ import {
   updateClient, 
   deleteOperationCard 
 } from '../services/firestoreService';
-import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive } from 'lucide-react';
+import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive, User } from 'lucide-react';
 import { CompletedCardsModal } from './CompletedCardsModal';
 import { useHistory } from '../context/HistoryContext';
 import { Timestamp } from 'firebase/firestore';
@@ -70,9 +70,25 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
   const total = checklist.length;
   
   const title = card.title || client?.name || 'Card sem Título';
-  const bgColorClass = 'bg-white border-stone-200';
-  const textColorClass = 'text-stone-900';
-  const iconColorClass = 'text-stone-400 hover:text-stone-600';
+  const isClient = card.type === 'client' && client;
+  
+  const bgColorClass = isClient
+    ? client.themeColor === 'blue' 
+      ? 'bg-blue-50 border-blue-300 shadow-blue-900/5' 
+      : 'bg-yellow-50 border-yellow-300 shadow-yellow-900/5'
+    : 'bg-white border-stone-200';
+
+  const textColorClass = isClient
+    ? client.themeColor === 'blue' 
+      ? 'text-blue-900' 
+      : 'text-yellow-900'
+    : 'text-stone-900';
+
+  const iconColorClass = isClient
+    ? client.themeColor === 'blue' 
+      ? 'text-blue-400 hover:text-blue-600' 
+      : 'text-yellow-400 hover:text-yellow-600'
+    : 'text-stone-400 hover:text-stone-600';
 
   const isOverdue = (date: any) => {
     if (!date) return false;
@@ -93,7 +109,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
     <div 
       ref={setNodeRef}
       style={style}
-      className={`p-4 rounded-2xl shadow-sm border hover:shadow-md transition-all group cursor-pointer relative ${bgColorClass}`}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative ${bgColorClass} ${isClient ? 'ring-2 ring-white ring-inset' : ''}`}
       onClick={() => onEdit(card)}
     >
       <div className="flex justify-between items-start mb-2">
@@ -102,7 +118,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
             <GripVertical size={14} />
           </div>
           <div className="flex flex-col">
-            <h4 className={`font-bold text-sm ${textColorClass}`}>{title}</h4>
+            <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
+              {isClient && <User size={14} className={iconColorClass} />}
+              {title}
+            </h4>
           </div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

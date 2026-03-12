@@ -1,6 +1,6 @@
 import React from 'react';
 import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile } from '../types';
-import { CheckSquare, Calendar } from 'lucide-react';
+import { CheckSquare, Calendar, User } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 interface Props {
@@ -79,14 +79,15 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     const client = clients.find(c => c.id === card.clientId);
     const list = lists.find(l => l.id === card.listId);
     const clientName = client?.name || card.clientName || card.title || 'Cliente Desconhecido';
+    const isClient = card.type === 'client' && client;
     const themeColor = client?.themeColor || 'neutral';
     const checklist = client?.checklist || card.checklist || [];
     const completed = checklist.filter((i: any) => i.completed).length;
     const total = checklist.length;
 
     const bgColorClass = 
-      themeColor === 'yellow' ? 'bg-yellow-50 border-yellow-200' : 
-      themeColor === 'blue' ? 'bg-blue-50 border-blue-200' :
+      themeColor === 'yellow' ? 'bg-yellow-50 border-yellow-300 shadow-yellow-900/5' : 
+      themeColor === 'blue' ? 'bg-blue-50 border-blue-300 shadow-blue-900/5' :
       'bg-stone-50 border-stone-200';
     const textColorClass = 
       themeColor === 'yellow' ? 'text-yellow-900' : 
@@ -97,10 +98,13 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       <div 
         key={card.id} 
         onClick={() => onNavigate(targetTab)}
-        className={`p-4 rounded-2xl shadow-sm border mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
+        className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass} ${isClient ? 'ring-2 ring-white ring-inset' : ''}`}
       >
         <div className="flex justify-between items-start mb-2">
-          <h4 className={`font-bold text-sm ${textColorClass}`}>{clientName}</h4>
+          <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
+            {isClient && <User size={14} className="opacity-50" />}
+            {clientName}
+          </h4>
           <button 
             onClick={(e) => {
               e.stopPropagation();
