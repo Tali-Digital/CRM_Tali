@@ -4,7 +4,8 @@ import { CheckSquare, Calendar, User } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard } from '../services/firestoreService';
 import { QuickViewCardModal } from './QuickViewCardModal';
-import { Edit2, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Edit2, CheckCircle2, RotateCcw, Trash2 } from 'lucide-react';
+import { deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard } from '../services/firestoreService';
 
 interface Props {
   commercialLists: CommercialList[];
@@ -135,10 +136,27 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                    if (targetTab === 'comercial') await deleteCommercialCard(card.id);
+                    else if (targetTab === 'integracao') await deleteFinancialCard(card.id);
+                    else if (targetTab === 'operacao') await deleteOperationCard(card.id);
+                    else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
+                  }
+                }}
+                className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+                title="Excluir Atendimento"
+              >
+                <Trash2 size={14} />
+              </button>
+              <button 
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (targetTab === 'comercial') await completeCommercialCard(card.id);
                   else if (targetTab === 'integracao') await completeFinancialCard(card.id);
                   else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                  else await completeInternalTaskCard(card.id);
+                  else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
                 }}
                 className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
                 title="Concluir Atendimento"
@@ -219,6 +237,23 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               title="Ver no Setor"
             >
               <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                  if (targetTab === 'comercial') await deleteCommercialCard(card.id);
+                  else if (targetTab === 'integracao') await deleteFinancialCard(card.id);
+                  else if (targetTab === 'operacao') await deleteOperationCard(card.id);
+                  else if (targetTab === 'internal') await deleteInternalTaskCard(card.id);
+                }
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Excluir Atendimento"
+            >
+              <Trash2 size={12} />
             </button>
             <button 
               type="button"

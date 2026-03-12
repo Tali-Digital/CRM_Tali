@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2 } from 'lucide-react';
+import { deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard } from '../services/firestoreService';
 import { Timestamp } from 'firebase/firestore';
 import { CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Client, UserProfile, Tag } from '../types';
 
@@ -109,6 +110,21 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   title="Editar Card"
                 >
                   <Edit2 size={20} className="group-hover:scale-110 transition-transform" />
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                      if ('commercialListId' in card) await deleteCommercialCard(card.id);
+                      else if ('financialListId' in card) await deleteFinancialCard(card.id);
+                      else if ('operationListId' in card) await deleteOperationCard(card.id);
+                      else if ('internalTaskListId' in card) await deleteInternalTaskCard(card.id);
+                      onClose();
+                    }
+                  }}
+                  className="p-3 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all duration-300 group"
+                  title="Excluir Card"
+                >
+                  <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
                 <button 
                   onClick={onClose}

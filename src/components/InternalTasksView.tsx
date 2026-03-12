@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
 import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard, completeInternalTaskCard } from '../services/firestoreService';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
@@ -150,6 +150,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                  await deleteInternalTaskCard(card.id);
+                }
+              }}
+              className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Excluir Card"
+            >
+              <Trash2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 await completeInternalTaskCard(card.id);
               }}
               className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
@@ -192,6 +206,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               title="Editar Card"
             >
               <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                  await deleteInternalTaskCard(card.id);
+                }
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Excluir Card"
+            >
+              <Trash2 size={12} />
             </button>
             <button 
               type="button"
@@ -289,6 +317,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             title="Editar Card"
           >
             <Edit2 size={14} />
+          </button>
+          <button 
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                await deleteInternalTaskCard(card.id);
+              }
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+            title="Excluir Card"
+          >
+            <Trash2 size={14} />
           </button>
           <button 
             type="button"

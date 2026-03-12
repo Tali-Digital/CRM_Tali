@@ -11,7 +11,7 @@ import {
   completeCommercialCard,
   permanentDeleteCommercialCard
 } from '../services/firestoreService';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
@@ -160,6 +160,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                  await deleteCommercialCard(card.id);
+                }
+              }}
+              className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Excluir Card"
+            >
+              <Trash2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                   await completeCommercialCard(card.id);
               }}
               className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
@@ -203,6 +217,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               title="Editar Card"
             >
               <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                  await deleteCommercialCard(card.id);
+                }
+              }}
+              className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+              title="Excluir Card"
+            >
+              <Trash2 size={12} />
             </button>
             <button 
               type="button"
@@ -300,6 +328,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             title="Editar Card"
           >
             <Edit2 size={14} />
+          </button>
+          <button 
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                await deleteCommercialCard(card.id);
+              }
+            }}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
+            title="Excluir Card"
+          >
+            <Trash2 size={14} />
           </button>
           <button 
             type="button"
@@ -413,8 +455,21 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           <button 
             onClick={() => onEdit(card)}
             className={`p-1.5 rounded-xl bg-stone-50 border border-stone-200 ${iconColorClass} opacity-0 group-hover:opacity-100 transition-all`}
+            title="Editar Card"
           >
             <Edit2 size={12} />
+          </button>
+          <button 
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (window.confirm('Tem certeza que deseja excluir este card?')) {
+                await deleteCommercialCard(card.id);
+              }
+            }}
+            className="p-1.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+            title="Excluir Card"
+          >
+            <Trash2 size={12} />
           </button>
         </div>
     </div>
