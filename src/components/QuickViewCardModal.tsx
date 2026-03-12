@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Client, UserProfile, Tag } from '../types';
 
@@ -90,6 +90,12 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-stone-50 border border-stone-100 text-stone-500 text-[10px] font-black uppercase tracking-widest">
                     <User size={12} className="text-stone-400" />
                     {client.name}
+                  </div>
+                )}
+                {card.recurrence?.enabled && (
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-600 text-[10px] font-black uppercase tracking-widest">
+                    <RotateCcw size={12} className="animate-spin-slow" />
+                    Notificação Recorrente
                   </div>
                 )}
               </div>

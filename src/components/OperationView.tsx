@@ -129,7 +129,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'} shrink-0`}>
               <User size={10} className={textColorClass} />
             </div>
-            <h4 className={`font-black text-xs truncate ${textColorClass}`}>{title}</h4>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h4 className={`font-black text-xs truncate ${textColorClass}`}>{title}</h4>
+              {card.recurrence?.enabled && (
+                <RotateCcw size={10} className={textColorClass} />
+              )}
+            </div>
             {total > 0 && (
               <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
                 <CheckSquare size={8} />
@@ -214,7 +219,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         </div>
         
         <div className="p-3">
-          <h4 className={`font-black text-xs leading-tight ${textColorClass}`}>{title}</h4>
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className={`font-black text-xs leading-tight ${textColorClass}`}>{title}</h4>
+            {card.recurrence?.enabled && (
+              <RotateCcw size={10} className={textColorClass} />
+            )}
+          </div>
           
           <div className="mt-2 flex items-center justify-between">
             <div className="flex -space-x-1">
@@ -253,7 +263,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
             <GripVertical size={14} />
           </div>
-          <h4 className={`font-extrabold text-xs truncate ${textColorClass}`}>{title}</h4>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h4 className={`font-extrabold text-xs truncate ${textColorClass}`}>{title}</h4>
+            {card.recurrence?.enabled && (
+              <RotateCcw size={10} className={textColorClass} />
+            )}
+          </div>
           {total > 0 && (
             <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
               <CheckSquare size={10} />
@@ -317,6 +332,9 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           <div className="flex flex-col">
             <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
               {title}
+              {card.recurrence?.enabled && (
+                <RotateCcw size={12} className={textColorClass} />
+              )}
             </h4>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { CheckSquare, Calendar, User } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard } from '../services/firestoreService';
 import { QuickViewCardModal } from './QuickViewCardModal';
-import { Edit2, CheckCircle2 } from 'lucide-react';
+import { Edit2, CheckCircle2, RotateCcw } from 'lucide-react';
 
 interface Props {
   commercialLists: CommercialList[];
@@ -149,7 +149,12 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           </div>
 
           <div className="p-4">
-            <h4 className={`font-black text-sm leading-tight ${textColorClass}`}>{clientName}</h4>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className={`font-black text-sm leading-tight ${textColorClass}`}>{clientName}</h4>
+              {card.recurrence?.enabled && (
+                <RotateCcw size={12} className={textColorClass} />
+              )}
+            </div>
             
             {list && (
               <div className="mt-2">
@@ -194,9 +199,14 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
       >
         <div className="flex justify-between items-start mb-2">
-          <h4 className={`font-extrabold text-sm ${textColorClass}`}>
-            {clientName}
-          </h4>
+          <div className="flex items-center gap-2">
+            <h4 className={`font-extrabold text-sm ${textColorClass}`}>
+              {clientName}
+            </h4>
+            {card.recurrence?.enabled && (
+              <RotateCcw size={12} className={textColorClass} />
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <button 
               type="button"
