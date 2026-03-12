@@ -42,6 +42,7 @@ interface FinancialViewProps {
   clients: Client[];
   tags: Tag[];
   users: UserProfile[];
+  onMoveToSector: (card: FinancialCard, targetSector: string) => void;
 }
 
 const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: FinancialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: FinancialCard) => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void> }) => {
@@ -360,7 +361,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, cards, clients, tags, users }) => {
+export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -752,9 +753,11 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ companyId, lists, 
         <EditFinancialCardModal 
           isOpen={!!editingCard} 
           onClose={() => setEditingCard(null)} 
-          card={editingCard} 
+          card={editingCard}
+          client={clients.find(c => c.id === editingCard?.clientId)}
           clients={clients}
           users={users}
+          onMoveToSector={(target) => editingCard && onMoveToSector(editingCard, target)}
         />
       )}
 

@@ -44,6 +44,7 @@ interface CommercialViewProps {
   clients: Client[];
   tags: Tag[];
   users: UserProfile[];
+  onMoveToSector: (card: CommercialCard, targetSector: string) => void;
 }
 
 const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: CommercialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: CommercialCard) => void, onUpdateCard: (cardId: string, data: Partial<CommercialCard>) => Promise<void> }) => {
@@ -367,7 +368,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const CommercialView: React.FC<CommercialViewProps> = ({ companyId, lists, cards, clients, tags, users }) => {
+export const CommercialView: React.FC<CommercialViewProps> = ({ companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -752,8 +753,10 @@ export const CommercialView: React.FC<CommercialViewProps> = ({ companyId, lists
           isOpen={!!editingCard}
           onClose={() => setEditingCard(null)}
           card={editingCard}
+          client={clients.find(c => c.id === editingCard?.clientId)}
           clients={clients}
           users={users}
+          onMoveToSector={(target) => editingCard && onMoveToSector(editingCard, target)}
         />
       )}
 

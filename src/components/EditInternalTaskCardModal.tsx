@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InternalTaskCard, ChecklistItem, Client, UserProfile } from '../types';
 import { updateInternalTaskCard, deleteInternalTaskCard, updateClient, subscribeToUsers } from '../services/firestoreService';
 import { Modal } from './Modal';
-import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar } from 'lucide-react';
+import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar, Briefcase, TrendingUp, Settings } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 interface EditInternalTaskCardModalProps {
@@ -12,9 +12,10 @@ interface EditInternalTaskCardModalProps {
   client?: Client;
   clients: Client[];
   users: UserProfile[];
+  onMoveToSector?: (sectorId: string) => void;
 }
 
-export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps> = ({ isOpen, onClose, card, client, clients, users }) => {
+export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps> = ({ isOpen, onClose, card, client, clients, users, onMoveToSector }) => {
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -30,7 +31,7 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
     if (card) {
       setClientName(card.title || card.clientName || '');
       setNotes(card.notes || '');
-      setChecklist(card.checklist || []);
+      setChecklist(client?.checklist || card.checklist || []);
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
@@ -58,6 +59,11 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
         deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date()
       });
+
+      if (selectedClientId) {
+        await updateClient(selectedClientId, { checklist });
+      }
+
       onClose();
     } catch (err) {
       console.error(err);
@@ -219,6 +225,41 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
             ))}
           </div>
         </div>
+        
+        {onMoveToSector && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+              <Briefcase size={14} />
+              Mover para outro Setor
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onMoveToSector('comercial')}
+                className="bg-stone-50 border border-stone-200 rounded-xl py-2 px-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors text-left flex items-center gap-2"
+              >
+                <TrendingUp size={14} className="text-stone-400" />
+                Comercial
+              </button>
+              <button
+                type="button"
+                onClick={() => onMoveToSector('integracao')}
+                className="bg-stone-50 border border-stone-200 rounded-xl py-2 px-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors text-left flex items-center gap-2"
+              >
+                <Briefcase size={14} className="text-stone-400" />
+                Integração
+              </button>
+              <button
+                type="button"
+                onClick={() => onMoveToSector('operacao')}
+                className="bg-stone-50 border border-stone-200 rounded-xl py-2 px-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors text-left flex items-center gap-2"
+              >
+                <Settings size={14} className="text-stone-400" />
+                Operação
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">

@@ -42,6 +42,7 @@ interface OperationViewProps {
   clients: Client[];
   tags: Tag[];
   users: UserProfile[];
+  onMoveToSector: (card: OperationCard, targetSector: string) => void;
 }
 
 const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: OperationCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: OperationCard) => void, onUpdateCard: (cardId: string, data: Partial<OperationCard>) => Promise<void> }) => {
@@ -366,7 +367,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const OperationView: React.FC<OperationViewProps> = ({ companyId, lists, cards, clients, tags, users }) => {
+export const OperationView: React.FC<OperationViewProps> = ({ companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -758,9 +759,11 @@ export const OperationView: React.FC<OperationViewProps> = ({ companyId, lists, 
         <EditOperationCardModal 
           isOpen={!!editingCard} 
           onClose={() => setEditingCard(null)} 
-          card={editingCard} 
+          card={editingCard}
+          client={clients.find(c => c.id === editingCard?.clientId)}
           clients={clients}
           users={users}
+          onMoveToSector={(target) => editingCard && onMoveToSector(editingCard, target)}
         />
       )}
 

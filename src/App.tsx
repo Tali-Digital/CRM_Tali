@@ -57,7 +57,12 @@ import {
   updateCommercialCard,
   updateFinancialCard,
   updateOperationCard,
-  updateInternalTaskCard
+  updateInternalTaskCard,
+  addCommercialCard,
+  addFinancialCard,
+  addOperationCard,
+  addInternalTaskCard,
+  updateClient,
 } from './services/firestoreService';
 
 export function App() {
@@ -130,6 +135,86 @@ export function App() {
       };
     }
   }, [user, selectedCompanyId]);
+
+  const moveCardBetweenSectors = async (card: any, sourceSector: string, targetSector: string) => {
+    if (!selectedCompanyId) return;
+
+    // Determine target list (first list of the target sector)
+    let targetListId = '';
+    let targetLists: any[] = [];
+    let addFn: any;
+    let deleteFn: any;
+
+    if (targetSector === 'comercial') {
+      targetLists = commercialLists;
+      addFn = addCommercialCard;
+    } else if (targetSector === 'integracao') {
+      targetLists = financialLists;
+      addFn = addFinancialCard;
+    } else if (targetSector === 'operacao') {
+      targetLists = operationLists;
+      addFn = addOperationCard;
+    } else if (targetSector === 'internal_tasks') {
+      targetLists = internalTaskLists;
+      addFn = addInternalTaskCard;
+    }
+
+    if (sourceSector === 'comercial') deleteFn = deleteCommercialCard;
+    else if (sourceSector === 'integracao') deleteFn = deleteFinancialCard;
+    else if (sourceSector === 'operacao') deleteFn = deleteOperationCard;
+    else if (sourceSector === 'internal_tasks') deleteFn = deleteInternalTaskCard;
+
+    if (targetLists.length === 0) {
+      alert(`O setor de destino (${targetSector}) não possui listas criadas.`);
+      return;
+    }
+
+    targetListId = targetLists[0].id;
+    const targetList = targetLists[0];
+
+    try {
+      // Prepare checklist merge if it's a client
+      let finalChecklist = [...(card.checklist || [])];
+      const client = clients.find(c => c.id === card.clientId);
+      if (client) {
+        finalChecklist = [...(client.checklist || [])];
+      }
+
+      if (targetList.defaultChecklist) {
+        targetList.defaultChecklist.forEach((itemText: string) => {
+          if (!finalChecklist.some((item: any) => item.text === itemText)) {
+            finalChecklist.push({
+              id: Date.now().toString() + Math.random().toString(36).substring(7),
+              text: itemText,
+              completed: false
+            });
+          }
+        });
+      }
+
+      // 1. Create in new sector
+      await addFn({
+        ...card,
+        listId: targetListId,
+        checklist: card.type === 'client' ? [] : finalChecklist, // Clients use central checklist
+        order: 0,
+        updatedAt: new Date()
+      });
+
+      // 2. Update client checklist if applicable
+      if (client) {
+        await updateClient(client.id, { checklist: finalChecklist });
+      }
+
+      // 3. Delete from source sector
+      await deleteFn(card.id);
+
+      alert(`Card movido para o setor ${targetSector} com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao mover card entre setores.');
+    }
+  };
 
   const activeCommercialCards = commercialCards.filter(c => !c.deleted && !c.completed);
   const activeFinancialCards = financialCards.filter(c => !c.deleted && !c.completed);
@@ -485,13 +570,13 @@ export function App() {
           />
         );
       case 'comercial':
-        return <CommercialView companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
+        return <CommercialView companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
       case 'integracao':
-        return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
+        return <FinancialView companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
       case 'operacao':
-        return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
+        return <OperationView companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
       case 'internal_tasks':
-        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted)} clients={clients} tags={tags} users={users} />;
+        return <InternalTasksView companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
       default:
         return null;
     }

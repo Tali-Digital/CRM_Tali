@@ -36,6 +36,7 @@ interface InternalTasksViewProps {
   clients: Client[];
   tags: Tag[];
   users: UserProfile[];
+  onMoveToSector: (card: InternalTaskCard, targetSector: string) => void;
 }
 
 const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void> }) => {
@@ -361,7 +362,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onSetting
   );
 };
 
-export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId, lists, cards, clients, tags, users }) => {
+export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -756,9 +757,10 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ companyId,
           isOpen={!!editingCard} 
           onClose={() => setEditingCard(null)} 
           card={editingCard} 
-          client={clients.find(c => c.id === editingCard.clientId)}
+          client={clients.find(c => c.id === editingCard?.clientId)}
           clients={clients}
           users={users}
+          onMoveToSector={(target) => editingCard && onMoveToSector(editingCard, target)}
         />
       )}
 
