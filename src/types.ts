@@ -120,6 +120,7 @@ export interface FinancialCard {
   deleted?: boolean;
   completed?: boolean;
   completedAt?: any;
+  recurrence?: RecurrenceSettings;
 }
 
 export interface OperationList {
@@ -150,6 +151,7 @@ export interface OperationCard {
   deleted?: boolean;
   completed?: boolean;
   completedAt?: any;
+  recurrence?: RecurrenceSettings;
 }
 
 export interface InternalTaskList {
@@ -181,6 +183,7 @@ export interface InternalTaskCard {
   deleted?: boolean;
   completed?: boolean;
   completedAt?: any;
+  recurrence?: RecurrenceSettings;
 }
 
 export interface Company {

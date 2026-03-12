@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { Sidebar } from './components/Sidebar';
 import { UnifiedDashboardBoard } from './components/UnifiedDashboardBoard';
-import { UnifiedDashboardList } from './components/UnifiedDashboardList';
 import { CommercialView } from './components/CommercialView';
 import { FinancialView } from './components/FinancialView';
 import { InternalTasksView } from './components/InternalTasksView';
@@ -66,13 +66,13 @@ import {
   addOperationCard,
   addInternalTaskCard,
   updateClient,
+  createNotification
 } from './services/firestoreService';
 
 export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
@@ -506,8 +506,6 @@ export function App() {
         const assignedOperationLists = operationLists.filter(l => l.assignees?.includes(user?.uid || ''));
         const hasAssignedSectors = dashboardView === 'minhas' && (assignedCommercialLists.length > 0 || assignedFinancialLists.length > 0 || assignedOperationLists.length > 0);
 
-        const totalCards = commercialCards.length + financialCards.length + operationCards.length;
-
         return (
           <div className="h-full flex flex-col">
             <section className="mb-8 flex items-center justify-between">
@@ -528,109 +526,71 @@ export function App() {
                     </button>
                   </div>
                 )}
-                <div className="h-6 w-px bg-stone-200"></div>
-                <div className="flex bg-stone-200 p-1 rounded-lg">
-                  <button 
-                    onClick={() => setViewMode('kanban')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                  >
-                    <LayoutGrid size={18} />
-                  </button>
-                  <button 
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                  >
-                    <List size={18} />
-                  </button>
-                </div>
               </div>
-
             </section>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={viewMode}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 flex flex-col gap-6"
-              >
-                {hasAssignedSectors && (
-                  <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm shrink-0">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4">Setores Atribuídos</h3>
-                    <div className="flex flex-wrap gap-4">
-                      {assignedCommercialLists.map(list => (
-                        <button 
-                          key={list.id} 
-                          onClick={() => setActiveTab('comercial')}
-                          className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
-                        >
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Comercial</span>
-                          <span className="text-sm font-bold text-stone-900">{list.name}</span>
-                        </button>
-                      ))}
-                      {assignedFinancialLists.map(list => (
-                        <button 
-                          key={list.id} 
-                          onClick={() => setActiveTab('integracao')}
-                          className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
-                        >
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Integração</span>
-                          <span className="text-sm font-bold text-stone-900">{list.name}</span>
-                        </button>
-                      ))}
-                      {assignedOperationLists.map(list => (
-                        <button 
-                          key={list.id} 
-                          onClick={() => setActiveTab('operacao')}
-                          className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
-                        >
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Operação</span>
-                          <span className="text-sm font-bold text-stone-900">{list.name}</span>
-                        </button>
-                      ))}
-                    </div>
+            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+              {hasAssignedSectors && (
+                <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm shrink-0">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4">Setores Atribuídos</h3>
+                  <div className="flex flex-wrap gap-4">
+                    {assignedCommercialLists.map(list => (
+                      <button 
+                        key={list.id} 
+                        onClick={() => setActiveTab('comercial')}
+                        className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
+                      >
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Comercial</span>
+                        <span className="text-sm font-bold text-stone-900">{list.name}</span>
+                      </button>
+                    ))}
+                    {assignedFinancialLists.map(list => (
+                      <button 
+                        key={list.id} 
+                        onClick={() => setActiveTab('integracao')}
+                        className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
+                      >
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Integração</span>
+                        <span className="text-sm font-bold text-stone-900">{list.name}</span>
+                      </button>
+                    ))}
+                    {assignedOperationLists.map(list => (
+                      <button 
+                        key={list.id} 
+                        onClick={() => setActiveTab('operacao')}
+                        className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-[200px] text-left hover:bg-stone-100 transition-colors"
+                      >
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Operação</span>
+                        <span className="text-sm font-bold text-stone-900">{list.name}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {viewMode === 'kanban' ? (
-                  <div className="flex-1 min-h-0">
-                    <UnifiedDashboardBoard 
-                      commercialLists={commercialLists}
-                      commercialCards={commercialCards.filter(c => !c.deleted && !c.completed)}
-                      financialLists={financialLists}
-                      financialCards={financialCards.filter(c => !c.deleted && !c.completed)}
-                      operationLists={operationLists}
-                      operationCards={operationCards.filter(c => !c.deleted && !c.completed)}
-                      internalTaskLists={internalTaskLists}
-                      internalTaskCards={internalTaskCards.filter(c => !c.deleted && !c.completed)}
-                      clients={clients}
-                      tags={tags}
-                      users={users}
-                      dashboardView={dashboardView}
-                      currentUserUid={user.uid}
-                      onNavigate={setActiveTab}
-                      onUpdateCommercialCard={updateCommercialCard}
-                      onUpdateFinancialCard={updateFinancialCard}
-                      onUpdateOperationCard={updateOperationCard}
-                      onUpdateInternalTaskCard={updateInternalTaskCard}
-                    />
-                  </div>
-                ) : (
-                  <UnifiedDashboardList 
-                    commercialCards={commercialCards}
-                    financialCards={financialCards}
-                    operationCards={operationCards}
-                    internalTaskCards={internalTaskCards}
-                    clients={clients}
-                    tags={tags}
-                    users={users}
-                    onNavigate={setActiveTab}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+              <div className="flex-1 min-h-0">
+                <UnifiedDashboardBoard 
+                  commercialLists={commercialLists}
+                  commercialCards={commercialCards.filter(c => !c.deleted && !c.completed)}
+                  financialLists={financialLists}
+                  financialCards={financialCards.filter(c => !c.deleted && !c.completed)}
+                  operationLists={operationLists}
+                  operationCards={operationCards.filter(c => !c.deleted && !c.completed)}
+                  internalTaskLists={internalTaskLists}
+                  internalTaskCards={internalTaskCards.filter(c => !c.deleted && !c.completed)}
+                  clients={clients}
+                  tags={tags}
+                  users={users}
+                  dashboardView={dashboardView}
+                  currentUserUid={user?.uid || ''}
+                  onNavigate={setActiveTab}
+                  onUpdateCommercialCard={updateCommercialCard}
+                  onUpdateFinancialCard={updateFinancialCard}
+                  onUpdateOperationCard={updateOperationCard}
+                  onUpdateInternalTaskCard={updateInternalTaskCard}
+                />
+              </div>
+            </div>
           </div>
         );
       case 'clientes':

@@ -267,6 +267,13 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
           </div>
         )}
 
+        {isCustom && (
+          <RecurrenceSelector 
+            settings={recurrence} 
+            onChange={setRecurrence} 
+          />
+        )}
+
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
             <FileText size={14} />
