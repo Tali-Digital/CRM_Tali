@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { OperationCard, ChecklistItem, Client, UserProfile } from '../types';
 import { updateOperationCard, deleteOperationCard, updateClient, subscribeToUsers } from '../services/firestoreService';
 import { Modal } from './Modal';
-import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar, Briefcase, TrendingUp, Settings } from 'lucide-react';
+import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar, Briefcase, TrendingUp, Settings, RotateCcw } from 'lucide-react';
+import { RecurrenceSelector } from './RecurrenceSelector';
+import { RecurrenceSettings } from '../types';
 import { Timestamp } from 'firebase/firestore';
 
 interface EditOperationCardModalProps {
@@ -25,6 +27,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
   const [startDate, setStartDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [recurrence, setRecurrence] = useState<RecurrenceSettings | undefined>(undefined);
 
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
       setSelectedClientId(card.clientId || '');
+      setRecurrence(card.recurrence);
     }
   }, [card, client]);
 
@@ -58,7 +62,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
         startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
         deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date(),
-        recurrence: (card as any).recurrence || null
+        recurrence: recurrence || null
       });
 
       if (selectedClientId) {
@@ -262,6 +266,11 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
             </div>
           </div>
         )}
+        
+        <RecurrenceSelector 
+          settings={recurrence} 
+          onChange={setRecurrence} 
+        />
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">

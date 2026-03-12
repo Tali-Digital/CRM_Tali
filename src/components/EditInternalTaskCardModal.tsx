@@ -62,7 +62,7 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
         startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
         deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date(),
-        recurrence: isCustom ? (recurrence || null) : null
+        recurrence: recurrence || null
       });
 
       if (selectedClientId) {
@@ -267,12 +267,10 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
           </div>
         )}
 
-        {isCustom && (
-          <RecurrenceSelector 
-            settings={recurrence} 
-            onChange={setRecurrence} 
-          />
-        )}
+        <RecurrenceSelector 
+          settings={recurrence} 
+          onChange={setRecurrence} 
+        />
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
