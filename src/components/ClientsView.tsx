@@ -19,10 +19,10 @@ interface ClientsViewProps {
 }
 
 const DriveIcon = ({ size = 20 }: { size?: number }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 125 111.6" width={size} height={(size * 111.6) / 125}>
-    <path d="M43.1 1.2L0 75.8l20.4 34.6 43.1-74.6z" fill="#34A853"/>
-    <path d="M82.2 1.2L39 1.2l-20.4 34.6 43.1 74.6 20.4-34.6z" fill="#4285F4"/>
-    <path d="M125 75.8L104.6 110.4H19.6l20.4-34.6H125z" fill="#FBBC04"/>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 86.6" width={size} height={(size * 86.6) / 100}>
+    <path d="M33.3 0L0 57.7l16.7 28.9L50 28.9z" fill="#0066da"/>
+    <path d="M66.7 0L33.3 0l16.7 28.9l50 86.6L100 57.7z" fill="#00ac47"/>
+    <path d="M100 57.7L83.3 86.6H16.7l16.7-28.9H100z" fill="#ffba00"/>
   </svg>
 );
 
