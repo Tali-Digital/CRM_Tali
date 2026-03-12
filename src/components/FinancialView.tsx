@@ -93,6 +93,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
       ref={setNodeRef}
       style={style}
       className={`p-4 rounded-2xl shadow-sm border hover:shadow-md transition-all group cursor-pointer relative ${bgColorClass}`}
+      onClick={() => onEdit(card)}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
@@ -107,7 +108,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onUpdateCard }: { key
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onUpdateCard(card.id, { completed: true, completedAt: new Date() });
+              onUpdateCard(card.id, { completed: true, completedAt: Timestamp.now() });
             }}
             className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors"
             title="Marcar como concluído"

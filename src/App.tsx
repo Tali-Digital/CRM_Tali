@@ -53,7 +53,11 @@ import {
   deleteCommercialCard,
   deleteFinancialCard,
   deleteOperationCard,
-  deleteInternalTaskCard
+  deleteInternalTaskCard,
+  updateCommercialCard,
+  updateFinancialCard,
+  updateOperationCard,
+  updateInternalTaskCard
 } from './services/firestoreService';
 
 export function App() {
@@ -442,11 +446,18 @@ export function App() {
                       financialCards={financialCards.filter(c => !c.deleted)}
                       operationLists={operationLists}
                       operationCards={operationCards.filter(c => !c.deleted)}
+                      internalTaskLists={internalTaskLists}
+                      internalTaskCards={internalTaskCards.filter(c => !c.deleted)}
                       clients={clients}
                       tags={tags}
                       users={users}
                       dashboardView={dashboardView}
                       currentUserUid={user.uid}
+                      onNavigate={setActiveTab}
+                      onUpdateCommercialCard={updateCommercialCard}
+                      onUpdateFinancialCard={updateFinancialCard}
+                      onUpdateOperationCard={updateOperationCard}
+                      onUpdateInternalTaskCard={updateInternalTaskCard}
                     />
                   </div>
                 ) : (

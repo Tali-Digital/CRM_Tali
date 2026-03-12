@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, Client, Tag, UserProfile } from '../types';
+import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile } from '../types';
 import { CheckSquare, Calendar } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
@@ -10,12 +10,18 @@ interface Props {
   financialCards: FinancialCard[];
   operationLists: OperationList[];
   operationCards: OperationCard[];
+  internalTaskLists: InternalTaskList[];
+  internalTaskCards: InternalTaskCard[];
   clients: Client[];
   tags: Tag[];
   users: UserProfile[];
   dashboardView: 'minhas' | 'global';
   currentUserUid: string;
-  onNavigate: (tab: 'comercial' | 'integracao' | 'operacao') => void;
+  onNavigate: (tab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => void;
+  onUpdateCommercialCard: (id: string, data: any) => Promise<void>;
+  onUpdateFinancialCard: (id: string, data: any) => Promise<void>;
+  onUpdateOperationCard: (id: string, data: any) => Promise<void>;
+  onUpdateInternalTaskCard: (id: string, data: any) => Promise<void>;
 }
 
 export const UnifiedDashboardBoard: React.FC<Props> = ({
@@ -25,12 +31,18 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   financialCards,
   operationLists,
   operationCards,
+  internalTaskLists,
+  internalTaskCards,
   clients,
   tags,
   users,
   dashboardView,
   currentUserUid,
-  onNavigate
+  onNavigate,
+  onUpdateCommercialCard,
+  onUpdateFinancialCard,
+  onUpdateOperationCard,
+  onUpdateInternalTaskCard
 }) => {
   const isOverdue = (date: any) => {
     if (!date) return false;
@@ -50,7 +62,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const filterCards = (cards: any[], lists: any[]) => {
     // Only show cards that belong to an existing list
     const existingListIds = lists.map(l => l.id);
-    const validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted);
+    const validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
 
     if (dashboardView === 'global') return validCards;
     
@@ -61,8 +73,9 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const filteredCommercialCards = filterCards(commercialCards, commercialLists);
   const filteredFinancialCards = filterCards(financialCards, financialLists);
   const filteredOperationCards = filterCards(operationCards, operationLists);
+  const filteredInternalCards = filterCards(internalTaskCards, internalTaskLists);
 
-  const renderCard = (card: any, lists: any[], targetTab: 'comercial' | 'integracao' | 'operacao') => {
+  const renderCard = (card: any, lists: any[], targetTab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => {
     const client = clients.find(c => c.id === card.clientId);
     const list = lists.find(l => l.id === card.listId);
     const clientName = client?.name || card.clientName || card.title || 'Cliente Desconhecido';
@@ -84,10 +97,25 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       <div 
         key={card.id} 
         onClick={() => onNavigate(targetTab)}
-        className={`p-4 rounded-2xl shadow-sm border mb-3 cursor-pointer hover:shadow-md transition-all ${bgColorClass}`}
+        className={`p-4 rounded-2xl shadow-sm border mb-3 cursor-pointer hover:shadow-md transition-all group relative ${bgColorClass}`}
       >
         <div className="flex justify-between items-start mb-2">
           <h4 className={`font-bold text-sm ${textColorClass}`}>{clientName}</h4>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              const updateFn = 
+                targetTab === 'comercial' ? onUpdateCommercialCard :
+                targetTab === 'integracao' ? onUpdateFinancialCard :
+                targetTab === 'operacao' ? onUpdateOperationCard :
+                onUpdateInternalTaskCard;
+              updateFn(card.id, { completed: true, completedAt: Timestamp.now() });
+            }}
+            className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100"
+            title="Marcar como concluído"
+          >
+            <CheckSquare size={16} />
+          </button>
         </div>
         
         {list && (
@@ -186,6 +214,20 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
           {filteredOperationCards.map(card => renderCard(card, operationLists, 'operacao'))}
+        </div>
+      </div>
+
+      <div className="flex flex-col rounded-3xl p-4 bg-stone-200/50 min-h-[500px] border border-stone-200/50 shadow-sm min-w-[320px] w-[320px]">
+        <div className="flex items-center justify-between mb-6 px-2">
+          <div className="flex items-center space-x-2">
+            <h2 className="text-sm font-bold text-stone-900 uppercase tracking-widest">Tarefas Internas</h2>
+            <span className="bg-white text-stone-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-stone-200">
+              {filteredInternalCards.length}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+          {filteredInternalCards.map(card => renderCard(card, internalTaskLists, 'internal_tasks'))}
         </div>
       </div>
     </div>
