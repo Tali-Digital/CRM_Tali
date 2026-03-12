@@ -51,13 +51,66 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const [quickViewCard, setQuickViewCard] = React.useState<any>(null);
   const [quickViewTab, setQuickViewTab] = React.useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
 
-  const isOverdue = (date: any) => {
-    if (!date) return false;
+  const getNextRecurrenceDate = (recurrence: any) => {
+    if (!recurrence || !recurrence.enabled) return null;
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    let startDate = recurrence.lastTriggeredDate ? new Date(recurrence.lastTriggeredDate) : new Date();
+    startDate.setHours(0, 0, 0, 0);
+
+    if (recurrence.lastTriggeredDate) {
+      startDate.setDate(startDate.getDate() + 1);
+    }
+
+    if (recurrence.period === 'daily') {
+      return startDate;
+    }
+
+    if (recurrence.period === 'weekly' && recurrence.daysOfWeek?.length) {
+      let nextDate = new Date(startDate);
+      for (let i = 0; i < 7; i++) {
+        if (recurrence.daysOfWeek.includes(nextDate.getDay())) {
+          return nextDate;
+        }
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+    }
+
+    if (recurrence.period === 'monthly' && recurrence.dayOfMonth) {
+      let nextDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrence.dayOfMonth);
+      if (nextDate < startDate) {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      }
+      return nextDate;
+    }
+
+    if (recurrence.period === 'yearly' && recurrence.monthOfYear && recurrence.dayOfMonth) {
+      let nextDate = new Date(startDate.getFullYear(), recurrence.monthOfYear - 1, recurrence.dayOfMonth);
+      if (nextDate < startDate) {
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+      }
+      return nextDate;
+    }
+
+    return null;
+  };
+
+  const getDateProximity = (date: any) => {
+    if (!date) return 'normal';
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    d.setHours(0, 0, 0, 0);
-    return d <= today;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const checkDate = new Date(d);
+    checkDate.setHours(0, 0, 0, 0);
+
+    const diffTime = checkDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'overdue';
+    if (diffDays <= 3) return 'near';
+    return 'normal';
   };
 
   const formatDate = (date: any) => {
@@ -67,14 +120,31 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   };
 
   const filterCards = (cards: any[], lists: any[]) => {
-    // Only show cards that belong to an existing list
     const existingListIds = lists.map(l => l.id);
     const validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
+
+    const currentUser = users.find(u => u.id === currentUserUid);
+    const isAdmin = currentUser?.role === 'admin';
 
     if (dashboardView === 'global') return validCards;
     
     const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
-    return validCards.filter(c => assignedListIds.includes(c.listId));
+    
+    return validCards.filter(c => {
+      const isAssigned = assignedListIds.includes(c.listId);
+      if (isAssigned) return true;
+      
+      if (isAdmin) {
+        const delProx = getDateProximity(c.deliveryDate);
+        if (delProx !== 'normal') return true;
+        
+        const nextRec = getNextRecurrenceDate(c.recurrence);
+        const recProx = getDateProximity(nextRec);
+        if (recProx !== 'normal') return true;
+      }
+      
+      return false;
+    });
   };
 
   const filteredCommercialCards = filterCards(commercialCards, commercialLists);
@@ -247,7 +317,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                   if (targetTab === 'comercial') await deleteCommercialCard(card.id);
                   else if (targetTab === 'integracao') await deleteFinancialCard(card.id);
                   else if (targetTab === 'operacao') await deleteOperationCard(card.id);
-                  else if (targetTab === 'internal') await deleteInternalTaskCard(card.id);
+                  else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
                 }
               }}
               className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
@@ -263,7 +333,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                 if (targetTab === 'comercial') await completeCommercialCard(card.id);
                 else if (targetTab === 'integracao') await completeFinancialCard(card.id);
                 else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                else await completeInternalTaskCard(card.id);
+                else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
               }}
               className="p-1 rounded-lg hover:bg-white/50 text-stone-400 hover:text-green-600 transition-colors opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
               title="Marcar como concluído"
@@ -308,20 +378,36 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           </div>
         )}
 
-        {(card.startDate || card.deliveryDate) && (
-          <div className="flex items-center gap-3 mt-2">
+        {(card.startDate || card.deliveryDate || card.recurrence?.enabled) && (
+          <div className="flex flex-wrap items-center gap-3 mt-2">
             {card.startDate && (
               <div className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
                 <Calendar size={10} />
                 <span>{formatDate(card.startDate)}</span>
               </div>
             )}
-            {card.deliveryDate && (
-              <div className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue(card.deliveryDate) ? 'text-red-500' : 'text-stone-500'}`}>
-                <Calendar size={10} />
-                <span>{formatDate(card.deliveryDate)}</span>
-              </div>
-            )}
+            {card.deliveryDate && (() => {
+              const proximity = getDateProximity(card.deliveryDate);
+              const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
+              return (
+                <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
+                  <Calendar size={10} />
+                  <span>{formatDate(card.deliveryDate)}</span>
+                </div>
+              );
+            })()}
+            {card.recurrence?.enabled && (() => {
+              const nextRec = getNextRecurrenceDate(card.recurrence);
+              if (!nextRec) return null;
+              const proximity = getDateProximity(nextRec);
+              const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
+              return (
+                <div className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
+                  <RotateCcw size={10} className={proximity === 'near' || proximity === 'overdue' ? 'animate-spin-slow' : ''} />
+                  <span>{formatDate(nextRec)}</span>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -401,7 +487,12 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
             onNavigate(quickViewTab);
           }
         }}
-        sector={quickViewTab === 'integracao' ? 'financial' : quickViewTab === 'operacao' ? 'operation' : quickViewTab === 'internal_tasks' ? 'internal' : (quickViewTab as any)}
+        sector={
+          quickViewTab === 'comercial' ? 'commercial' :
+          quickViewTab === 'integracao' ? 'financial' :
+          quickViewTab === 'operacao' ? 'operation' :
+          'internal'
+        }
       />
     </div>
   );

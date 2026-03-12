@@ -16,6 +16,68 @@ interface QuickViewCardModalProps {
   sector: 'commercial' | 'financial' | 'operation' | 'internal';
 }
 
+const getNextRecurrenceDate = (recurrence: any) => {
+  if (!recurrence || !recurrence.enabled) return null;
+  
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  
+  let startDate = recurrence.lastTriggeredDate ? new Date(recurrence.lastTriggeredDate) : new Date();
+  startDate.setHours(0, 0, 0, 0);
+
+  if (recurrence.lastTriggeredDate) {
+    startDate.setDate(startDate.getDate() + 1);
+  }
+
+  if (recurrence.period === 'daily') {
+    return startDate;
+  }
+
+  if (recurrence.period === 'weekly' && recurrence.daysOfWeek?.length) {
+    let nextDate = new Date(startDate);
+    for (let i = 0; i < 7; i++) {
+      if (recurrence.daysOfWeek.includes(nextDate.getDay())) {
+        return nextDate;
+      }
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+  }
+
+  if (recurrence.period === 'monthly' && recurrence.dayOfMonth) {
+    let nextDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrence.dayOfMonth);
+    if (nextDate < startDate) {
+      nextDate.setMonth(nextDate.getMonth() + 1);
+    }
+    return nextDate;
+  }
+
+  if (recurrence.period === 'yearly' && recurrence.monthOfYear && recurrence.dayOfMonth) {
+    let nextDate = new Date(startDate.getFullYear(), recurrence.monthOfYear - 1, recurrence.dayOfMonth);
+    if (nextDate < startDate) {
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+    }
+    return nextDate;
+  }
+
+  return null;
+};
+
+const getDateProximity = (date: any) => {
+  if (!date) return 'normal';
+  const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const checkDate = new Date(d);
+  checkDate.setHours(0, 0, 0, 0);
+
+  const diffTime = checkDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return 'overdue';
+  if (diffDays <= 3) return 'near';
+  return 'normal';
+};
+
 export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -217,8 +279,30 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                         <Clock size={12} />
                         Entrega
                       </div>
-                      <div className="text-sm font-black text-stone-900">{formatDate(card.deliveryDate)}</div>
+                      {(() => {
+                        const proximity = getDateProximity(card.deliveryDate);
+                        const colorClass = proximity === 'overdue' ? 'text-red-600' : proximity === 'near' ? 'text-orange-600' : 'text-stone-900';
+                        return (
+                          <div className={`text-sm font-black ${colorClass}`}>{formatDate(card.deliveryDate)}</div>
+                        );
+                      })()}
                     </div>
+
+                    {card.recurrence?.enabled && (() => {
+                      const nextRec = getNextRecurrenceDate(card.recurrence);
+                      if (!nextRec) return null;
+                      const proximity = getDateProximity(nextRec);
+                      const colorClass = proximity === 'overdue' ? 'text-red-600' : proximity === 'near' ? 'text-orange-600' : 'text-stone-900';
+                      return (
+                        <div className="space-y-1.5 text-center px-2 py-3 rounded-2xl bg-white border border-stone-100 shadow-sm animate-in fade-in duration-500">
+                          <div className="flex items-center justify-center gap-1.5 text-stone-400 text-[9px] font-black uppercase tracking-widest">
+                            <RotateCcw size={12} className={proximity === 'near' || proximity === 'overdue' ? 'animate-spin-slow' : ''} />
+                            Recorrência
+                          </div>
+                          <div className={`text-sm font-black ${colorClass}`}>{formatDate(nextRec)}</div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Responsáveis */}
