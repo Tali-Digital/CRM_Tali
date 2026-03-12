@@ -470,10 +470,20 @@ export function App() {
 
               <button 
                 onClick={() => setIsAllCardsModalOpen(true)}
-                className="flex items-center space-x-2 hover:bg-stone-100 p-2 rounded-xl transition-all cursor-pointer group"
+                className="flex items-center gap-3 bg-stone-900 text-white px-5 py-2.5 rounded-2xl transition-all cursor-pointer hover:bg-stone-800 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-stone-900/10 group"
               >
-                <span className="text-xs font-bold uppercase tracking-widest text-stone-400 group-hover:text-stone-900">Ativos:</span>
-                <span className="text-sm font-bold text-stone-900">{totalActiveCards}</span>
+                <div className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
+                  <LayoutGrid size={18} className="text-white" />
+                </div>
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Gestor Geral</span>
+                  <span className="text-sm font-black tracking-tight">Cards</span>
+                </div>
+                <div className="h-8 w-px bg-white/10 mx-1"></div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-[10px] font-black text-white/60 mb-0.5">{totalActiveCards}</span>
+                  <span className="text-[8px] font-black uppercase tracking-tighter text-white/40 group-hover:text-white/60 transition-colors">Ativos</span>
+                </div>
               </button>
             </section>
 
