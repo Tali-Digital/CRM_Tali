@@ -119,6 +119,45 @@ export const RecurrenceSelector: React.FC<RecurrenceSelectorProps> = ({ settings
             </div>
           )}
 
+          {(period === 'monthly' || period === 'yearly') && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-stone-600">No dia</span>
+              <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={settings?.dayOfMonth || 1}
+                  onChange={(e) => updateSettings({ dayOfMonth: parseInt(e.target.value) || 1 })}
+                  className="w-8 text-sm font-bold text-stone-900 focus:outline-none"
+                />
+                {period === 'yearly' && (
+                  <>
+                    <div className="h-4 w-px bg-stone-200"></div>
+                    <select
+                      value={settings?.monthOfYear || 1}
+                      onChange={(e) => updateSettings({ monthOfYear: parseInt(e.target.value) || 1 })}
+                      className="text-sm font-bold text-stone-900 focus:outline-none bg-transparent cursor-pointer pr-1"
+                    >
+                      <option value="1">Janeiro</option>
+                      <option value="2">Fevereiro</option>
+                      <option value="3">Março</option>
+                      <option value="4">Abril</option>
+                      <option value="5">Maio</option>
+                      <option value="6">Junho</option>
+                      <option value="7">Julho</option>
+                      <option value="8">Agosto</option>
+                      <option value="9">Setembro</option>
+                      <option value="10">Outubro</option>
+                      <option value="11">Novembro</option>
+                      <option value="12">Dezembro</option>
+                    </select>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 text-[10px] text-stone-400 font-medium">
             <Clock size={12} />
             As notificações serão enviadas às 06:00 AM para os membros atribuídos.

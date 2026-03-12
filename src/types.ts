@@ -7,6 +7,8 @@ export interface RecurrenceSettings {
   period: RecurrencePeriod;
   interval: number;
   daysOfWeek?: number[];
+  dayOfMonth?: number;
+  monthOfYear?: number;
   lastTriggeredDate?: string;
 }
 

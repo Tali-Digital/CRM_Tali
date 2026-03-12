@@ -99,7 +99,7 @@ service cloud.firestore {
     }
 
     function isValidFinancialCard(data, isUpdate) {
-      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate', 'recurrence'];
       return data.keys().hasOnly(allowedFields) &&
              (isUpdate || (
                (('clientId' in data && data.clientId is string) || 
@@ -117,7 +117,8 @@ service cloud.firestore {
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
-             (!('deleted' in data) || data.deleted is bool);
+             (!('deleted' in data) || data.deleted is bool) &&
+             (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
     function isValidOperationList(data) {
@@ -130,7 +131,7 @@ service cloud.firestore {
     }
 
     function isValidOperationCard(data, isUpdate) {
-      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate', 'recurrence'];
       return data.keys().hasOnly(allowedFields) &&
              (isUpdate || (
                (('clientId' in data && data.clientId is string) || 
@@ -148,7 +149,8 @@ service cloud.firestore {
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
-             (!('deleted' in data) || data.deleted is bool);
+             (!('deleted' in data) || data.deleted is bool) &&
+             (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
     function isValidInternalTaskList(data) {
@@ -161,7 +163,7 @@ service cloud.firestore {
     }
 
     function isValidInternalTaskCard(data, isUpdate) {
-      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate'];
+      let allowedFields = ['id', 'clientId', 'deleted', 'completed', 'completedAt', 'title', 'type', 'listId', 'companyId', 'order', 'createdAt', 'updatedAt', 'notes', 'checklist', 'assignees', 'clientName', 'startDate', 'deliveryDate', 'recurrence'];
       return data.keys().hasOnly(allowedFields) &&
              (isUpdate || (
                (('clientId' in data && data.clientId is string) || 
@@ -179,7 +181,8 @@ service cloud.firestore {
              (!('startDate' in data) || data.startDate is timestamp || data.startDate == null) &&
              (!('deliveryDate' in data) || data.deliveryDate is timestamp || data.deliveryDate == null) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
-             (!('deleted' in data) || data.deleted is bool);
+             (!('deleted' in data) || data.deleted is bool) &&
+             (!('recurrence' in data) || data.recurrence is map || data.recurrence == null);
     }
 
     function isValidNotification(data) {
