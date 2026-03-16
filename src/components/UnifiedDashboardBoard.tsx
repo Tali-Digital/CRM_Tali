@@ -131,7 +131,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
     
     return validCards.filter(c => {
-      const isAssigned = assignedListIds.includes(c.listId);
+      const isAssigned = assignedListIds.includes(c.listId) || c.assignees?.includes(currentUserUid);
       if (isAssigned) return true;
       
       if (isAdmin) {
