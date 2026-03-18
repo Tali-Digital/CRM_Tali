@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CommercialCard, ChecklistItem, Client, UserProfile } from '../types';
 import { updateCommercialCard, deleteCommercialCard, updateClient, subscribeToUsers } from '../services/firestoreService';
 import { Modal } from './Modal';
-import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar, Briefcase, TrendingUp, Settings, RotateCcw } from 'lucide-react';
+import { Trash2, Plus, X, CheckSquare, FileText, User, Edit2, Users, Calendar, Briefcase, TrendingUp, Settings, RotateCcw, LayoutGrid } from 'lucide-react';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { RecurrenceSettings } from '../types';
 import { Timestamp } from 'firebase/firestore';
@@ -28,6 +28,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
   const [deliveryDate, setDeliveryDate] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceSettings | undefined>(undefined);
+  const [cardColor, setCardColor] = useState('#ffffff');
 
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       setDeliveryDate(card.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
       setSelectedClientId(card.clientId || '');
       setRecurrence(card.recurrence);
+      setCardColor(card.color || '#ffffff');
     }
   }, [card, client]);
 
@@ -59,10 +61,11 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
         notes,
         checklist,
         assignees: assignedUserIds,
-        startDate: isCustom && startDate ? new Date(startDate + 'T12:00:00') : null,
-        deliveryDate: isCustom && deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
+        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+        deliveryDate: deliveryDate ? new Date(deliveryDate + 'T12:00:00') : null,
         updatedAt: new Date(),
-        recurrence: recurrence || null
+        recurrence: recurrence || null,
+        color: cardColor
       });
 
       if (selectedClientId) {
@@ -127,32 +130,91 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       <form onSubmit={handleSave} className="flex flex-col h-full">
         <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1 custom-scrollbar space-y-6">
           {isCustom ? (
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-                <Edit2 size={14} />
-                Título do Card
-              </label>
-              <input 
-                required
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-              />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                  <Edit2 size={14} />
+                  Título do Card
+                </label>
+                <input 
+                  required
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                  <LayoutGrid size={14} />
+                  Cor do Card
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { name: 'Branco', value: '#ffffff' },
+                    { name: 'Azul', value: '#dbeafe' },
+                    { name: 'Verde', value: '#dcfce7' },
+                    { name: 'Amarelo', value: '#fef9c3' },
+                    { name: 'Laranja', value: '#ffedd5' },
+                    { name: 'Roxo', value: '#f3e8ff' },
+                    { name: 'Rosa', value: '#fce7f3' },
+                    { name: 'Cinza', value: '#f1f5f9' },
+                  ].map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setCardColor(c.value)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${cardColor === c.value ? 'border-stone-900 scale-110' : 'border-stone-200 hover:scale-105'}`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="p-4 bg-stone-100 rounded-2xl border border-stone-200">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1">Cliente</label>
-              <div className="flex items-center gap-2">
-                <User size={16} className="text-stone-400" />
-                <span className="font-bold text-stone-900">{client?.name || card.clientName || 'Cliente vinculado'}</span>
+            <div className="space-y-4">
+              <div className="p-4 bg-stone-100 rounded-2xl border border-stone-200">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1">Cliente</label>
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-stone-400" />
+                  <span className="font-bold text-stone-900">{client?.name || card.clientName || 'Cliente vinculado'}</span>
+                </div>
+                <p className="text-[10px] text-stone-500 mt-2 italic font-medium">Nome gerido pela central de clientes.</p>
               </div>
-              <p className="text-[10px] text-stone-500 mt-2 italic font-medium">Nome gerido pela central de clientes.</p>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+                  <LayoutGrid size={14} />
+                  Cor do Card
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { name: 'Branco', value: '#ffffff' },
+                    { name: 'Azul', value: '#dbeafe' },
+                    { name: 'Verde', value: '#dcfce7' },
+                    { name: 'Amarelo', value: '#fef9c3' },
+                    { name: 'Laranja', value: '#ffedd5' },
+                    { name: 'Roxo', value: '#f3e8ff' },
+                    { name: 'Rosa', value: '#fce7f3' },
+                    { name: 'Cinza', value: '#f1f5f9' },
+                  ].map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setCardColor(c.value)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${cardColor === c.value ? 'border-stone-900 scale-110' : 'border-stone-200 hover:scale-105'}`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
 
-        {isCustom && (
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
                 <Calendar size={14} />
@@ -178,7 +240,6 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
               />
             </div>
           </div>
-        )}
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">

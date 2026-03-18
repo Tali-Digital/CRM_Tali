@@ -20,6 +20,7 @@ import { Modal } from './Modal';
 import { ListSettingsModal } from './ListSettingsModal';
 import { EditFinancialCardModal } from './EditFinancialCardModal';
 import { QuickViewCardModal } from './QuickViewCardModal';
+import { CalendarDashboardView } from './CalendarDashboardView';
 import {
   DndContext,
   closestCorners,
@@ -45,7 +46,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 interface FinancialViewProps {
-  viewMode: 'kanban' | 'list' | 'vertical';
+  viewMode: 'kanban' | 'list' | 'vertical' | 'calendar';
   cardFilter: SectorCardFilter;
   companyId: CompanyType;
   lists: FinancialList[];
@@ -56,7 +57,7 @@ interface FinancialViewProps {
   onMoveToSector: (card: FinancialCard, targetSector: string) => void;
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, viewMode }: { key?: string | number, card: FinancialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: FinancialCard) => void, onQuickView: (card: FinancialCard) => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, viewMode }: { key?: string | number, card: FinancialCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: FinancialCard) => void, onQuickView: (card: FinancialCard) => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' | 'calendar' }) => {
   const {
     attributes,
     listeners,
@@ -81,10 +82,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   const isClient = card.type === 'client' && client;
   const title = isClient ? client.name : (card.title || 'Card sem Título');
   
-  const bgColorClass = 'bg-white border-stone-200';
-  const textColorClass = 'text-stone-900';
-  const iconColorClass = 'text-stone-400 hover:text-stone-600';
-
   const isOverdue = (date: any) => {
     if (!date) return false;
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
@@ -93,6 +90,24 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     d.setHours(0, 0, 0, 0);
     return d <= today;
   };
+
+  const getLuminance = (hexColor: string) => {
+    if (!hexColor || hexColor === '#ffffff') return 1;
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  };
+
+  const isCardOverdue = isOverdue(card.deliveryDate);
+  const bgColor = isCardOverdue ? '#991b1b' : (card.color || '#ffffff');
+  const isDarkBg = getLuminance(bgColor) < 0.6;
+  
+  const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
+  const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
+  const iconColorClass = isDarkBg ? 'text-white/60 hover:text-white' : 'text-stone-400 hover:text-stone-600';
+  const borderColor = isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb');
 
   const formatDate = (date: any) => {
     if (!date) return '';
@@ -107,15 +122,15 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       return (
         <div 
           ref={setNodeRef}
-          style={style}
-          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''}`}
+          style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
+          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''}`}
           onClick={() => onQuickView(card)}
         >
           <div className="flex items-center gap-3 overflow-hidden">
             <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0 card-draggable`}>
               <GripVertical size={12} />
             </div>
-            <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'} shrink-0`}>
+            <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? (isDarkBg ? 'bg-white/20' : 'bg-blue-200/50') : (isDarkBg ? 'bg-white/20' : 'bg-yellow-200/50')} shrink-0`}>
               <User size={10} className={textColorClass} />
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
@@ -125,7 +140,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               )}
             </div>
             {total > 0 && (
-              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (isDarkBg ? 'bg-white/20 text-white' : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700'))}`}>
                 <CheckSquare size={8} />
                 {completed}/{total}
               </div>
@@ -178,17 +193,17 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     return (
       <div 
         ref={setNodeRef}
-        style={style}
-        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
+        style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
         onClick={() => onQuickView(card)}
       >
-        <div className={`p-2 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
+        <div className={`p-2 flex items-center justify-between border-b ${isDarkBg ? 'border-white/10 bg-black/5' : (client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30')}`}>
           <div className="flex items-center gap-1">
             <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} card-draggable`}>
               <GripVertical size={12} />
             </div>
             <div className="flex items-center gap-1">
-              <div className={`p-0.5 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'}`}>
+              <div className={`p-0.5 rounded-lg ${isDarkBg ? 'bg-white/20' : (client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50')}`}>
                 <User size={10} className={textColorClass} />
               </div>
               <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
@@ -273,8 +288,8 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     return (
       <div 
         ref={setNodeRef}
-        style={style}
-        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
+        style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
+        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
         onClick={() => onQuickView(card)}
       >
         <div className="flex items-center gap-3 overflow-hidden">
@@ -352,8 +367,8 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   return (
     <div 
       ref={setNodeRef}
-      style={style}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${bgColorClass} ${isDragging ? 'card-placeholder' : ''}`}
+      style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${isDragging ? 'card-placeholder' : ''}`}
       onClick={() => onQuickView(card)}
     >
       <div className="flex justify-between items-start mb-2">
@@ -486,7 +501,7 @@ const isLightColor = (color: string) => {
   return brightness > 155;
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: FinancialList, cards: FinancialCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: FinancialCard) => void, onQuickView: (card: FinancialCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: FinancialList, cards: FinancialCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: FinancialCard) => void, onQuickView: (card: FinancialCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' | 'calendar', cardFilter: SectorCardFilter }) => {
   const [localFilter, setLocalFilter] = useState<SectorCardFilter>(cardFilter);
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
@@ -850,8 +865,10 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
     setIsAddCardOpen(true);
   };
 
-  return (
-    <div className="h-full flex flex-col">
+
+
+    return (
+      <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-2 py-1 px-2">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Integração do Cliente</h1>
@@ -871,76 +888,94 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
       <div 
         ref={boardRef}
         {...boardScrollProps}
-        className={`flex-1 ${dragClassName} ${viewMode === 'kanban' ? 'overflow-x-auto h-full px-1 scroll-smooth' : ''} pb-4 custom-scrollbar`}
+        className={`flex-1 ${dragClassName} overflow-auto h-full px-1 pb-4 custom-scrollbar`}
       >
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={lists.map(l => l.id)}
-            strategy={viewMode === 'kanban' ? horizontalListSortingStrategy : verticalListSortingStrategy}
+        {viewMode === 'calendar' ? (
+          <div className="flex-1 min-h-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200">
+            <CalendarDashboardView 
+              allCards={activeCards
+                .filter(c => {
+                  if (cardFilter === 'activities') return c.type !== 'client';
+                  if (cardFilter === 'clients') return c.type === 'client';
+                  return true;
+                })
+                .map(c => ({ ...c, sector: 'integracao' }))}
+              clients={clients}
+              tags={tags}
+              users={users}
+              onCardClick={(card) => setQuickViewCard(card as any)}
+            />
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
-            <div className={`flex ${viewMode === 'kanban' ? 'flex-row gap-6 h-full items-start min-w-max' : 'flex-col gap-10 w-full pb-10'}`}>
-              {lists.map(list => (
-                <SortableList 
-                  key={list.id} 
-                  list={list} 
-                  viewMode={viewMode}
-                  cards={activeCards.filter(c => c.listId === list.id)} 
-                  clients={clients}
-                  tags={tags}
-                  users={users}
-                  onEditCard={setEditingCard}
-                  onQuickView={setQuickViewCard}
-                  onSettings={() => setEditingList(list)}
-                  onAddCard={() => openAddCard(list.id)}
-                  onUpdateCard={updateFinancialCard}
-                  cardFilter={cardFilter}
-                />
-              ))}
+            <SortableContext
+              items={lists.map(l => l.id)}
+              strategy={viewMode === 'kanban' ? horizontalListSortingStrategy : verticalListSortingStrategy}
+            >
+              <div className={`flex ${viewMode === 'kanban' ? 'flex-row gap-6 h-full items-start min-w-max' : 'flex-col gap-10 w-full pb-10'}`}>
+                {lists.map(list => (
+                  <SortableList 
+                    key={list.id} 
+                    list={list} 
+                    viewMode={viewMode}
+                    cards={activeCards.filter(c => c.listId === list.id)} 
+                    clients={clients}
+                    tags={tags}
+                    users={users}
+                    onEditCard={onEditCard} 
+                    onQuickView={onQuickView}
+                    onSettings={() => setEditingList(list)}
+                    onAddCard={() => openAddCard(list.id)}
+                    onUpdateCard={updateFinancialCard}
+                    cardFilter={cardFilter}
+                  />
+                ))}
 
-              {lists.length === 0 && (
-                <div className="w-full h-64 flex flex-col items-center justify-center text-stone-400 border-2 border-dashed border-stone-200 rounded-3xl">
-                  <p className="mb-4">Nenhum setor criado no funil.</p>
-                  <button 
-                    onClick={() => setIsAddListOpen(true)}
-                    className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
-                  >
-                    <Plus size={16} />
-                    Criar Primeiro Setor
-                  </button>
-                </div>
-              )}
-            </div>
-          </SortableContext>
-          <DragOverlay adjustScale={false} dropAnimation={{
-            sideEffects: defaultDropAnimationSideEffects({
-              styles: {
-                active: {
-                  opacity: '0.5',
-                },
-              },
-            }),
-          }}>
-            {activeId && activeCard ? (
-              <div className="tilt-card">
-                <SortableCard 
-                  card={activeCard} 
-                  client={clients.find(c => c.id === activeCard.clientId)}
-                  tags={tags}
-                  users={users}
-                  onEdit={() => {}} 
-                  onQuickView={() => {}}
-                  onUpdateCard={async () => {}}
-                  viewMode={viewMode}
-                />
+                {lists.length === 0 && (
+                  <div className="w-full h-64 flex flex-col items-center justify-center text-stone-400 border-2 border-dashed border-stone-200 rounded-3xl">
+                    <p className="mb-4">Nenhum setor criado no funil.</p>
+                    <button 
+                      onClick={() => setIsAddListOpen(true)}
+                      className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
+                    >
+                      <Plus size={16} />
+                      Criar Primeiro Setor
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            </SortableContext>
+            <DragOverlay adjustScale={false} dropAnimation={{
+              sideEffects: defaultDropAnimationSideEffects({
+                styles: {
+                  active: {
+                    opacity: '0.5',
+                  },
+                },
+              }),
+            }}>
+              {activeId && activeCard ? (
+                <div className="tilt-card">
+                  <SortableCard 
+                    card={activeCard} 
+                    client={clients.find(c => c.id === activeCard.clientId)}
+                    tags={tags}
+                    users={users}
+                    onEdit={() => {}} 
+                    onQuickView={() => {}}
+                    onUpdateCard={async () => {}}
+                    viewMode={viewMode}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
       </div>
 
       <Modal isOpen={isAddListOpen} onClose={() => setIsAddListOpen(false)} title="Novo Setor">

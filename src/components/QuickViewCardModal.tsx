@@ -208,11 +208,29 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
             className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
           >
             {/* Header com Gradiente Sutil */}
-            <div className={`h-2 bg-gradient-to-r from-${sectorColor}-500 to-${sectorColor}-700 shadow-sm`} />
+            {(() => {
+              const proximity = getDateProximity(card.deliveryDate);
+              const isOverdue = proximity === 'overdue';
+              const displayColor = isOverdue ? '#991b1b' : (card.color || '');
+              
+              if (displayColor) {
+                const isDarkHeader = (hexColor: string) => {
+                  const hex = hexColor.replace('#', '');
+                  const r = parseInt(hex.substring(0, 2), 16) || 0;
+                  const g = parseInt(hex.substring(2, 4), 16) || 0;
+                  const b = parseInt(hex.substring(4, 6), 16) || 0;
+                  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                  return luminance < 0.6;
+                };
+                return <div className="h-2 shadow-sm" style={{ backgroundColor: displayColor }} />;
+              }
+              return <div className={`h-2 bg-gradient-to-r from-${sectorColor}-500 to-${sectorColor}-700 shadow-sm`} />;
+            })()}
             
             <div className="flex items-center justify-between p-8 pb-4">
               <div className="flex items-center gap-3">
-                <div className="px-4 py-1.5 rounded-full bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                <div className="px-4 py-1.5 rounded-full bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getDateProximity(card.deliveryDate) === 'overdue' ? '#991b1b' : (card.color || '#e5e7eb') }} />
                   {getSectorLabel()}
                 </div>
                 {client && (

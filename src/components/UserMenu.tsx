@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { LogOut, User, Settings, Users, Key, Layers } from 'lucide-react';
+import { LogOut, User, Settings, Users, Key, Layers, Calendar as CalendarIcon } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { UserManagementModal } from './UserManagementModal';
@@ -12,9 +12,10 @@ interface UserMenuProps {
   onOpenCardManager: () => void;
   onOpenProfile: () => void;
   onOpenManagement: () => void;
+  onGoogleSync: () => void;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement, onGoogleSync }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +90,14 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
                 Gerenciar Usuários
               </button>
             )}
+
+            <button 
+              onClick={() => { onGoogleSync(); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+            >
+              <CalendarIcon size={16} className="text-stone-400" />
+              Sincronizar Google Agenda
+            </button>
           </div>
 
           <div className="border-t border-stone-100 py-2">

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, User, Clock } from 'lucide-react';
 import { Client, Tag, UserProfile } from '../types';
@@ -48,11 +48,88 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
     days.push(new Date(year, month, i));
   }
 
+  const allEvents = useMemo(() => {
+    const events: any[] = [];
+    const calendarStart = new Date(year, month, 1);
+    const calendarEnd = new Date(year, month + 1, 0);
+
+    allCards.forEach(card => {
+      // Base date for the original card: delivery date, start date, or creation date
+      const baseDateObj = card.deliveryDate || card.startDate || card.createdAt;
+      if (!baseDateObj) return;
+      
+      let baseDate: Date;
+      if (baseDateObj instanceof Timestamp) {
+        baseDate = baseDateObj.toDate();
+      } else if (typeof baseDateObj === 'string') {
+        baseDate = new Date(baseDateObj);
+      } else if (baseDateObj instanceof Date) {
+        baseDate = baseDateObj;
+      } else if (baseDateObj && typeof baseDateObj === 'object' && 'seconds' in baseDateObj) {
+        // Handle cases where it might be a plain object representing a Timestamp but not an instance
+        baseDate = new Date(baseDateObj.seconds * 1000);
+      } else {
+        baseDate = new Date(); // Final fallback
+      }
+      
+      baseDate.setHours(0, 0, 0, 0);
+      
+      // Add the original card as an event
+      events.push({ ...card, eventDate: baseDate });
+
+      // Generate recurrences if enabled
+      if (card.recurrence?.enabled) {
+        const { period, interval = 1, daysOfWeek = [], dayOfMonth, monthOfYear } = card.recurrence;
+        const startDate = new Date(baseDate);
+        
+        // Final date: defined delivery date OR 6 months from start
+        let finalDate: Date;
+        let isCapped = false;
+        if (card.deliveryDate) {
+          finalDate = card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate);
+        } else {
+          finalDate = new Date(startDate);
+          finalDate.setMonth(finalDate.getMonth() + 6);
+          isCapped = true;
+        }
+
+        let nextDate = new Date(startDate);
+        // Step forward from the day after the start date
+        const nextOccurrence = (d: Date) => {
+          const res = new Date(d);
+          if (period === 'daily') res.setDate(res.getDate() + interval);
+          else if (period === 'weekly') res.setDate(res.getDate() + (7 * interval));
+          else if (period === 'monthly') res.setMonth(res.getMonth() + interval);
+          else if (period === 'yearly') res.setFullYear(res.getFullYear() + interval);
+          return res;
+        };
+
+        nextDate = nextOccurrence(nextDate);
+        
+        while (nextDate <= finalDate) {
+          // If we are about to hit/pass final date and it's capped, mark with warning
+          const isLastCappedDay = isCapped && (nextOccurrence(nextDate) > finalDate);
+          
+          events.push({
+            ...card,
+            eventDate: new Date(nextDate),
+            isRecurrence: true,
+            title: isLastCappedDay ? `[FIM RECORRÊNCIA] ${card.title || 'Tarefa'}` : card.title
+          });
+          
+          nextDate = nextOccurrence(nextDate);
+          // Safety break to prevent infinite loops
+          if (events.length > 5000) break; 
+        }
+      }
+    });
+
+    return events;
+  }, [allCards, year, month]);
+
   const getCardsForDate = (date: Date) => {
-    return allCards.filter(card => {
-      const cardDate = card.deliveryDate || card.startDate;
-      if (!cardDate) return false;
-      const d = cardDate instanceof Timestamp ? cardDate.toDate() : new Date(cardDate);
+    return allEvents.filter(event => {
+      const d = event.eventDate;
       return d.getDate() === date.getDate() &&
              d.getMonth() === date.getMonth() &&
              d.getFullYear() === date.getFullYear();
@@ -119,19 +196,47 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
                 <div className="space-y-1.5">
                   {cards.slice(0, 4).map(card => {
                     const client = clients.find(c => c.id === card.clientId);
-                    const sectorColor = 
+                    const isEventOverdue = (() => {
+                      if (!card.deliveryDate) return false; // Only highlight red if there's an actual delivery date
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const ed = new Date(card.eventDate);
+                      ed.setHours(0, 0, 0, 0);
+                      return ed <= today;
+                    })();
+
+                    const getLuminance = (hexColor: string) => {
+                      const hex = hexColor.replace('#', '');
+                      const r = parseInt(hex.substring(0, 2), 16) || 0;
+                      const g = parseInt(hex.substring(2, 4), 16) || 0;
+                      const b = parseInt(hex.substring(4, 6), 16) || 0;
+                      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    };
+
+                    const eventBgColor = isEventOverdue ? '#991b1b' : (card.color || '');
+                    const isDarkBg = isEventOverdue || (card.color && getLuminance(card.color) < 0.6);
+                    
+                    const eventStyle = eventBgColor ? {
+                      backgroundColor: eventBgColor,
+                      color: isDarkBg ? 'white' : 'inherit',
+                      borderColor: isEventOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb')
+                    } : {};
+
+                    const sectorColor = !eventBgColor ? (
                       card.sector === 'comercial' ? 'border-amber-200 bg-amber-50 text-amber-900' :
                       card.sector === 'integracao' ? 'border-blue-200 bg-blue-50 text-blue-900' :
                       card.sector === 'operacao' ? 'border-green-200 bg-green-50 text-green-900' :
-                      'border-stone-200 bg-stone-50 text-stone-900';
+                      'border-stone-200 bg-stone-50 text-stone-900'
+                    ) : '';
 
                     return (
                       <div 
-                        key={card.id}
+                        key={card.id + '-' + card.eventDate.getTime()}
                         onClick={(e) => {
                           e.stopPropagation();
                           onCardClick(card, card.sector);
                         }}
+                        style={eventStyle}
                         className={`px-2 py-1.5 rounded-xl border text-[10px] font-bold truncate cursor-pointer hover:shadow-sm transition-all shadow-inner ${sectorColor}`}
                       >
                         {card.title || client?.name || 'Sem título'}

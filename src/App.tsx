@@ -21,7 +21,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft } from 'lucide-react';
+import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { auth } from './firebase';
 import { googleCalendarService } from './services/googleCalendarService';
 import logoLogin from './logo_login.png';
@@ -76,9 +76,10 @@ export function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
-  const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical'>('kanban');
+  const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
+  const [dashboardViewMode, setDashboardViewMode] = useState<'board' | 'calendar'>('board');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [commercialLists, setCommercialLists] = useState<CommercialList[]>([]);
   const [commercialCards, setCommercialCards] = useState<CommercialCard[]>([]);
@@ -579,6 +580,8 @@ export function App() {
                   onUpdateInternalTaskCard={updateInternalTaskCard}
                   setDashboardView={setDashboardView}
                   userRole={userProfile?.role || 'user'}
+                  viewMode={dashboardViewMode}
+                  setViewMode={setDashboardViewMode}
                 />
               </div>
             </div>
@@ -680,6 +683,13 @@ export function App() {
                 >
                   <AlignLeft size={18} />
                 </button>
+                <button 
+                  onClick={() => setSectorViewMode('calendar')}
+                  className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'calendar' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  title="Vista Calendário"
+                >
+                  <CalendarIcon size={18} />
+                </button>
               </div>
             )}
 
@@ -705,6 +715,42 @@ export function App() {
                 </button>
               </div>
             )}
+
+            {activeTab === 'dashboard' && (
+              <div className="flex items-center gap-2">
+                {userProfile?.role === 'admin' && (
+                  <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
+                    <button 
+                      onClick={() => setDashboardView('minhas')}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardView === 'minhas' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      Meus Cards
+                    </button>
+                    <button 
+                      onClick={() => setDashboardView('global')}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardView === 'global' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      Visão Global
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
+                  <button 
+                    onClick={() => setDashboardViewMode('board')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardViewMode === 'board' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+                  >
+                    <LayoutGrid size={14} /> Blocos
+                  </button>
+                  <button 
+                    onClick={() => setDashboardViewMode('calendar')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardViewMode === 'calendar' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+                  >
+                    <CalendarIcon size={14} /> Calendário
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
           </div>
 
@@ -725,6 +771,7 @@ export function App() {
                 onOpenCardManager={() => setActiveTab('gestao')}
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenManagement={() => setIsManagementOpen(true)}
+                onGoogleSync={handleGoogleLogin}
               />
             </div>
           </div>

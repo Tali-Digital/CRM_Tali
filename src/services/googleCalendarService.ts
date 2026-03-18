@@ -33,14 +33,20 @@ class GoogleCalendarService {
   async syncCard(card: CommercialCard | FinancialCard | OperationCard | InternalTaskCard, sectorType: string): Promise<string | null> {
     const token = this.getAccessToken();
     if (!token) {
-      console.warn('Google Calendar Sync: No access token available');
+      console.warn('Google Calendar Sync: No access token available. Please login with Google.');
       return null;
     }
 
-    const startDate = this.formatDate(card.startDate);
-    const deliveryDate = this.formatDate(card.deliveryDate || card.startDate);
+    const startVal = card.startDate || card.deliveryDate;
+    const endVal = card.deliveryDate || card.startDate;
 
-    if (!startDate) return null;
+    const startDate = this.formatDate(startVal);
+    const deliveryDate = this.formatDate(endVal);
+
+    if (!startDate) {
+      console.warn('Google Calendar Sync: No dates available for card', card.id);
+      return null;
+    }
 
     const event: GoogleCalendarEvent = {
       summary: `[${sectorType.toUpperCase()}] ${card.title || (card as any).clientName || 'Sem título'}`,
@@ -52,6 +58,8 @@ class GoogleCalendarService {
         date: deliveryDate || startDate,
       },
     };
+
+    console.log(`Syncing to Google Calendar: ${event.summary} (${startDate} to ${deliveryDate})`);
 
     try {
       let url = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events`;
@@ -75,6 +83,13 @@ class GoogleCalendarService {
         const error = await response.json();
         console.error('Google Calendar Sync Error:', error);
         
+        // If token expired, clear it
+        if (response.status === 401) {
+          localStorage.removeItem('google_access_token');
+          this.accessToken = null;
+          console.error('Google session expired. Please login again.');
+        }
+
         // If event not found (deleted manually in calendar), try creating it
         if (response.status === 404 && card.googleEventId) {
            return this.syncCard({ ...card, googleEventId: undefined }, sectorType);

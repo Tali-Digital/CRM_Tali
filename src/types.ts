@@ -95,6 +95,7 @@ export interface CommercialCard {
   clientName?: string;
   recurrence?: RecurrenceSettings;
   googleEventId?: string;
+  color?: string;
 }
 
 export interface FinancialList {
@@ -128,6 +129,7 @@ export interface FinancialCard {
   completedAt?: any;
   recurrence?: RecurrenceSettings;
   googleEventId?: string;
+  color?: string;
 }
 
 export interface OperationList {
@@ -161,6 +163,7 @@ export interface OperationCard {
   completedAt?: any;
   recurrence?: RecurrenceSettings;
   googleEventId?: string;
+  color?: string;
 }
 
 export interface InternalTaskList {
@@ -195,6 +198,7 @@ export interface InternalTaskCard {
   completedAt?: any;
   recurrence?: RecurrenceSettings;
   googleEventId?: string;
+  color?: string;
 }
 
 export interface Company {

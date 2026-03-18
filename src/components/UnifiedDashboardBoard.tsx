@@ -30,6 +30,8 @@ interface Props {
   onUpdateInternalTaskCard: (id: string, data: any) => Promise<void>;
   setDashboardView: (view: 'minhas' | 'global') => void;
   userRole: string;
+  viewMode: 'board' | 'calendar';
+  setViewMode: (mode: 'board' | 'calendar') => void;
 }
 
 export const UnifiedDashboardBoard: React.FC<Props> = ({
@@ -53,10 +55,33 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   onUpdateInternalTaskCard,
   setDashboardView,
   userRole,
+  viewMode,
+  setViewMode,
 }) => {
   const [quickViewCard, setQuickViewCard] = useState<any>(null);
   const [quickViewTab, setQuickViewTab] = useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
-  const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
+
+  // Sector Colors
+  const [sectorColors, setSectorColors] = useState(() => {
+    const saved = localStorage.getItem('sectorColors');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing sectorColors from localStorage', e);
+      }
+    }
+    return {
+      comercial: '#ffbf00', // Amber
+      integracao: '#3b82f6', // Blue
+      operacao: '#22c55e', // Green
+      internal_tasks: '#78716c' // Stone
+    };
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('sectorColors', JSON.stringify(sectorColors));
+  }, [sectorColors]);
   
   // Dashboard Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -147,18 +172,24 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       });
     }
 
-    // Apply Dashbaord Filters
+    // Apply Dashboard Filters
     return validCards.filter(c => {
       const client = clients.find(cl => cl.id === c.clientId);
       const title = (c.title || c.clientName || client?.name || '').toLowerCase();
       
-      const matchesSearch = title.includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || title.includes(searchTerm.toLowerCase());
       const matchesSector = selectedSector === 'all' || sector === selectedSector;
       const matchesClient = selectedClient === 'all' || c.clientId === selectedClient;
-      const matchesUser = selectedUser === 'all' || c.assignees?.includes(selectedUser);
+      
+      // Fix User Filtering: Ensure we check assignees array correctly
+      const matchesUser = selectedUser === 'all' || (c.assignees && Array.isArray(c.assignees) && c.assignees.includes(selectedUser));
+      
       const matchesDate = !hasDateOnly || (!!c.deliveryDate || !!c.startDate);
       
-      const matchesTag = selectedTag === 'all' || (client?.serviceTags?.includes(selectedTag));
+      // Fix Tag Filtering: Check both card tags and client tags if applicable
+      const hasTag = (client?.serviceTags && Array.isArray(client.serviceTags) && client.serviceTags.includes(selectedTag)) || 
+                    (c.tags && Array.isArray(c.tags) && c.tags.includes(selectedTag));
+      const matchesTag = selectedTag === 'all' || hasTag;
 
       return matchesSearch && matchesSector && matchesClient && matchesUser && matchesDate && matchesTag;
     });
@@ -310,95 +341,80 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   };
 
   const FilterSection = () => (
-    <div className="bg-white rounded-3xl border border-stone-200 p-6 mb-8 shadow-sm">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-4">
         {/* Busca */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400">
-            <Search size={12} /> Busca
-          </label>
+        <div className="flex-1 min-w-[200px]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-300" size={14} />
             <input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Nome ou Título..."
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 font-bold"
+              placeholder="BUSCA: NOME OU TÍTULO..."
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
             />
           </div>
         </div>
 
         {/* Setor */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400">
-            <Briefcase size={12} /> Setor
-          </label>
+        <div className="w-[180px]">
           <select 
             value={selectedSector}
             onChange={(e) => setSelectedSector(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 font-bold"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
           >
-            <option value="all">Todos os Setores</option>
-            <option value="comercial">Comercial</option>
-            <option value="integracao">Integração</option>
-            <option value="operacao">Operação</option>
-            <option value="internal_tasks">Interno</option>
+            <option value="all">TODOS OS SETORES</option>
+            <option value="comercial">COMERCIAL</option>
+            <option value="integracao">INTEGRAÇÃO</option>
+            <option value="operacao">OPERAÇÃO</option>
+            <option value="internal_tasks">INTERNO</option>
           </select>
         </div>
 
         {/* Tag */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400">
-            <TagIcon size={12} /> Tag / Serviço
-          </label>
+        <div className="w-[180px]">
           <select 
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 font-bold transition-all"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all"
           >
-            <option value="all">Todas as Tags</option>
-            {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <option value="all">TODAS AS TAGS</option>
+            {tags.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
           </select>
         </div>
 
         {/* Cliente */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400">
-            <User size={12} /> Cliente Central
-          </label>
+        <div className="w-[180px]">
           <select 
             value={selectedClient}
             onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 font-bold"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
           >
-            <option value="all">Todos os Clientes</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="all">TODOS OS CLIENTES</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
           </select>
         </div>
 
         {/* Responsável */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400">
-            <Clock size={12} /> Responsável
-          </label>
+        <div className="w-[180px]">
           <select 
             value={selectedUser}
             onChange={(e) => setSelectedUser(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 font-bold"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
           >
-            <option value="all">Todos os Responsáveis</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            <option value="all">TODOS OS RESPONSÁVEIS</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>)}
           </select>
         </div>
 
-        {/* Outros / Toggle Data */}
-        <div className="space-y-2 flex flex-col justify-end">
+        {/* Toggle Data */}
+        <div className="w-[180px]">
           <button 
             onClick={() => setHasDateOnly(!hasDateOnly)}
-            className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all border ${hasDateOnly ? 'bg-stone-900 border-stone-900 text-white shadow-md' : 'bg-stone-50 border-stone-200 text-stone-400 hover:bg-stone-100'}`}
+            className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${hasDateOnly ? 'bg-stone-900 border-stone-900 text-white shadow-md' : 'bg-stone-50 border border-stone-200 text-stone-400 hover:bg-stone-100'}`}
           >
             {hasDateOnly ? <CalendarIcon size={12} /> : <Clock size={12} />}
-            {hasDateOnly ? 'Somente com Prazo' : 'Todos os Cards'}
+            {hasDateOnly ? 'COM PRAZO' : 'TODOS OS CARDS'}
           </button>
         </div>
       </div>
@@ -420,109 +436,57 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   );
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex items-center gap-4 shrink-0 mb-2 flex-wrap">
-        {userRole === 'admin' && (
-          <div className="flex bg-stone-200 p-1 rounded-xl shadow-inner h-10 items-center">
-            <button 
-              onClick={() => setDashboardView('minhas')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all h-full ${dashboardView === 'minhas' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Meus Cards
-            </button>
-            <button 
-              onClick={() => setDashboardView('global')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all h-full ${dashboardView === 'global' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Visão Global
-            </button>
-          </div>
-        )}
-
-        <div className="flex bg-stone-200 p-1 rounded-xl shadow-inner h-10 items-center">
-          <button 
-            onClick={() => setViewMode('board')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all h-full ${viewMode === 'board' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
-          >
-            <LayoutGrid size={14} /> Blocos
-          </button>
-          <button 
-            onClick={() => setViewMode('calendar')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all h-full ${viewMode === 'calendar' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
-          >
-            <CalendarIcon size={14} /> Calendário
-          </button>
-        </div>
-      </div>
-
+    <div className="flex flex-col space-y-4 h-full">
       <FilterSection />
 
-      <div className="min-h-0">
+      <div className="flex-1 min-h-0">
         {viewMode === 'board' ? (
           <div 
             ref={boardRef}
             {...boardScrollProps}
-            className={`flex gap-6 overflow-x-auto pb-4 custom-scrollbar ${dragClassName}`}
+            className={`flex gap-6 overflow-x-auto pb-4 h-full custom-scrollbar pr-4 ${dragClassName}`}
           >
-            <div className="flex flex-col rounded-3xl p-5 bg-[#1c222d] shadow-xl min-w-[340px] w-[340px] border border-stone-800/20">
-              <div className="flex items-center justify-between mb-6 px-2">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                    Comercial
-                  </h2>
-                  <span className="bg-white/10 text-white/60 text-[10px] font-black px-2 py-0.5 rounded-full border border-white/5">{filteredCommercialCards.length}</span>
+            {[
+              { id: 'comercial', name: 'Comercial', cards: filteredCommercialCards, lists: commercialLists, tab: 'comercial' },
+              { id: 'integracao', name: 'Integração', cards: filteredFinancialCards, lists: financialLists, tab: 'integracao' },
+              { id: 'operacao', name: 'Operação', cards: filteredOperationCards, lists: operationLists, tab: 'operacao' },
+              { id: 'internal_tasks', name: 'Tarefas Internas', cards: filteredInternalCards, lists: internalTaskLists, tab: 'internal_tasks' }
+            ].filter(s => selectedSector === 'all' || s.id === selectedSector).map(sector => (
+              <div key={sector.id} className="flex flex-col rounded-3xl bg-[#E6E6E6] shadow-sm min-w-[340px] w-[340px] border border-stone-300/50 overflow-hidden relative group/sector">
+                {/* Color Strip */}
+                <div 
+                  className="h-1.5 w-full shrink-0" 
+                  style={{ backgroundColor: sectorColors[sector.id as keyof typeof sectorColors] }}
+                />
+                
+                <div className="p-5 flex flex-col h-full overflow-hidden">
+                  <div className="flex items-center justify-between mb-6 px-2 shrink-0">
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-sm font-black text-stone-900 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColors[sector.id as keyof typeof sectorColors], width: '8px', height: '8px' }}></span>
+                        {sector.name}
+                      </h2>
+                      <span className="bg-stone-200/50 text-stone-500 text-[10px] font-black px-2 py-0.5 rounded-full border border-stone-300/50">{sector.cards.length}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 opacity-0 group-hover/sector:opacity-100 transition-opacity">
+                      <input 
+                        type="color" 
+                        value={sectorColors[sector.id as keyof typeof sectorColors]}
+                        onChange={(e) => setSectorColors(prev => ({ ...prev, [sector.id]: e.target.value }))}
+                        className="w-4 h-4 rounded-full overflow-hidden border-0 p-0 bg-transparent cursor-pointer"
+                        title="Trocar Cor"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Individual Scroll Area */}
+                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 pb-4">
+                    {sector.cards.map(card => renderCard(card, sector.lists, sector.tab as any))}
+                  </div>
                 </div>
               </div>
-              <div className="flex-1">
-                {filteredCommercialCards.map(card => renderCard(card, commercialLists, 'comercial'))}
-              </div>
-            </div>
-
-            <div className="flex flex-col rounded-3xl p-5 bg-[#1c222d] shadow-xl min-w-[340px] w-[340px] border border-stone-800/20">
-              <div className="flex items-center justify-between mb-6 px-2">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                    Integração
-                  </h2>
-                  <span className="bg-white/10 text-white/60 text-[10px] font-black px-2 py-0.5 rounded-full border border-white/5">{filteredFinancialCards.length}</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                {filteredFinancialCards.map(card => renderCard(card, financialLists, 'integracao'))}
-              </div>
-            </div>
-
-            <div className="flex flex-col rounded-3xl p-5 bg-[#1c222d] shadow-xl min-w-[340px] w-[340px] border border-stone-800/20">
-              <div className="flex items-center justify-between mb-6 px-2">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                    Operação
-                  </h2>
-                  <span className="bg-white/10 text-white/60 text-[10px] font-black px-2 py-0.5 rounded-full border border-white/5">{filteredOperationCards.length}</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                {filteredOperationCards.map(card => renderCard(card, operationLists, 'operacao'))}
-              </div>
-            </div>
-
-            <div className="flex flex-col rounded-3xl p-5 bg-[#1c222d] shadow-xl min-w-[340px] w-[340px] border border-stone-800/20">
-              <div className="flex items-center justify-between mb-6 px-2">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-stone-500"></span>
-                    Tarefas Internas
-                  </h2>
-                  <span className="bg-white/10 text-white/60 text-[10px] font-black px-2 py-0.5 rounded-full border border-white/5">{filteredInternalCards.length}</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                {filteredInternalCards.map(card => renderCard(card, internalTaskLists, 'internal_tasks'))}
-              </div>
-            </div>
+            ))}
           </div>
         ) : (
           <CalendarDashboardView 
