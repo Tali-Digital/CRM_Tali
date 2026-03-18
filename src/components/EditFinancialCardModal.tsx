@@ -123,7 +123,7 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"} maxWidth="max-w-4xl">
       <form onSubmit={handleSave} className="flex flex-col h-full">
         <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1 custom-scrollbar space-y-6">
           {isCustom ? (
@@ -314,7 +314,7 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
             </button>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+          <div className="space-y-2">
             {checklist.map((item) => (
               <div key={item.id} className="flex items-center justify-between bg-stone-50 border border-stone-200 p-2 rounded-xl group">
                 <div className="flex items-center gap-3 flex-1">

@@ -23,6 +23,7 @@ import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialC
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft } from 'lucide-react';
 import { auth } from './firebase';
+import { googleCalendarService } from './services/googleCalendarService';
 import logoLogin from './logo_login.png';
 import { 
   signInWithPopup, 
@@ -103,6 +104,7 @@ export function App() {
   // Modal states
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -352,8 +354,14 @@ export function App() {
     setIsAuthLoading(true);
     setAuthError('');
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
     try {
       const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      if (token) {
+        googleCalendarService.setAccessToken(token);
+      }
       const additionalInfo = getAdditionalUserInfo(result);
       
       const allowedEmails = ['tali.agenciadigital@gmail.com', 'diogotorres2907@gmail.com'];
@@ -419,7 +427,7 @@ export function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-stone-900 flex items-center justify-center p-6 font-nunito">
-        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-stone-200 text-center">
+          <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-stone-200 text-center">
           <div className="mb-8 flex justify-center">
             <img src={logoLogin} alt="CRM Talí Digital" className="h-20 w-auto" />
           </div>
@@ -472,7 +480,7 @@ export function App() {
             </button>
           </form>
 
-          <div className="relative flex items-center py-2 mb-6">
+          <div className="flex justify-between items-center mb-2 py-1 px-2">
             <div className="flex-grow border-t border-stone-200"></div>
             <span className="flex-shrink-0 mx-4 text-stone-400 text-xs uppercase tracking-widest font-bold">Ou</span>
             <div className="flex-grow border-t border-stone-200"></div>
@@ -509,29 +517,8 @@ export function App() {
         const hasAssignedSectors = dashboardView === 'minhas' && (assignedCommercialLists.length > 0 || assignedFinancialLists.length > 0 || assignedOperationLists.length > 0);
 
         return (
-          <div className="h-full flex flex-col">
-            <section className="mb-8 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {userProfile?.role === 'admin' && (
-                  <div className="flex bg-stone-200 p-1 rounded-lg">
-                    <button 
-                      onClick={() => setDashboardView('minhas')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${dashboardView === 'minhas' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                    >
-                      Meus Cards
-                    </button>
-                    <button 
-                      onClick={() => setDashboardView('global')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${dashboardView === 'global' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-                    >
-                      Visão Global
-                    </button>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+            <div className="flex-1 overflow-y-auto custom-scrollbar h-full pr-2">
+              <div className="flex flex-col gap-6">
               {hasAssignedSectors && (
                 <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm shrink-0">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4">Setores Atribuídos</h3>
@@ -590,6 +577,8 @@ export function App() {
                   onUpdateFinancialCard={updateFinancialCard}
                   onUpdateOperationCard={updateOperationCard}
                   onUpdateInternalTaskCard={updateInternalTaskCard}
+                  setDashboardView={setDashboardView}
+                  userRole={userProfile?.role || 'user'}
                 />
               </div>
             </div>
@@ -649,20 +638,24 @@ export function App() {
         onLogout={handleLogout} 
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
       
-      <main className="flex-1 ml-64 font-nunito h-screen flex flex-col overflow-hidden bg-stone-50">
-        <header className="flex items-center justify-between p-8 py-5 shrink-0 bg-white/70 backdrop-blur-xl sticky top-0 z-20 border-b border-stone-200/50 shadow-sm">
-          <div className="flex items-center gap-8">
-            <div>
-              <h1 className="text-2xl font-black text-stone-900 tracking-tight">Talí Agência Digital</h1>
-              <div className="flex items-center gap-2 text-stone-500 text-xs mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                <span>Olá, {user.displayName || user.email?.split('@')[0] || 'Usuário'}</span>
-              </div>
+      <main className={`flex-1 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
+        <header className="flex items-center justify-between px-6 py-2 shrink-0 bg-white border-b border-stone-100 relative z-20">
+          <div className="flex items-center gap-4 flex-1 min-w-0 mr-4">
+            <div className="shrink-0">
+              <h1 className="text-lg font-black text-stone-900 tracking-tight leading-none">Talí Agência Digital</h1>
+              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Olá, {user.displayName || userProfile?.name || user.email?.split('@')[0] || 'Usuário'}
+              </p>
             </div>
             
-            <div className="h-8 w-[1px] bg-stone-200"></div>
+            <div className="h-6 w-[1px] bg-stone-200 shrink-0 mx-1"></div>
+
+            <div className="flex items-center gap-2 min-w-0">
 
             {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
               <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
@@ -706,24 +699,26 @@ export function App() {
                 </button>
                 <button 
                   onClick={() => setSectorCardFilter('both')}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                  className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
                 >
                   Duo
                 </button>
               </div>
             )}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+          <div className="flex items-center space-x-3 shrink-0">
+            <div className="relative hidden 2xl:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
               <input 
                 type="text" 
                 placeholder="Buscar..." 
-                className="bg-stone-100 border border-stone-200 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 w-64 transition-all"
+                className="bg-stone-50 border border-stone-200 rounded-full pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 w-48 transition-all font-bold"
               />
             </div>
             <NotificationCenter userId={user.uid} />
+            <div className="pl-2 border-l border-stone-100">
               <UserMenu 
                 user={user} 
                 userProfile={userProfile} 
@@ -731,10 +726,11 @@ export function App() {
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenManagement={() => setIsManagementOpen(true)}
               />
+            </div>
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 p-8 pt-10">
+        <div className="flex-1 overflow-hidden flex flex-col p-8 pt-4">
           {renderContent()}
       {userProfile?.role === 'admin' && (
         <UserManagementModal 

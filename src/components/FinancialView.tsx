@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FinancialList, FinancialCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
 import { 
   addFinancialList, 
@@ -11,7 +11,8 @@ import {
   permanentDeleteFinancialCard,
   completeFinancialCard
 } from '../services/firestoreService';
-import { Plus, Settings, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive, User, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, Calendar, CheckCircle2, Archive, User, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers } from 'lucide-react';
+import { useDraggableScroll } from '../hooks/useDraggableScroll';
 import { CompletedCardsModal } from './CompletedCardsModal';
 import { useHistory } from '../context/HistoryContext';
 import { Timestamp } from 'firebase/firestore';
@@ -27,6 +28,11 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+  DragOverlay,
+  useDroppable,
+  defaultDropAnimationSideEffects,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -66,8 +72,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    ...(isDragging ? { zIndex: 50, position: 'relative' as const } : {}),
   };
 
   const checklist = client?.checklist || card.checklist || [];
@@ -104,11 +108,11 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         <div 
           ref={setNodeRef}
           style={style}
-          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} ring-2 ring-white ring-inset mb-1`}
+          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''}`}
           onClick={() => onQuickView(card)}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0 card-draggable`}>
               <GripVertical size={12} />
             </div>
             <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50'} shrink-0`}>
@@ -175,12 +179,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       <div 
         ref={setNodeRef}
         style={style}
-        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-2`}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ${bgColorClass} ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
         onClick={() => onQuickView(card)}
       >
         <div className={`p-2 flex items-center justify-between border-b ${client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30'}`}>
           <div className="flex items-center gap-1">
-            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass}`}>
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} card-draggable`}>
               <GripVertical size={12} />
             </div>
             <div className="flex items-center gap-1">
@@ -270,7 +274,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       <div 
         ref={setNodeRef}
         style={style}
-        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} mb-1`}
+        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ${bgColorClass} mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
         onClick={() => onQuickView(card)}
       >
         <div className="flex items-center gap-3 overflow-hidden">
@@ -349,7 +353,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     <div 
       ref={setNodeRef}
       style={style}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${bgColorClass}`}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${bgColorClass} ${isDragging ? 'card-placeholder' : ''}`}
       onClick={() => onQuickView(card)}
     >
       <div className="flex justify-between items-start mb-2">
@@ -470,11 +474,28 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   );
 };
 
+const isLightColor = (color: string) => {
+  if (!color) return true;
+  if (!color.startsWith('#')) return true;
+  const hex = color.replace('#', '');
+  if (hex.length !== 6) return true;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 155;
+};
+
 const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: FinancialList, cards: FinancialCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: FinancialCard) => void, onQuickView: (card: FinancialCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<FinancialCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
+  const [localFilter, setLocalFilter] = useState<SectorCardFilter>(cardFilter);
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
     data: { type: 'List', list }
   });
+
+  useEffect(() => {
+    setLocalFilter(cardFilter);
+  }, [cardFilter]);
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -483,46 +504,59 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
     ...(isDragging ? { zIndex: 40, position: 'relative' as const } : {}),
   };
 
+  const hasClientsInSector = cards.some(c => c.type === 'client');
+  const showActivities = localFilter === 'activities' || localFilter === 'both';
+  const showClients = (localFilter === 'clients' || (localFilter === 'both' && hasClientsInSector));
+
+  const isLight = isLightColor(list.color || '#E6E6E6');
+  const textColor = isLight ? 'text-stone-900' : 'text-white';
+  const subtextColor = isLight ? 'text-stone-600/70' : 'text-white/70';
+  const iconColor = isLight ? 'text-stone-400' : 'text-stone-400';
+  const iconHoverColor = isLight ? 'hover:text-stone-900' : 'hover:text-white';
+  const badgeBg = isLight ? 'bg-black/10' : 'bg-white/20';
+  const badgeText = isLight ? 'text-stone-900' : 'text-white';
+
   return (
     <div 
       ref={setNodeRef} 
-      style={style} 
-      className={`${viewMode === 'kanban' ? 'w-[500px]' : 'w-full'} bg-stone-100/50 rounded-3xl p-4 flex flex-col max-h-full border border-stone-200/50 shrink-0`}
+      style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
+      className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0`}
     >
-      <div className="flex items-center justify-between mb-4 px-2">
+      <div className="flex items-center justify-between mb-2 px-2">
         <div className="flex items-center gap-2">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-600 transition-colors">
+          <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing ${iconColor} ${iconHoverColor} transition-colors`}>
             <GripVertical size={16} />
           </div>
-          <h3 className="font-bold text-stone-900 uppercase tracking-widest text-sm">{list.name}</h3>
-          <span className="bg-white text-stone-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-stone-200">
+          <h3 className={`font-black uppercase tracking-widest text-sm drop-shadow-sm ${textColor}`}>{list.name}</h3>
+          <span className={`${badgeBg} ${badgeText} text-[10px] font-black px-2 py-0.5 rounded-full border border-white/20 shadow-sm`}>
             {cards.length}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {list.assignees && list.assignees.length > 0 && (
-            <div className="flex -space-x-2 mr-2">
-              {list.assignees.slice(0, 3).map(assigneeId => {
-                const user = users.find(u => u.id === assigneeId);
-                if (!user) return null;
-                return (
-                  <div key={user.id} className="w-6 h-6 rounded-full border-2 border-stone-100 bg-stone-200 flex items-center justify-center overflow-hidden" title={user.name}>
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <span className="text-[8px] font-bold text-stone-600">{user.name.charAt(0)}</span>
-                    )}
-                  </div>
-                );
-              })}
-              {list.assignees.length > 3 && (
-                <div className="w-6 h-6 rounded-full border-2 border-stone-100 bg-stone-100 flex items-center justify-center">
-                  <span className="text-[8px] font-bold text-stone-600">+{list.assignees.length - 3}</span>
-                </div>
-              )}
-            </div>
-          )}
-          <button onClick={onSettings} className="text-stone-400 hover:text-stone-900 p-1 rounded-lg hover:bg-white transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
+            <button 
+              onClick={() => setLocalFilter('activities')}
+              className={`p-1 rounded-md transition-all ${localFilter === 'activities' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+              title="Apenas Atividades"
+            >
+              <LayoutGrid size={12} />
+            </button>
+            <button 
+              onClick={() => setLocalFilter('clients')}
+              className={`p-1 rounded-md transition-all ${localFilter === 'clients' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+              title="Apenas Clientes"
+            >
+              <User size={12} />
+            </button>
+            <button 
+              onClick={() => setLocalFilter('both')}
+              className={`p-1 rounded-md transition-all ${localFilter === 'both' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+              title="Duo"
+            >
+              <Layers size={12} />
+            </button>
+          </div>
+          <button onClick={onSettings} className={`${iconColor} ${iconHoverColor} p-1 rounded-lg hover:bg-white/20 transition-colors`}>
             <Settings size={16} />
           </button>
         </div>
@@ -533,15 +567,15 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
         items={cards.map(c => c.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} overflow-hidden min-h-[100px]`}>
+        <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} min-h-[100px]`}>
           {/* Coluna de Atividades */}
-          {(cardFilter === 'both' || cardFilter === 'activities') && (
+          {showActivities && (
             <div className="flex-1 flex flex-col min-w-0">
-              <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1`}>
                 <span>Atividades</span>
-                <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type !== 'client').length}</span>
+                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter(c => c.type !== 'client').length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+              <div className="flex-1 space-y-3 pr-1 overflow-y-auto custom-scrollbar">
                 {cards
                   .filter(c => c.type !== 'client')
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -563,13 +597,13 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
           )}
 
           {/* Coluna de Clientes */}
-          {(cardFilter === 'both' || cardFilter === 'clients') && (
-            <div className={`${viewMode === 'kanban' && cardFilter === 'both' ? 'w-40 border-l border-stone-200/50 pl-4' : 'w-full'} flex flex-col`}>
-              <div className="text-[10px] font-black tracking-widest text-stone-400 mb-3 uppercase flex items-center justify-between px-1">
+          {showClients && (
+            <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
+              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1`}>
                 <span>Clientes</span>
-                <span className="bg-white/50 px-1.5 py-0.5 rounded text-[8px]">{cards.filter(c => c.type === 'client').length}</span>
+                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter(c => c.type === 'client').length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+              <div className="flex-1 space-y-2 pr-1 overflow-y-auto custom-scrollbar">
                 {cards
                   .filter(c => c.type === 'client')
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -604,6 +638,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
 };
 
 export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilter, companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
+  const { ref: boardRef, props: boardScrollProps, dragClassName } = useDraggableScroll();
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -616,6 +651,8 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
   const [editingList, setEditingList] = useState<FinancialList | null>(null);
   const [editingCard, setEditingCard] = useState<FinancialCard | null>(null);
   const [quickViewCard, setQuickViewCard] = useState<FinancialCard | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<FinancialCard | null>(null);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const { pushAction } = useHistory();
 
@@ -633,8 +670,17 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
     })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    const card = cards.find(c => c.id === active.id);
+    if (card) setActiveCard(card);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
+    setActiveCard(null);
     if (!over) return;
 
     const activeId = active.id as string;
@@ -733,6 +779,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
       name: newListName.trim(),
       companyId,
       order: lists.length,
+      color: '#E6E6E6',
       defaultChecklist: []
     });
     setNewListName('');
@@ -805,15 +852,15 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-2 py-1 px-2">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Integração do Cliente</h1>
-          <p className="text-stone-500 text-sm mt-1">Gerencie o fluxo de integração e acompanhamento de novos clientes.</p>
+          <p className="text-stone-500 text-sm mt-1">Gerencie a integração e boas-vindas dos seus novos clientes.</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={() => setIsAddListOpen(true)}
-            className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
+            className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold shadow-lg shadow-stone-900/20"
           >
             <Plus size={16} />
             Novo Setor
@@ -821,10 +868,15 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
         </div>
       </div>
 
-      <div className={`flex-1 ${viewMode === 'kanban' ? 'overflow-x-auto px-1' : 'overflow-y-auto pr-4'} custom-scrollbar pb-8`}>
+      <div 
+        ref={boardRef}
+        {...boardScrollProps}
+        className={`flex-1 ${dragClassName} ${viewMode === 'kanban' ? 'overflow-x-auto h-full px-1 scroll-smooth' : ''} pb-4 custom-scrollbar`}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
@@ -864,6 +916,30 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ viewMode, cardFilt
               )}
             </div>
           </SortableContext>
+          <DragOverlay adjustScale={false} dropAnimation={{
+            sideEffects: defaultDropAnimationSideEffects({
+              styles: {
+                active: {
+                  opacity: '0.5',
+                },
+              },
+            }),
+          }}>
+            {activeId && activeCard ? (
+              <div className="tilt-card">
+                <SortableCard 
+                  card={activeCard} 
+                  client={clients.find(c => c.id === activeCard.clientId)}
+                  tags={tags}
+                  users={users}
+                  onEdit={() => {}} 
+                  onQuickView={() => {}}
+                  onUpdateCard={async () => {}}
+                  viewMode={viewMode}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </div>
 

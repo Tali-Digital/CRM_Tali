@@ -16,7 +16,8 @@
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 3px;
+    height: 3px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
@@ -26,6 +27,26 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-stone-400;
+  }
+
+  .dragging-active {
+    cursor: grabbing !important;
+    user-select: none !important;
+  }
+
+  .tilt-card {
+    transform: rotate(3deg);
+    cursor: grabbing !important;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  }
+
+  .card-placeholder {
+    opacity: 0.2;
+    background: #f1f5f9 !important;
+    border: 2px dashed #cbd5e1 !important;
+    box-shadow: none !important;
   }
 }
 

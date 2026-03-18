@@ -7,9 +7,10 @@ interface Props {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  maxWidth?: string;
 }
 
-export const Modal: React.FC<Props> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<Props> = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -25,7 +26,7 @@ export const Modal: React.FC<Props> = ({ isOpen, onClose, title, children }) => 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden"
+            className={`relative bg-white w-full ${maxWidth} rounded-3xl shadow-xl overflow-hidden`}
           >
             <div className="flex items-center justify-between p-6 border-b border-stone-100">
               <h2 className="text-xl font-bold text-stone-900">{title}</h2>

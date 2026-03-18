@@ -69,6 +69,7 @@ export interface CommercialList {
   order: number;
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
+  color?: string;
   createdAt?: any;
 }
 
@@ -93,6 +94,7 @@ export interface CommercialCard {
   // Legacy fields for backward compatibility
   clientName?: string;
   recurrence?: RecurrenceSettings;
+  googleEventId?: string;
 }
 
 export interface FinancialList {
@@ -102,6 +104,7 @@ export interface FinancialList {
   order: number;
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
+  color?: string;
   createdAt?: any;
 }
 
@@ -124,6 +127,7 @@ export interface FinancialCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
+  googleEventId?: string;
 }
 
 export interface OperationList {
@@ -133,6 +137,7 @@ export interface OperationList {
   order: number;
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
+  color?: string;
   createdAt?: any;
 }
 
@@ -155,6 +160,7 @@ export interface OperationCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
+  googleEventId?: string;
 }
 
 export interface InternalTaskList {
@@ -164,6 +170,7 @@ export interface InternalTaskList {
   order: number;
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
+  color?: string;
   createdAt?: any;
 }
 
@@ -187,6 +194,7 @@ export interface InternalTaskCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
+  googleEventId?: string;
 }
 
 export interface Company {

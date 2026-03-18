@@ -19,8 +19,19 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
   const [assignees, setAssignees] = useState<string[]>(list.assignees || []);
   const [newItemText, setNewItemText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [color, setColor] = useState(list.color || '#1c222d');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
+
+  const colorPresets = [
+    '#1c222d', // Dark Blue (Original)
+    '#1c2d2d', // Dark Teal
+    '#251c2d', // Dark Purple
+    '#2d1c1c', // Dark Red
+    '#1c2d20', // Dark Green
+    '#2d291c', // Dark Brown
+    '#1c262d', // Dark Slate
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -35,7 +46,8 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
     await onUpdate(list.id, {
       name,
       defaultChecklist: checklist,
-      assignees
+      assignees,
+      color
     });
 
     const newAssignees = assignees.filter(id => !(list.assignees || []).includes(id));
@@ -88,6 +100,31 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
             onChange={(e) => setName(e.target.value)}
             className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
           />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Cor do Setor</label>
+          <div className="flex flex-wrap gap-2 p-3 bg-stone-50 rounded-2xl border border-stone-200/50">
+            {colorPresets.map(preset => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setColor(preset)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${color === preset ? 'border-stone-900 scale-110 shadow-md' : 'border-transparent hover:scale-105'}`}
+                style={{ backgroundColor: preset }}
+                title={preset}
+              />
+            ))}
+            <div className="flex items-center gap-2 ml-2">
+              <input 
+                type="color" 
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-8 h-8 rounded-full border-0 p-0 overflow-hidden cursor-pointer"
+              />
+              <span className="text-[10px] font-mono text-stone-500 uppercase">{color}</span>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">

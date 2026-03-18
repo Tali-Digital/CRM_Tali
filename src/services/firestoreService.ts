@@ -13,6 +13,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { googleCalendarService } from './googleCalendarService';
 import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification } from '../types';
 
 export enum OperationType {
@@ -403,6 +404,15 @@ export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
       ...card,
       createdAt: Timestamp.now()
     }));
+    
+    const cardWithId = { ...card, id: docRef.id } as CommercialCard;
+    if (cardWithId.startDate || cardWithId.deliveryDate) {
+      const eventId = await googleCalendarService.syncCard(cardWithId, 'Comercial');
+      if (eventId) {
+        await updateDoc(docRef, { googleEventId: eventId });
+      }
+    }
+    
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'commercial_cards');
@@ -413,6 +423,22 @@ export const updateCommercialCard = async (cardId: string, data: Partial<Commerc
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
+    
+    // Sync to Google Calendar
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists()) {
+      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as CommercialCard;
+      if (fullCard.startDate || fullCard.deliveryDate) {
+        const eventId = await googleCalendarService.syncCard(fullCard, 'Comercial');
+        if (eventId && fullCard.googleEventId !== eventId) {
+          await updateDoc(cardRef, { googleEventId: eventId });
+        }
+      } else if (fullCard.googleEventId) {
+        // If dates were removed, delete the event
+        await googleCalendarService.deleteEvent(fullCard.googleEventId);
+        await updateDoc(cardRef, { googleEventId: null });
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
   }
@@ -458,7 +484,12 @@ export const restoreCommercialCard = async (cardId: string) => {
 
 export const permanentDeleteCommercialCard = async (cardId: string) => {
   try {
-    await deleteDoc(doc(db, 'commercial_cards', cardId));
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists() && cardSnap.data().googleEventId) {
+      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
+    }
+    await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
   }
@@ -506,6 +537,15 @@ export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
       ...card,
       createdAt: Timestamp.now()
     }));
+
+    const cardWithId = { ...card, id: docRef.id } as FinancialCard;
+    if (cardWithId.startDate || cardWithId.deliveryDate) {
+      const eventId = await googleCalendarService.syncCard(cardWithId, 'Integração');
+      if (eventId) {
+        await updateDoc(docRef, { googleEventId: eventId });
+      }
+    }
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'financial_cards');
@@ -516,6 +556,20 @@ export const updateFinancialCard = async (cardId: string, data: Partial<Financia
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
+
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists()) {
+      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as FinancialCard;
+      if (fullCard.startDate || fullCard.deliveryDate) {
+        const eventId = await googleCalendarService.syncCard(fullCard, 'Integração');
+        if (eventId && fullCard.googleEventId !== eventId) {
+          await updateDoc(cardRef, { googleEventId: eventId });
+        }
+      } else if (fullCard.googleEventId) {
+        await googleCalendarService.deleteEvent(fullCard.googleEventId);
+        await updateDoc(cardRef, { googleEventId: null });
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
   }
@@ -561,7 +615,12 @@ export const restoreFinancialCard = async (cardId: string) => {
 
 export const permanentDeleteFinancialCard = async (cardId: string) => {
   try {
-    await deleteDoc(doc(db, 'financial_cards', cardId));
+    const cardRef = doc(db, 'financial_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists() && cardSnap.data().googleEventId) {
+      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
+    }
+    await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
   }
@@ -609,6 +668,15 @@ export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
       ...card,
       createdAt: Timestamp.now()
     }));
+
+    const cardWithId = { ...card, id: docRef.id } as OperationCard;
+    if (cardWithId.startDate || cardWithId.deliveryDate) {
+      const eventId = await googleCalendarService.syncCard(cardWithId, 'Operação');
+      if (eventId) {
+        await updateDoc(docRef, { googleEventId: eventId });
+      }
+    }
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'operation_cards');
@@ -619,6 +687,20 @@ export const updateOperationCard = async (cardId: string, data: Partial<Operatio
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
+
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists()) {
+      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as OperationCard;
+      if (fullCard.startDate || fullCard.deliveryDate) {
+        const eventId = await googleCalendarService.syncCard(fullCard, 'Operação');
+        if (eventId && fullCard.googleEventId !== eventId) {
+          await updateDoc(cardRef, { googleEventId: eventId });
+        }
+      } else if (fullCard.googleEventId) {
+        await googleCalendarService.deleteEvent(fullCard.googleEventId);
+        await updateDoc(cardRef, { googleEventId: null });
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
   }
@@ -664,7 +746,12 @@ export const restoreOperationCard = async (cardId: string) => {
 
 export const permanentDeleteOperationCard = async (cardId: string) => {
   try {
-    await deleteDoc(doc(db, 'operation_cards', cardId));
+    const cardRef = doc(db, 'operation_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists() && cardSnap.data().googleEventId) {
+      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
+    }
+    await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
   }
@@ -734,6 +821,15 @@ export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) =>
       ...card,
       createdAt: Timestamp.now()
     }));
+
+    const cardWithId = { ...card, id: docRef.id } as InternalTaskCard;
+    if (cardWithId.startDate || cardWithId.deliveryDate) {
+      const eventId = await googleCalendarService.syncCard(cardWithId, 'Interno');
+      if (eventId) {
+        await updateDoc(docRef, { googleEventId: eventId });
+      }
+    }
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'internal_tasks_cards');
@@ -744,6 +840,20 @@ export const updateInternalTaskCard = async (cardId: string, data: Partial<Inter
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
+
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists()) {
+      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as InternalTaskCard;
+      if (fullCard.startDate || fullCard.deliveryDate) {
+        const eventId = await googleCalendarService.syncCard(fullCard, 'Interno');
+        if (eventId && fullCard.googleEventId !== eventId) {
+          await updateDoc(cardRef, { googleEventId: eventId });
+        }
+      } else if (fullCard.googleEventId) {
+        await googleCalendarService.deleteEvent(fullCard.googleEventId);
+        await updateDoc(cardRef, { googleEventId: null });
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
   }
@@ -789,7 +899,12 @@ export const restoreInternalTaskCard = async (cardId: string) => {
 
 export const permanentDeleteInternalTaskCard = async (cardId: string) => {
   try {
-    await deleteDoc(doc(db, 'internal_tasks_cards', cardId));
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (cardSnap.exists() && cardSnap.data().googleEventId) {
+      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
+    }
+    await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
   }
