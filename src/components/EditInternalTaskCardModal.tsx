@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NotesEditor } from './NotesEditor';
 import { InternalTaskCard, ChecklistItem, Client, UserProfile } from '../types';
 import { updateInternalTaskCard, deleteInternalTaskCard, updateClient, subscribeToUsers } from '../services/firestoreService';
 import { Modal } from './Modal';
@@ -308,11 +309,9 @@ export const EditInternalTaskCardModal: React.FC<EditInternalTaskCardModalProps>
             <FileText size={14} />
             Anotações
           </label>
-          <textarea 
+          <NotesEditor 
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={4}
-            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 resize-none custom-scrollbar"
+            onChange={setNotes}
             placeholder="Adicione informações importantes sobre o cliente..."
           />
         </div>

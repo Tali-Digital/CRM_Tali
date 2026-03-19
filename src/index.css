@@ -16,14 +16,14 @@
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 3px;
-    height: 3px;
+    width: 5px;
+    height: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-stone-300 rounded-full;
+    @apply bg-stone-300/50 rounded-full transition-colors;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-stone-400;
@@ -48,5 +48,14 @@
     border: 2px dashed #cbd5e1 !important;
     box-shadow: none !important;
   }
+
+  .rich-text-content font[size="2"] { font-size: 0.875rem; }
+  .rich-text-content font[size="3"] { font-size: 1rem; }
+  .rich-text-content font[size="5"] { font-size: 1.25rem; font-weight: 700; }
+  
+  .rich-text-content ul { list-style-type: disc; padding-left: 1.5rem; }
+  .rich-text-content ol { list-style-type: decimal; padding-left: 1.5rem; }
+  .rich-text-content b, .rich-text-content strong { font-weight: 700; }
+  .rich-text-content i, .rich-text-content em { font-style: italic; }
 }
 

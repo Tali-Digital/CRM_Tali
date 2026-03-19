@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2 } from 'lucide-react';
 import { 
@@ -205,7 +206,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
             initial={{ opacity: 0, scale: 0.9, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 30 }}
-            className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
+            className="relative bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
           >
             {/* Header com Gradiente Sutil */}
             {(() => {
@@ -214,14 +215,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
               const displayColor = isOverdue ? '#991b1b' : (card.color || '');
               
               if (displayColor) {
-                const isDarkHeader = (hexColor: string) => {
-                  const hex = hexColor.replace('#', '');
-                  const r = parseInt(hex.substring(0, 2), 16) || 0;
-                  const g = parseInt(hex.substring(2, 4), 16) || 0;
-                  const b = parseInt(hex.substring(4, 6), 16) || 0;
-                  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                  return luminance < 0.6;
-                };
                 return <div className="h-2 shadow-sm" style={{ backgroundColor: displayColor }} />;
               }
               return <div className={`h-2 bg-gradient-to-r from-${sectorColor}-500 to-${sectorColor}-700 shadow-sm`} />;
@@ -301,179 +294,188 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 </h1>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                {/* Coluna Principal: Notas e Checklist */}
-                <div className="lg:col-span-3 space-y-8">
-                  {/* Notas Editáveis */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
-                      <AlignLeft size={16} className="text-stone-400" />
-                      Anotações
+              {/* Informações Básicas: Datas e Responsáveis em Linha */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+                {/* Datas */}
+                <div className="bg-stone-50 rounded-3xl p-6 border border-stone-200 flex flex-wrap gap-4 items-center shadow-sm">
+                  <div className="flex-1 space-y-1.5 text-center px-2 py-3 rounded-2xl bg-white border border-stone-200 shadow-sm">
+                    <div className="flex items-center justify-center gap-1.5 text-stone-500 text-[9px] font-black uppercase tracking-widest">
+                      <Calendar size={12} className="text-stone-400" />
+                      Início
                     </div>
-                    <div 
-                      onClick={() => setIsEditingNotes(true)}
-                      className={`bg-stone-50 rounded-3xl p-6 border-2 transition-all min-h-[120px] shadow-sm ${isEditingNotes ? 'border-stone-900 bg-white' : 'border-stone-200 hover:border-stone-300 cursor-text'}`}
-                    >
-                      {isEditingNotes ? (
-                        <textarea 
-                          autoFocus
-                          value={localNotes}
-                          onChange={(e) => setLocalNotes(e.target.value)}
-                          onBlur={handleNotesBlur}
-                          className="w-full bg-transparent border-none focus:ring-0 text-stone-800 text-sm leading-relaxed whitespace-pre-wrap resize-none p-0"
-                          rows={6}
-                        />
-                      ) : localNotes ? (
-                        <p className="text-stone-700 text-sm leading-relaxed whitespace-pre-wrap">{localNotes}</p>
-                      ) : (
-                        <p className="text-stone-400 text-sm italic">Nenhuma anotação disponível. Clique para adicionar.</p>
-                      )}
-                    </div>
+                    <div className="text-sm font-black text-stone-900">{formatDate(card.startDate)}</div>
                   </div>
-
-                  {/* Checklist Interativo */}
-                  {totalCount > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
-                          <CheckSquare size={16} className="text-stone-400" />
-                          Checklist de Progresso
-                        </div>
-                        <div className="text-[11px] font-black text-stone-900 bg-stone-200 px-3 py-1 rounded-full border border-stone-300 shadow-sm">
-                          {completedCount}/{totalCount}
-                        </div>
-                      </div>
-                      
-                      {/* Barra de Progresso */}
-                      <div className="h-3 bg-stone-100 rounded-full overflow-hidden border border-stone-200 shadow-inner">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(completedCount / totalCount) * 100}%` }}
-                          className={`h-full bg-gradient-to-r from-${sectorColor}-600 to-${sectorColor}-800 shadow-xl`}
-                        />
-                      </div>
-
-                      <div className="space-y-2.5">
-                        {checklist.map((item) => (
-                          <button 
-                            key={item.id}
-                            onClick={() => toggleCheckItem(item.id)}
-                            className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
-                          >
-                            <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
-                              {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
-                            </div>
-                            <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
-                              {item.text}
-                            </span>
-                            {!item.completed && (
-                              <CheckCircle2 size={16} className="text-stone-200 opacity-0 group-hover:opacity-100 transition-all" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
+                  
+                  <div className="flex-1 space-y-1.5 text-center px-2 py-3 rounded-2xl bg-white border border-stone-200 shadow-sm">
+                    <div className="flex items-center justify-center gap-1.5 text-stone-500 text-[9px] font-black uppercase tracking-widest">
+                      <Clock size={12} className="text-stone-400" />
+                      Entrega
                     </div>
-                  )}
-                </div>
-
-                {/* Coluna Lateral: Detalhes e Responsáveis */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Datas */}
-                  <div className="bg-stone-100/50 rounded-3xl p-6 border border-stone-200 space-y-5 shadow-sm">
-                    <div className="space-y-1.5 text-center px-2 py-3 rounded-2xl bg-white border border-stone-200 shadow-sm">
-                      <div className="flex items-center justify-center gap-1.5 text-stone-500 text-[9px] font-black uppercase tracking-widest">
-                        <Calendar size={12} className="text-stone-400" />
-                        Início
-                      </div>
-                      <div className="text-sm font-black text-stone-900">{formatDate(card.startDate)}</div>
-                    </div>
-                    
-                    <div className="space-y-1.5 text-center px-2 py-3 rounded-2xl bg-white border border-stone-200 shadow-sm">
-                      <div className="flex items-center justify-center gap-1.5 text-stone-500 text-[9px] font-black uppercase tracking-widest">
-                        <Clock size={12} className="text-stone-400" />
-                        Entrega
-                      </div>
-                      {(() => {
-                        const proximity = getDateProximity(card.deliveryDate);
-                        const colorClass = proximity === 'overdue' ? 'text-red-600 bg-red-50/30' : proximity === 'near' ? 'text-orange-600 bg-orange-50/30' : 'text-stone-900';
-                        return (
-                          <div className={`text-sm font-black rounded-lg py-0.5 ${colorClass}`}>{formatDate(card.deliveryDate)}</div>
-                        );
-                      })()}
-                    </div>
-
-                    {card.recurrence?.enabled && (() => {
-                      const nextRec = getNextRecurrenceDate(card.recurrence);
-                      if (!nextRec) return null;
-                      const proximity = getDateProximity(nextRec);
-                      const colorClass = proximity === 'overdue' ? 'text-red-700 font-black' : proximity === 'near' ? 'text-orange-700 font-black' : 'text-stone-900 font-black';
+                    {(() => {
+                      const proximity = getDateProximity(card.deliveryDate);
+                      const colorClass = proximity === 'overdue' ? 'text-red-600 bg-red-50/30' : proximity === 'near' ? 'text-orange-600 bg-orange-50/30' : 'text-stone-900';
                       return (
-                        <div className="space-y-1.5 text-center px-2 py-3 rounded-2xl bg-orange-50 border border-orange-200 shadow-sm animate-in fade-in duration-500">
-                          <div className="flex items-center justify-center gap-1.5 text-orange-600 text-[9px] font-black uppercase tracking-widest">
-                            <RotateCcw size={12} className={proximity === 'near' || proximity === 'overdue' ? 'animate-spin-slow' : ''} />
-                            Recorrência
-                          </div>
-                          <div className={`text-sm ${colorClass}`}>{formatDate(nextRec)}</div>
-                        </div>
+                        <div className={`text-sm font-black rounded-lg py-0.5 ${colorClass}`}>{formatDate(card.deliveryDate)}</div>
                       );
                     })()}
                   </div>
 
-                  {/* Responsáveis */}
-                  <div className="space-y-4">
+                  {card.recurrence?.enabled && (() => {
+                    const nextRec = getNextRecurrenceDate(card.recurrence);
+                    if (!nextRec) return null;
+                    const proximity = getDateProximity(nextRec);
+                    const colorClass = proximity === 'overdue' ? 'text-red-700 font-black' : proximity === 'near' ? 'text-orange-700 font-black' : 'text-stone-900 font-black';
+                    return (
+                      <div className="flex-1 space-y-1.5 text-center px-2 py-3 rounded-2xl bg-orange-50 border border-orange-200 shadow-sm min-w-[120px]">
+                        <div className="flex items-center justify-center gap-1.5 text-orange-600 text-[9px] font-black uppercase tracking-widest">
+                          <RotateCcw size={12} className={proximity === 'near' || proximity === 'overdue' ? 'animate-spin-slow' : ''} />
+                          Recorrência
+                        </div>
+                        <div className={`text-sm ${colorClass}`}>{formatDate(nextRec)}</div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Responsáveis */}
+                <div className="space-y-4 bg-stone-50 rounded-3xl p-6 border border-stone-200 shadow-sm lg:col-span-1">
+                  <div className="text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
+                    Responsáveis
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {card.assignees && card.assignees.length > 0 ? (
+                      card.assignees.map(userId => {
+                        const u = users.find(user => user.id === userId);
+                        if (!u) return null;
+                        return (
+                          <div key={userId} className="flex items-center gap-2 bg-white border border-stone-200 p-1.5 pr-4 rounded-2xl shadow-sm hover:border-stone-400 transition-all group">
+                            <div className="w-8 h-8 rounded-xl border-2 border-stone-100 overflow-hidden bg-stone-100 group-hover:scale-105 transition-transform shadow-sm">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-xs font-black text-stone-500 uppercase">
+                                  {u.name.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-black text-stone-700">{u.name}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-xs font-bold text-stone-400 italic px-1">Ninguém atribuído.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tags de Serviço (se for cliente) */}
+                {client?.serviceTags && client.serviceTags.length > 0 && (
+                  <div className="space-y-4 bg-stone-50 rounded-3xl p-6 border border-stone-200 shadow-sm">
                     <div className="text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
-                      Responsáveis
+                      Serviços Contratados
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {card.assignees && card.assignees.length > 0 ? (
-                        card.assignees.map(userId => {
-                          const u = users.find(user => user.id === userId);
-                          if (!u) return null;
-                          return (
-                            <div key={userId} className="flex items-center gap-2 bg-white border border-stone-200 p-1.5 pr-4 rounded-2xl shadow-sm hover:border-stone-400 transition-all group">
-                              <div className="w-8 h-8 rounded-xl border-2 border-stone-100 overflow-hidden bg-stone-100 group-hover:scale-105 transition-transform shadow-sm">
-                                {u.photoURL ? (
-                                  <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-xs font-black text-stone-500 uppercase">
-                                    {u.name.charAt(0)}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-xs font-black text-stone-700">{u.name}</span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-xs font-bold text-stone-400 italic px-1">Ninguém atribuído.</div>
-                      )}
+                      {client.serviceTags.map(tagId => {
+                        const tag = tags.find(t => t.id === tagId);
+                        if (!tag) return null;
+                        return (
+                          <span 
+                            key={tag.id} 
+                            className="text-[10px] font-black px-4 py-2 rounded-2xl shadow-sm border"
+                            style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: `${tag.color}40` }}
+                          >
+                            {tag.name}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
+                )}
+              </div>
 
-                  {/* Tags de Serviço (se for cliente) */}
-                  {client?.serviceTags && client.serviceTags.length > 0 && (
-                    <div className="space-y-4 pt-4 border-t border-stone-200">
-                      <div className="text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
-                        Serviços Contratados
+              {/* Seção Principal de Conteúdo */}
+              <div className="space-y-12">
+                {/* Notas Editáveis */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
+                    <AlignLeft size={16} className="text-stone-400" />
+                    Anotações
+                  </div>
+                  <div 
+                    className={`transition-all min-h-[160px] shadow-sm rounded-3xl overflow-hidden ${isEditingNotes ? '' : 'bg-stone-50 border-2 border-stone-200 hover:border-stone-300 cursor-text p-8'}`}
+                    onClick={() => !isEditingNotes && setIsEditingNotes(true)}
+                  >
+                    {isEditingNotes ? (
+                      <div className="space-y-3">
+                        <NotesEditor 
+                          value={localNotes}
+                          onChange={setLocalNotes}
+                          placeholder="Adicione informações importantes..."
+                          minHeight="250px"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleNotesBlur(); }}
+                            className="px-8 py-2.5 bg-stone-900 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-stone-800 transition-all shadow-lg active:scale-95"
+                          >
+                            Salvar Alterações
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {client.serviceTags.map(tagId => {
-                          const tag = tags.find(t => t.id === tagId);
-                          if (!tag) return null;
-                          return (
-                            <span 
-                              key={tag.id} 
-                              className="text-[10px] font-black px-4 py-2 rounded-2xl shadow-sm border"
-                              style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: `${tag.color}40` }}
-                            >
-                              {tag.name}
-                            </span>
-                          );
-                        })}
+                    ) : localNotes ? (
+                      <div 
+                        className="text-stone-700 text-sm leading-relaxed rich-text-content"
+                        dangerouslySetInnerHTML={{ __html: localNotes }}
+                      />
+                    ) : (
+                      <p className="text-stone-400 text-sm italic">Nenhuma anotação disponível. Clique para adicionar.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Checklist Interativo */}
+                {totalCount > 0 && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
+                        <CheckSquare size={16} className="text-stone-400" />
+                        Checklist de Progresso
+                      </div>
+                      <div className="text-[11px] font-black text-stone-900 bg-stone-200 px-3 py-1 rounded-full border border-stone-300 shadow-sm">
+                        {completedCount}/{totalCount}
                       </div>
                     </div>
-                  )}
-                </div>
+                    
+                    {/* Barra de Progresso */}
+                    <div className="h-4 bg-stone-100 rounded-full overflow-hidden border border-stone-200 shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(completedCount / totalCount) * 100}%` }}
+                        className={`h-full bg-gradient-to-r from-${sectorColor}-600 to-${sectorColor}-800 shadow-xl`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {checklist.map((item) => (
+                        <button 
+                          key={item.id}
+                          onClick={() => toggleCheckItem(item.id)}
+                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
+                        >
+                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
+                            {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
+                          </div>
+                          <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
+                            {item.text}
+                          </span>
+                          {!item.completed && (
+                            <CheckCircle2 size={16} className="text-stone-200 opacity-0 group-hover:opacity-100 transition-all" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

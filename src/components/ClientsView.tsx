@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NotesEditor } from './NotesEditor';
 import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, UserProfile } from '../types';
 import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
 import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus, ExternalLink } from 'lucide-react';
@@ -368,11 +369,11 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Notas Adicionais</label>
-            <textarea 
+            <NotesEditor 
               value={clientNotes}
-              onChange={(e) => setClientNotes(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 min-h-[100px] resize-none"
+              onChange={setClientNotes}
               placeholder="Informações adicionais do cliente..."
+              minHeight="120px"
             />
           </div>
 

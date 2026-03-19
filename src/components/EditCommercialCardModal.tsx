@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NotesEditor } from './NotesEditor';
 import { CommercialCard, ChecklistItem, Client, UserProfile } from '../types';
 import { updateCommercialCard, deleteCommercialCard, updateClient, subscribeToUsers } from '../services/firestoreService';
 import { Modal } from './Modal';
@@ -126,7 +127,7 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"} maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={isCustom ? "Editar Card Personalizado" : "Editar Cliente no Setor"} maxWidth="max-w-6xl">
       <form onSubmit={handleSave} className="flex flex-col h-full">
         <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1 custom-scrollbar space-y-6">
           {isCustom ? (
@@ -338,11 +339,9 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
             <FileText size={14} />
             Anotações
           </label>
-          <textarea 
+          <NotesEditor 
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={4}
-            className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 resize-none custom-scrollbar"
+            onChange={setNotes}
             placeholder="Adicione informações importantes sobre o cliente..."
           />
         </div>
