@@ -12,6 +12,249 @@ import { CardOptionsMenu } from './CardOptionsMenu';
 import { QuickViewCardModal } from './QuickViewCardModal';
 import { CalendarDashboardView } from './CalendarDashboardView';
 
+// Reusable helpers
+const getNextRecurrenceDate = (recurrence: any) => {
+  if (!recurrence || !recurrence.enabled) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  let startDate = recurrence.lastTriggeredDate ? new Date(recurrence.lastTriggeredDate) : new Date();
+  startDate.setHours(0, 0, 0, 0);
+  if (recurrence.lastTriggeredDate) startDate.setDate(startDate.getDate() + 1);
+  if (recurrence.period === 'daily') return startDate;
+  if (recurrence.period === 'weekly' && recurrence.daysOfWeek?.length) {
+    let nextDate = new Date(startDate);
+    for (let i = 0; i < 7; i++) {
+      if (recurrence.daysOfWeek.includes(nextDate.getDay())) return nextDate;
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+  }
+  if (recurrence.period === 'monthly' && recurrence.dayOfMonth) {
+    let nextDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrence.dayOfMonth);
+    if (nextDate < startDate) nextDate.setMonth(nextDate.getMonth() + 1);
+    return nextDate;
+  }
+  if (recurrence.period === 'yearly' && recurrence.monthOfYear && recurrence.dayOfMonth) {
+    let nextDate = new Date(startDate.getFullYear(), recurrence.monthOfYear - 1, recurrence.dayOfMonth);
+    if (nextDate < startDate) nextDate.setFullYear(nextDate.getFullYear() + 1);
+    return nextDate;
+  }
+  return null;
+};
+
+const getLuminance = (hexColor: string) => {
+  if (!hexColor || hexColor === '#ffffff') return 1;
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+};
+
+const getDateProximity = (date: any) => {
+  if (!date) return 'normal';
+  const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const checkDate = new Date(d);
+  checkDate.setHours(0, 0, 0, 0);
+  const diffTime = checkDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return 'overdue';
+  if (diffDays <= 3) return 'near';
+  return 'normal';
+};
+
+const formatDate = (date: any) => {
+  if (!date) return '';
+  const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+// Stateless list filter helper
+const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboardView: string, currentUserUid: string, users: UserProfile[], clients: Client[], searchTerm: string, selectedSector: string, selectedClient: string, selectedUser: string, selectedTag: string, hasDateOnly: boolean) => {
+  const existingListIds = lists.map(l => l.id);
+  let validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
+
+  const currentUser = users.find(u => u.id === currentUserUid);
+  const isAdmin = currentUser?.role === 'admin';
+
+  if (dashboardView === 'minhas') {
+    const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
+    validCards = validCards.filter(c => {
+      const isAssigned = assignedListIds.includes(c.listId) || c.assignees?.includes(currentUserUid);
+      if (isAssigned) return true;
+      if (isAdmin) {
+        if (getDateProximity(c.deliveryDate) !== 'normal') return true;
+        if (getDateProximity(getNextRecurrenceDate(c.recurrence)) !== 'normal') return true;
+      }
+      return false;
+    });
+  }
+
+  return validCards.filter(c => {
+    const client = clients.find(cl => cl.id === c.clientId);
+    const title = (c.title || c.clientName || client?.name || '').toLowerCase();
+    const matchesSearch = !searchTerm || title.includes(searchTerm.toLowerCase());
+    const matchesSector = selectedSector === 'all' || sector === selectedSector;
+    const matchesClient = selectedClient === 'all' || c.clientId === selectedClient;
+    const matchesUser = selectedUser === 'all' || (c.assignees && Array.isArray(c.assignees) && c.assignees.includes(selectedUser));
+    const matchesDate = !hasDateOnly || (!!c.deliveryDate || !!c.startDate);
+    const hasTag = (client?.serviceTags && Array.isArray(client.serviceTags) && client.serviceTags.includes(selectedTag)) || 
+                  (c.tags && Array.isArray(c.tags) && c.tags.includes(selectedTag));
+    const matchesTag = selectedTag === 'all' || hasTag;
+    return matchesSearch && matchesSector && matchesClient && matchesUser && matchesDate && matchesTag;
+  });
+};
+
+const DashboardCard = ({ 
+  card, 
+  lists, 
+  targetTab, 
+  clients, 
+  users, 
+  onQuickView,
+  handleOpenMenu 
+}: { 
+  key?: any,
+  card: any, 
+  lists: any[], 
+  targetTab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks',
+  clients: Client[],
+  users: UserProfile[],
+  onQuickView: (card: any, tab: any) => void,
+  handleOpenMenu: (e: React.MouseEvent, card: any, tab: any) => void
+}) => {
+  const [isFinishing, setIsFinishing] = useState(false);
+  
+  const handleComplete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsFinishing(true);
+    
+    setTimeout(async () => {
+      if (targetTab === 'comercial') await completeCommercialCard(card.id);
+      else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+      else if (targetTab === 'operacao') await completeOperationCard(card.id);
+      else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
+    }, 600);
+  };
+
+  const client = clients.find(c => c.id === card.clientId);
+  const list = lists.find(l => l.id === card.listId);
+  const isClient = card.type === 'client' && client;
+  const displayName = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
+  const checklist = (card.checklist && card.checklist.length > 0) ? card.checklist : (isClient ? (client?.checklist || []) : []);
+  const completed = checklist.filter((i: any) => i.completed).length;
+  const total = checklist.length;
+
+  const isCardOverdue = getDateProximity(card.deliveryDate) === 'overdue';
+  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (card.color || '#ffffff'));
+  const isDarkBg = isFinishing || getLuminance(bgColor) < 0.6;
+  const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
+  const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
+  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb'));
+
+  return (
+    <div 
+      onClick={() => !isFinishing && onQuickView(card, targetTab)}
+      style={{ 
+        backgroundColor: bgColor, 
+        borderColor: borderColor,
+        transform: isFinishing ? 'scale(1.02)' : 'none',
+        zIndex: isFinishing ? 50 : undefined
+      }}
+      className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
+    >
+      <div className="flex justify-between items-start mb-2 gap-2">
+        <div className="flex flex-col gap-1 min-w-0">
+          {client && (
+            <div className={`flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-lg w-fit border ${isDarkBg ? 'bg-white/10 border-white/10' : 'bg-stone-50 border-stone-100'}`}>
+              <User size={10} className={isDarkBg ? 'text-white/40' : 'text-stone-400'} />
+              <span className={`text-[9px] font-black uppercase tracking-wider truncate max-w-[150px] ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
+                {client.name}
+              </span>
+            </div>
+          )}
+          <h4 className={`font-extrabold text-sm leading-tight truncate ${textColorClass}`}>
+            {isClient ? 'Atendimento Geral' : displayName}
+          </h4>
+        </div>
+        
+        {!isClient && (
+          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              type="button"
+              onClick={handleComplete}
+              className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isFinishing ? 'text-white' : (isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600')}`}
+              title="Marcar como concluído"
+            >
+              <CheckSquare size={16} className={isFinishing ? 'animate-bounce' : ''} />
+            </button>
+            <button 
+              type="button"
+              onClick={(e) => handleOpenMenu(e, card, targetTab)}
+              className={`p-1 rounded-lg transition-all z-30 relative cursor-pointer ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-stone-900'}`}
+              title="Mais opções"
+            >
+              <Edit2 size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        {list && (
+          <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'text-stone-500 bg-stone-100 border-stone-200/50'}`}>
+            {list.name}
+          </span>
+        )}
+        {card.recurrence?.enabled && (
+          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+            <RotateCcw size={10} />
+            <span className="text-[9px] font-bold uppercase tracking-tighter">Recorrente</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center gap-3">
+          {total > 0 && (
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
+              <CheckSquare size={12} />
+              <span>{completed}/{total}</span>
+            </div>
+          )}
+          {(card.startDate || card.deliveryDate) && (
+            <div className="flex items-center gap-2">
+              {[card.deliveryDate].filter(Boolean).map((date, i) => {
+                const proximity = getDateProximity(date);
+                const colorClass = isDarkBg ? 'text-white' : (proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500');
+                return (
+                  <div key={i} className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
+                    <CalendarIcon size={10} />
+                    <span>{formatDate(date)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="flex -space-x-1.5">
+          {card.assignees?.map((userId: string) => {
+            const u = users.find(user => user.id === userId);
+            if (!u) return null;
+            return (
+              <div key={userId} className={`w-5 h-5 rounded-full border-2 overflow-hidden shadow-sm ${isDarkBg ? 'border-white/20 bg-white/10' : 'border-white bg-stone-100'}`} title={u.name}>
+                {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface Props {
   commercialLists: CommercialList[];
   commercialCards: CommercialCard[];
@@ -98,123 +341,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const [selectedUser, setSelectedUser] = useState<string>('all');
   const [hasDateOnly, setHasDateOnly] = useState(false);
 
-  const getNextRecurrenceDate = (recurrence: any) => {
-    if (!recurrence || !recurrence.enabled) return null;
-    
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    
-    let startDate = recurrence.lastTriggeredDate ? new Date(recurrence.lastTriggeredDate) : new Date();
-    startDate.setHours(0, 0, 0, 0);
-
-    if (recurrence.lastTriggeredDate) {
-      startDate.setDate(startDate.getDate() + 1);
-    }
-
-    if (recurrence.period === 'daily') return startDate;
-
-    if (recurrence.period === 'weekly' && recurrence.daysOfWeek?.length) {
-      let nextDate = new Date(startDate);
-      for (let i = 0; i < 7; i++) {
-        if (recurrence.daysOfWeek.includes(nextDate.getDay())) return nextDate;
-        nextDate.setDate(nextDate.getDate() + 1);
-      }
-    }
-
-    if (recurrence.period === 'monthly' && recurrence.dayOfMonth) {
-      let nextDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrence.dayOfMonth);
-      if (nextDate < startDate) nextDate.setMonth(nextDate.getMonth() + 1);
-      return nextDate;
-    }
-
-    if (recurrence.period === 'yearly' && recurrence.monthOfYear && recurrence.dayOfMonth) {
-      let nextDate = new Date(startDate.getFullYear(), recurrence.monthOfYear - 1, recurrence.dayOfMonth);
-      if (nextDate < startDate) nextDate.setFullYear(nextDate.getFullYear() + 1);
-      return nextDate;
-    }
-
-    return null;
-  };
-
-  const getLuminance = (hexColor: string) => {
-    if (!hexColor || hexColor === '#ffffff') return 1;
-    const hex = hexColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16) || 0;
-    const g = parseInt(hex.substring(2, 4), 16) || 0;
-    const b = parseInt(hex.substring(4, 6), 16) || 0;
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  };
-
-  const getDateProximity = (date: any) => {
-    if (!date) return 'normal';
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const checkDate = new Date(d);
-    checkDate.setHours(0, 0, 0, 0);
-
-    const diffTime = checkDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0) return 'overdue';
-    if (diffDays <= 3) return 'near';
-    return 'normal';
-  };
-
-  const formatDate = (date: any) => {
-    if (!date) return '';
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  };
-
-  const filterCards = (cards: any[], lists: any[], sector: string) => {
-    const existingListIds = lists.map(l => l.id);
-    let validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
-
-    const currentUser = users.find(u => u.id === currentUserUid);
-    const isAdmin = currentUser?.role === 'admin';
-
-    // Base My Cards vs Global View
-    if (dashboardView === 'minhas') {
-      const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
-      validCards = validCards.filter(c => {
-        const isAssigned = assignedListIds.includes(c.listId) || c.assignees?.includes(currentUserUid);
-        if (isAssigned) return true;
-        if (isAdmin) {
-          if (getDateProximity(c.deliveryDate) !== 'normal') return true;
-          if (getDateProximity(getNextRecurrenceDate(c.recurrence)) !== 'normal') return true;
-        }
-        return false;
-      });
-    }
-
-    // Apply Dashboard Filters
-    return validCards.filter(c => {
-      const client = clients.find(cl => cl.id === c.clientId);
-      const title = (c.title || c.clientName || client?.name || '').toLowerCase();
-      
-      const matchesSearch = !searchTerm || title.includes(searchTerm.toLowerCase());
-      const matchesSector = selectedSector === 'all' || sector === selectedSector;
-      const matchesClient = selectedClient === 'all' || c.clientId === selectedClient;
-      
-      // Fix User Filtering: Ensure we check assignees array correctly
-      const matchesUser = selectedUser === 'all' || (c.assignees && Array.isArray(c.assignees) && c.assignees.includes(selectedUser));
-      
-      const matchesDate = !hasDateOnly || (!!c.deliveryDate || !!c.startDate);
-      
-      // Fix Tag Filtering: Check both card tags and client tags if applicable
-      const hasTag = (client?.serviceTags && Array.isArray(client.serviceTags) && client.serviceTags.includes(selectedTag)) || 
-                    (c.tags && Array.isArray(c.tags) && c.tags.includes(selectedTag));
-      const matchesTag = selectedTag === 'all' || hasTag;
-
-      return matchesSearch && matchesSector && matchesClient && matchesUser && matchesDate && matchesTag;
-    });
-  };
-
-  const filteredCommercialCards = filterCards(commercialCards, commercialLists, 'comercial');
-  const filteredFinancialCards = filterCards(financialCards, financialLists, 'integracao');
-  const filteredOperationCards = filterCards(operationCards, operationLists, 'operacao');
-  const filteredInternalCards = filterCards(internalTaskCards, internalTaskLists, 'internal_tasks');
+  const filteredCommercialCards = filterCardsHelper(commercialCards, commercialLists, 'comercial', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
+  const filteredFinancialCards = filterCardsHelper(financialCards, financialLists, 'integracao', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
+  const filteredOperationCards = filterCardsHelper(operationCards, operationLists, 'operacao', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
+  const filteredInternalCards = filterCardsHelper(internalTaskCards, internalTaskLists, 'internal_tasks', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
 
   const { ref: boardRef, props: boardScrollProps, dragClassName } = useDraggableScroll();
 
@@ -265,127 +395,6 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     }
   };
 
-  const renderCard = (card: any, lists: any[], targetTab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => {
-    const client = clients.find(c => c.id === card.clientId);
-    const list = lists.find(l => l.id === card.listId);
-    const isClient = card.type === 'client' && client;
-    const displayName = isClient ? client.name : (card.title || card.clientName || 'Card sem Título');
-    const checklist = client?.checklist || card.checklist || [];
-    const completed = checklist.filter((i: any) => i.completed).length;
-    const total = checklist.length;
-
-    const isCardOverdue = getDateProximity(card.deliveryDate) === 'overdue';
-    const bgColor = isCardOverdue ? '#991b1b' : (card.color || '#ffffff');
-    const isDarkBg = getLuminance(bgColor) < 0.6;
-    const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
-    const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
-    const borderColor = isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb');
-
-    return (
-      <div 
-        key={card.id} 
-        onClick={() => {
-          setQuickViewCard(card);
-          setQuickViewTab(targetTab);
-        }}
-        style={{ backgroundColor: bgColor, borderColor: borderColor }}
-        className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''}`}
-      >
-        <div className="flex justify-between items-start mb-2 gap-2">
-          <div className="flex flex-col gap-1 min-w-0">
-            {client && (
-              <div className={`flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-lg w-fit border ${isDarkBg ? 'bg-white/10 border-white/10' : 'bg-stone-50 border-stone-100'}`}>
-                <User size={10} className={isDarkBg ? 'text-white/40' : 'text-stone-400'} />
-                <span className={`text-[9px] font-black uppercase tracking-wider truncate max-w-[150px] ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
-                  {client.name}
-                </span>
-              </div>
-            )}
-            <h4 className={`font-extrabold text-sm leading-tight truncate ${textColorClass}`}>
-              {isClient ? 'Atendimento Geral' : displayName}
-            </h4>
-          </div>
-          
-          {!isClient && (
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                type="button"
-                onClick={async (e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  if (targetTab === 'comercial') await completeCommercialCard(card.id);
-                  else if (targetTab === 'integracao') await completeFinancialCard(card.id);
-                  else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                  else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
-                }}
-                className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
-                title="Marcar como concluído"
-              >
-                <CheckSquare size={16} />
-              </button>
-              <button 
-                type="button"
-                onClick={(e) => handleOpenMenu(e, card, targetTab)}
-                className={`p-1 rounded-lg transition-all z-30 relative cursor-pointer ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-stone-900'}`}
-                title="Mais opções"
-              >
-                <Edit2 size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {list && (
-            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'text-stone-500 bg-stone-100 border-stone-200/50'}`}>
-              {list.name}
-            </span>
-          )}
-          {card.recurrence?.enabled && (
-            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-              <RotateCcw size={10} />
-              <span className="text-[9px] font-bold uppercase tracking-tighter">Recorrente</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-3">
-            {total > 0 && (
-              <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
-                <CheckSquare size={12} />
-                <span>{completed}/{total}</span>
-              </div>
-            )}
-            {(card.startDate || card.deliveryDate) && (
-              <div className="flex items-center gap-2">
-                {[card.deliveryDate].filter(Boolean).map((date, i) => {
-                  const proximity = getDateProximity(date);
-                  const colorClass = isDarkBg ? 'text-white' : (proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500');
-                  return (
-                    <div key={i} className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
-                      <CalendarIcon size={10} />
-                      <span>{formatDate(date)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="flex -space-x-1.5">
-            {card.assignees?.map((userId: string) => {
-              const u = users.find(user => user.id === userId);
-              if (!u) return null;
-              return (
-                <div key={userId} className={`w-5 h-5 rounded-full border-2 overflow-hidden shadow-sm ${isDarkBg ? 'border-[#991b1b] bg-white/10' : 'border-white bg-stone-100'}`} title={u.name}>
-                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const FilterSection = () => (
     <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-4 shadow-sm">
@@ -529,7 +538,18 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                   
                   {/* Individual Scroll Area */}
                   <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 pb-4">
-                    {sector.cards.map(card => renderCard(card, sector.lists, sector.tab as any))}
+                    {sector.cards.map(card => (
+                      <DashboardCard 
+                        key={card.id}
+                        card={card}
+                        lists={sector.lists}
+                        targetTab={sector.tab as any}
+                        clients={clients}
+                        users={users}
+                        onQuickView={(c, tab) => { setQuickViewCard(c); setQuickViewTab(tab); }}
+                        handleOpenMenu={handleOpenMenu}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>

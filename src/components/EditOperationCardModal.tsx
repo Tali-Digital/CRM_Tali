@@ -36,7 +36,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
     if (card) {
       setClientName(card.title || card.clientName || '');
       setNotes(card.notes || '');
-      setChecklist(client?.checklist || card.checklist || []);
+      setChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
       setDeliveryDate(card.deliveryDate ? (card.deliveryDate instanceof Timestamp ? card.deliveryDate.toDate() : new Date(card.deliveryDate)).toISOString().split('T')[0] : '');
@@ -69,7 +69,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
         color: cardColor
       });
 
-      if (selectedClientId) {
+      if (card.type === 'client' && selectedClientId) {
         await updateClient(selectedClientId, { checklist });
       }
 
@@ -153,7 +153,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
                 <div className="flex flex-wrap gap-2">
                   {[
                     { name: 'Branco', value: '#ffffff' },
-                    { name: 'Azul', value: '#dbeafe' },
+                    { name: 'Azul', value: '#bae6fd' },
                     { name: 'Verde', value: '#dcfce7' },
                     { name: 'Amarelo', value: '#fef9c3' },
                     { name: 'Laranja', value: '#ffedd5' },
@@ -192,7 +192,7 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
                 <div className="flex flex-wrap gap-2">
                   {[
                     { name: 'Branco', value: '#ffffff' },
-                    { name: 'Azul', value: '#dbeafe' },
+                    { name: 'Azul', value: '#bae6fd' },
                     { name: 'Verde', value: '#dcfce7' },
                     { name: 'Amarelo', value: '#fef9c3' },
                     { name: 'Laranja', value: '#ffedd5' },

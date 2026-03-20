@@ -116,24 +116,24 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex bg-stone-100 p-1.5 rounded-2xl mb-8 self-start min-w-[400px]">
+      <div className="flex bg-stone-100 p-2 rounded-2xl mb-8 self-start min-w-[480px] gap-2 shadow-inner">
         <button 
           onClick={() => setActiveTab('active')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-sm text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
         >
           <Layers size={14} />
           Cards Ativos
         </button>
         <button 
           onClick={() => setActiveTab('completed')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'completed' ? 'bg-white shadow-sm text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
         >
           <History size={14} />
           Concluídos
         </button>
         <button 
           onClick={() => setActiveTab('deleted')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-white shadow-sm text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
         >
           <Trash2 size={14} />
           Lixeira
@@ -150,7 +150,7 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                 }
               }
             }}
-            className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-100 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
+            className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-200 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
           >
             <Trash2 size={12} />
             Esvaziar Lixeira
@@ -260,9 +260,17 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                         )}
                         
                         <button 
-                          onClick={() => onPermanentDelete(card.id, card.metaType, activeTab === 'deleted')}
+                          onClick={() => {
+                            if (activeTab === 'deleted') {
+                              if (window.confirm('Tem certeza que deseja excluir este card PERMANENTEMENTE? Esta ação não pode ser desfeita.')) {
+                                onPermanentDelete(card.id, card.metaType, true);
+                              }
+                            } else {
+                              onPermanentDelete(card.id, card.metaType, false);
+                            }
+                          }}
                           title={card.deleted ? "Excluir Permanentemente" : "Mover para Lixeira"}
-                          className={`p-2.5 rounded-2xl bg-white border border-stone-200 transition-all font-bold shadow-sm ${card.deleted ? 'text-red-500 hover:bg-red-50 hover:border-red-200' : 'text-stone-400 hover:text-red-500'}`}
+                          className={`p-2.5 rounded-2xl transition-all font-bold shadow-sm ${card.deleted ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white' : 'bg-white border border-stone-200 text-stone-400 hover:text-red-500'}`}
                         >
                           <Trash2 size={16} />
                         </button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2 } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus } from 'lucide-react';
 import { 
   deleteCommercialCard, 
   deleteFinancialCard, 
@@ -14,7 +14,8 @@ import {
   updateCommercialCard,
   updateFinancialCard,
   updateOperationCard,
-  updateInternalTaskCard
+  updateInternalTaskCard,
+  updateClient
 } from '../services/firestoreService';
 import { Timestamp } from 'firebase/firestore';
 import { CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Client, UserProfile, Tag, ChecklistItem } from '../types';
@@ -130,12 +131,13 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const [localNotes, setLocalNotes] = useState('');
   const [localTitle, setLocalTitle] = useState('');
   const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>([]);
+  const [newItemText, setNewItemText] = useState('');
 
   useEffect(() => {
     if (card) {
       setLocalNotes(card.notes || '');
       setLocalTitle(card.type === 'client' && client ? client.name : (card.title || (card as any).clientName || ''));
-      setLocalChecklist(card.checklist || client?.checklist || []);
+      setLocalChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
     }
   }, [card, client]);
   if (!card) return null;
@@ -155,8 +157,8 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   }) : [];
 
   const checklist = localChecklist;
-  const completedCount = checklist.filter(i => i.completed).length + relatedTasks.filter(t => t.completed).length;
-  const totalCount = checklist.length + relatedTasks.length;
+  const completedCount = checklist.filter(i => i.completed).length;
+  const totalCount = checklist.length;
   
   const formatDate = (date: any) => {
     if (!date) return 'Não definida';
@@ -181,6 +183,34 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     );
     setLocalChecklist(updated);
     await syncUpdate({ checklist: updated });
+    if (isClientCard && client) {
+      await updateClient(client.id, { checklist: updated });
+    }
+  };
+
+  const addCheckItem = async () => {
+    if (!newItemText.trim()) return;
+    const newItem: ChecklistItem = {
+      id: Date.now().toString(),
+      text: newItemText.trim(),
+      completed: false
+    };
+    const updated = [...localChecklist, newItem];
+    setLocalChecklist(updated);
+    setNewItemText('');
+    await syncUpdate({ checklist: updated });
+    if (isClientCard && client) {
+      await updateClient(client.id, { checklist: updated });
+    }
+  };
+
+  const removeCheckItem = async (itemId: string) => {
+    const updated = localChecklist.filter(i => i.id !== itemId);
+    setLocalChecklist(updated);
+    await syncUpdate({ checklist: updated });
+    if (isClientCard && client) {
+      await updateClient(client.id, { checklist: updated });
+    }
   };
 
   const toggleRelatedTask = async (taskId: string, type: string, currentCompleted: boolean) => {
@@ -286,29 +316,36 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 >
                   <Edit2 size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
-                {!isClientCard && (
+                {card.deleted && !isClientCard && (
                   <button 
                     onClick={async () => {
-                      if (card.deleted) {
-                        if (window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) {
-                          if (sector === 'commercial') await permanentDeleteCommercialCard(card.id);
-                          else if (sector === 'financial') await permanentDeleteFinancialCard(card.id);
-                          else if (sector === 'operation') await permanentDeleteOperationCard(card.id);
-                          else if (sector === 'internal') await permanentDeleteInternalTaskCard(card.id);
-                          onClose();
-                        }
-                      } else {
-                        if (window.confirm('Deseja mover este card para a lixeira?')) {
-                          if (sector === 'commercial') await deleteCommercialCard(card.id);
-                          else if (sector === 'financial') await deleteFinancialCard(card.id);
-                          else if (sector === 'operation') await deleteOperationCard(card.id);
-                          else if (sector === 'internal') await deleteInternalTaskCard(card.id);
-                          onClose();
-                        }
+                      if (window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) {
+                        if (sector === 'commercial') await permanentDeleteCommercialCard(card.id);
+                        else if (sector === 'financial') await permanentDeleteFinancialCard(card.id);
+                        else if (sector === 'operation') await permanentDeleteOperationCard(card.id);
+                        else if (sector === 'internal') await permanentDeleteInternalTaskCard(card.id);
+                        onClose();
                       }
                     }}
-                    className="p-3 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-red-100"
-                    title="Excluir Card"
+                    className="p-3 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-red-200"
+                    title="Excluir Permanentemente"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
+                {!card.deleted && !isClientCard && (
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm('Deseja mover este card para a lixeira?')) {
+                        if (sector === 'commercial') await deleteCommercialCard(card.id);
+                        else if (sector === 'financial') await deleteFinancialCard(card.id);
+                        else if (sector === 'operation') await deleteOperationCard(card.id);
+                        else if (sector === 'internal') await deleteInternalTaskCard(card.id);
+                        onClose();
+                      }
+                    }}
+                    className="p-3 bg-stone-100 hover:bg-red-500 text-stone-500 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-stone-200"
+                    title="Mover para Lixeira"
                   >
                     <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
                   </button>
@@ -502,7 +539,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                                 </h4>
                               </div>
                               
-                              {!task.completed && (
                                   <div className="mt-3 flex items-center justify-between">
                                       <div className="flex -space-x-1">
                                           {task.assignees?.slice(0, 3).map(uid => {
@@ -514,8 +550,14 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                                               ) : null;
                                           })}
                                       </div>
+                                      
+                                      {task.checklist && task.checklist.length > 0 && (
+                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-stone-50 border border-stone-200 text-stone-500 text-[10px] font-black shadow-sm group-hover:bg-white transition-all">
+                                          <CheckSquare size={10} className="text-stone-400" />
+                                          <span>{task.checklist.filter((i: any) => i.completed).length}/{task.checklist.length}</span>
+                                        </div>
+                                      )}
                                   </div>
-                              )}
                             </div>
                           );
                         })}
@@ -524,20 +566,22 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   </div>
                 )}
 
-                {/* Checklist Interativo */}
-                {(localChecklist.length > 0) && (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
-                        <CheckSquare size={16} className="text-stone-400" />
-                        Checklist do Cliente
-                      </div>
+                {/* Checklist Interativo e Adição Rápida */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
+                      <CheckSquare size={16} className="text-stone-400" />
+                      {isClientCard ? 'Checklist do Cliente' : 'Checklist do Card Personalizado'}
+                    </div>
+                    {localChecklist.length > 0 && (
                       <div className="text-[11px] font-black text-stone-900 bg-stone-200 px-3 py-1 rounded-full border border-stone-300 shadow-sm">
                         {localChecklist.filter(i => i.completed).length}/{localChecklist.length}
                       </div>
-                    </div>
-                    
-                    {/* Barra de Progresso do Checklist Específico */}
+                    )}
+                  </div>
+                  
+                  {/* Barra de Progresso (Somente se houver itens) */}
+                  {localChecklist.length > 0 && (
                     <div className="h-4 bg-stone-100 rounded-full overflow-hidden border border-stone-200 shadow-inner">
                       <motion.div 
                         initial={{ width: 0 }}
@@ -545,28 +589,55 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                         className={`h-full bg-gradient-to-r from-${sectorColor}-600 to-${sectorColor}-800 shadow-xl`}
                       />
                     </div>
+                  )}
 
+                  {/* Input de Adição Rápida */}
+                  <div className="flex gap-2">
+                     <input 
+                       value={newItemText}
+                       onChange={(e) => setNewItemText(e.target.value)}
+                       onKeyDown={(e) => e.key === 'Enter' && addCheckItem()}
+                       placeholder="Adicionar novo item ao checklist..."
+                       className="flex-1 bg-stone-50 border-2 border-stone-100 hover:border-stone-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-stone-400 transition-all font-bold placeholder:text-stone-400"
+                     />
+                     <button 
+                       onClick={addCheckItem}
+                       className={`px-6 py-3 rounded-2xl transition-all border-2 flex items-center justify-center text-[10px] font-black uppercase tracking-widest ${newItemText.trim() ? `bg-${sectorColor}-50 text-${sectorColor}-600 border-${sectorColor}-200 hover:border-${sectorColor}-500 hover:shadow-md active:scale-95` : 'bg-stone-50 border-stone-100 text-stone-300 pointer-events-none'}`}
+                     >
+                       Adicionar
+                     </button>
+                  </div>
+
+                  {localChecklist.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {localChecklist.map((item) => (
-                        <button 
+                        <div 
                           key={item.id}
-                          onClick={() => toggleCheckItem(item.id)}
-                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
+                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group relative ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
                         >
-                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
-                            {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
-                          </div>
-                          <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
-                            {item.text}
-                          </span>
-                          {!item.completed && (
-                            <CheckCircle2 size={16} className="text-stone-200 opacity-0 group-hover:opacity-100 transition-all" />
-                          )}
-                        </button>
+                          <button 
+                            onClick={() => toggleCheckItem(item.id)}
+                            className="flex items-center gap-4 flex-1 text-left"
+                          >
+                            <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
+                              {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
+                            </div>
+                            <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
+                              {item.text}
+                            </span>
+                          </button>
+                          <button 
+                            onClick={() => removeCheckItem(item.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-all p-1 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            title="Remover item"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Notas Editáveis */}
                 <div className="space-y-4">

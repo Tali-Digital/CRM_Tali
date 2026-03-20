@@ -110,18 +110,30 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     data: { type: 'Card', card }
   });
 
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  const handleComplete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsFinishing(true);
+    
+    // Esperar a animação de dopamina antes de concluir de fato
+    setTimeout(async () => {
+      await completeOperationCard(card.id);
+    }, 600);
+  };
+
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
   };
 
   const isCustom = card.type === 'custom' || (!card.clientId && !!card.title);
-  const checklist = client?.checklist || card.checklist || [];
-  const completed = checklist.filter(i => i.completed).length;
-  const total = checklist.length;
-  
   const isClient = card.type === 'client' && client;
   const title = isClient ? client.name : (card.title || 'Card sem Título');
+  const checklist = (card.checklist && card.checklist.length > 0) ? card.checklist : (isClient ? (client?.checklist || []) : []);
+  const completed = checklist.filter(i => i.completed).length;
+  const total = checklist.length;
   
   const isOverdue = (date: any) => {
     if (!date) return false;
@@ -142,13 +154,13 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   };
 
   const isCardOverdue = isOverdue(card.deliveryDate);
-  const bgColor = isCardOverdue ? '#991b1b' : (card.color || '#ffffff');
-  const isDarkBg = getLuminance(bgColor) < 0.6;
+  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (card.color || '#ffffff'));
+  const isDarkBg = isFinishing || getLuminance(bgColor) < 0.6;
   
   const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
   const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
   const iconColorClass = isDarkBg ? 'text-white/60 hover:text-white' : 'text-stone-400 hover:text-stone-600';
-  const borderColor = isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb');
+  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb'));
 
   const formatDate = (date: any) => {
     if (!date) return '';
@@ -157,22 +169,28 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   };
 
   const isCompact = viewMode === 'list';
-
   if (isClient) {
     if (isCompact) {
       return (
         <div 
           id={`card-${card.id}`}
           ref={setNodeRef}
-          style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
-          onClick={() => onQuickView(card)}
+          style={{ 
+            ...style, 
+            backgroundColor: isFinishing ? '#22c55e' : bgColor, 
+            borderColor: isFinishing ? '#16a34a' : borderColor,
+            transform: isFinishing ? `${style.transform} scale(1.02)` : style.transform,
+            zIndex: isFinishing ? 50 : undefined
+          }}
+          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
+          title={`ID do Card: ${card.id}`}
+          onClick={() => !isFinishing && onQuickView(card)}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0 card-draggable`}>
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${client.themeColor === 'blue' ? 'text-[#5271FF]' : 'text-yellow-400'} shrink-0 card-draggable`}>
               <GripVertical size={12} />
             </div>
-            <div className={`p-1 rounded-lg ${client.themeColor === 'blue' ? (isDarkBg ? 'bg-white/20' : 'bg-blue-200/50') : (isDarkBg ? 'bg-white/20' : 'bg-yellow-200/50')} shrink-0`}>
+            <div className={`p-0.5 rounded-lg ${isDarkBg ? 'bg-white/20' : (client.themeColor === 'blue' ? 'bg-[#5271FF]/20' : 'bg-yellow-400/20')}`}>
               <User size={10} className={textColorClass} />
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
@@ -181,6 +199,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 <RotateCcw size={10} className={textColorClass} />
               )}
             </div>
+            {total > 0 && (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (isDarkBg ? 'bg-white/20 text-white' : (client.themeColor === 'blue' ? 'bg-blue-50 text-blue-500 border border-blue-100' : 'bg-yellow-50 text-yellow-500 border border-yellow-100'))}`}>
+                <CheckSquare size={8} />
+                {completed}/{total}
+              </div>
+            )}
           </div>
         </div>
       );
@@ -189,24 +213,30 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       <div 
         id={`card-${card.id}`}
         ref={setNodeRef}
-        style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
-        onClick={() => onQuickView(card)}
+        style={{ 
+          ...style, 
+          backgroundColor: isFinishing ? '#22c55e' : bgColor, 
+          borderColor: isFinishing ? '#16a34a' : borderColor,
+          transform: isFinishing ? `${style.transform} scale(1.02)` : style.transform,
+          zIndex: isFinishing ? 50 : undefined
+        }}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
+        onClick={() => !isFinishing && onQuickView(card)}
       >
-        <div className={`p-2 flex items-center justify-between border-b ${isDarkBg ? 'border-white/10 bg-black/5' : (client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30')}`}>
+        <div className={`p-2 flex items-center justify-between border-b ${isDarkBg ? 'border-white/10 bg-black/5' : (client.themeColor === 'blue' ? 'border-[#5271FF]/20 bg-[#5271FF]/90' : 'border-yellow-200/60 bg-yellow-200/40')}`}>
           <div className="flex items-center gap-1">
-            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} card-draggable`}>
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${client.themeColor === 'blue' ? 'text-white' : 'text-yellow-400'} card-draggable`}>
               <GripVertical size={12} />
             </div>
             <div className="flex items-center gap-1">
-              <div className={`p-0.5 rounded-lg ${isDarkBg ? 'bg-white/20' : (client.themeColor === 'blue' ? 'bg-blue-200/50' : 'bg-yellow-200/50')}`}>
-                <User size={10} className={textColorClass} />
+              <div className={`p-0.5 rounded-lg ${isDarkBg ? 'bg-white/20' : (client.themeColor === 'blue' ? 'bg-white/10' : 'bg-yellow-400/20')}`}>
+                <User size={10} className={client.themeColor === 'blue' ? 'text-white' : textColorClass} />
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
+              <span className={`text-[8px] font-black uppercase tracking-widest ${client.themeColor === 'blue' ? 'text-white' : textColorClass}`}>Cliente</span>
             </div>
           </div>
         </div>
-
+        
         <div className="p-3">
           <div className="flex items-center gap-2 mb-1">
             <h4 className={`font-black text-xs leading-tight ${textColorClass}`}>{title}</h4>
@@ -214,7 +244,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               <RotateCcw size={10} className={textColorClass} />
             )}
           </div>
-
+          
           <div className="mt-2 flex items-center justify-between">
             <div className="flex -space-x-1">
               {card.assignees?.slice(0, 2).map(userId => {
@@ -227,7 +257,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 );
               })}
             </div>
-
+            
             {total > 0 && (
               <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold ${completed === total ? (client.themeColor === 'blue' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white') : (client.themeColor === 'blue' ? 'bg-blue-200/50 text-blue-700' : 'bg-yellow-200/50 text-yellow-700')}`}>
                 <CheckSquare size={8} />
@@ -236,9 +266,9 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             )}
           </div>
         </div>
-        <CardOptionsMenu
-          isOpen={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <CardOptionsMenu 
+          isOpen={menuOpen} 
+          onClose={() => setMenuOpen(false)} 
           anchorRect={anchorRect}
           onAction={handleMenuAction}
         />
@@ -248,13 +278,19 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
 
   if (isCompact) {
     return (
-      <div
+      <div 
         id={`card-${card.id}`}
         ref={setNodeRef}
-        style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
+        style={{ 
+          ...style, 
+          backgroundColor: isFinishing ? '#22c55e' : bgColor, 
+          borderColor: isFinishing ? '#16a34a' : borderColor,
+          transform: isFinishing ? `${style.transform} scale(1.02)` : style.transform,
+          zIndex: isFinishing ? 50 : undefined
+        }}
+        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
         title={`ID do Card: ${card.id}`}
-        onClick={() => onQuickView(card)}
+        onClick={() => !isFinishing && onQuickView(card)}
       >
         <div className="flex items-center gap-3 overflow-hidden">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
@@ -267,36 +303,33 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             )}
           </div>
           {total > 0 && (
-            <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
+            <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
               <CheckSquare size={10} />
               <span>{completed}/{total}</span>
             </div>
           )}
-        </div>        <div className="flex items-center gap-2">
-          <button
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
             type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await completeOperationCard(card.id);
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors shrink-0 z-30 relative cursor-pointer"
+            onClick={handleComplete}
+            className={`p-1 rounded-lg transition-colors shrink-0 z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
             title="Marcar como concluído"
           >
-            <CheckCircle2 size={16} />
+            <CheckCircle2 size={16} className={isFinishing ? 'animate-bounce' : ''} />
           </button>
-          <button
+          <button 
             type="button"
             onClick={handleOpenMenu}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer text-pencil-button"
+            className={`p-1 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer text-pencil-button ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-stone-900'}`}
             title="Mais opções"
           >
             <Edit2 size={14} />
           </button>
         </div>
-        <CardOptionsMenu
-          isOpen={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <CardOptionsMenu 
+          isOpen={menuOpen} 
+          onClose={() => setMenuOpen(false)} 
           anchorRect={anchorRect}
           onAction={handleMenuAction}
         />
@@ -308,10 +341,16 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     <div
       id={`card-${card.id}`}
       ref={setNodeRef}
-      style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
+      style={{
+        ...style,
+        backgroundColor: isFinishing ? '#22c55e' : bgColor,
+        borderColor: isFinishing ? '#16a34a' : borderColor,
+        transform: isFinishing ? `${style.transform} scale(1.02)` : style.transform,
+        zIndex: isFinishing ? 50 : undefined
+      }}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''} ${isFinishing ? 'shadow-[0_0_30px_rgba(34,197,94,0.5)] pointer-events-none text-white' : ''}`}
       title={`ID do Card: ${card.id}`}
-      onClick={() => onQuickView(card)}
+      onClick={() => !isFinishing && onQuickView(card)}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
@@ -326,23 +365,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               )}
             </h4>
           </div>
-        </div>        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await completeOperationCard(card.id);
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
+            onClick={handleComplete}
+            className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
             title="Marcar como concluído"
           >
-            <CheckSquare size={16} />
+            <CheckSquare size={16} className={isFinishing ? 'animate-bounce' : ''} />
           </button>
           <button
             type="button"
             onClick={handleOpenMenu}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer text-pencil-button"
+            className={`p-1 rounded-lg transition-all z-30 relative cursor-pointer text-pencil-button ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-stone-900'}`}
             title="Mais opções"
           >
             <Edit2 size={14} />
@@ -352,7 +388,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
 
 
       {total > 0 && (
-        <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
+        <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
           <CheckSquare size={12} />
           <span>{completed}/{total}</span>
         </div>
@@ -361,13 +397,13 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       {(card.startDate || card.deliveryDate) && (
         <div className="flex items-center gap-3 ml-6 mt-2">
           {card.startDate && (
-            <div className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
               <Calendar size={10} />
               <span>{formatDate(card.startDate)}</span>
             </div>
           )}
           {card.deliveryDate && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue(card.deliveryDate) ? 'text-red-500' : 'text-stone-500'}`}>
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white' : (isOverdue(card.deliveryDate) ? 'text-red-500' : 'text-stone-500')}`}>
               <Calendar size={10} />
               <span>{formatDate(card.deliveryDate)}</span>
             </div>
@@ -384,12 +420,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 <div 
                   key={user.id} 
                   title={user.name}
-                  className="w-5 h-5 rounded-full border border-white overflow-hidden bg-stone-200 flex items-center justify-center shadow-sm"
+                  className={`w-5 h-5 rounded-full border overflow-hidden flex items-center justify-center shadow-sm ${isDarkBg ? 'border-white/20 bg-white/10' : 'border-white bg-stone-200'}`}
                 >
                   {user.photoURL ? (
                     <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[8px] font-bold text-stone-600">{user.name.charAt(0)}</span>
+                    <span className={`text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-600'}`}>{user.name.charAt(0)}</span>
                   )}
                 </div>
               );
@@ -399,10 +435,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           {client && (
             <div 
               title={`Cliente: ${client.name}`}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-50 border border-stone-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${client.themeColor === 'yellow' ? 'bg-yellow-400' : 'bg-blue-400'}`} />
-              <span className="text-[9px] font-bold text-stone-500 truncate max-w-[80px] uppercase tracking-tight">
+              <span className="text-[9px] font-bold truncate max-w-[80px] uppercase tracking-tight">
                 {client.name}
               </span>
             </div>
