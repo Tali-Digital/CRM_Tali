@@ -584,6 +584,10 @@ export function App() {
                   userRole={userProfile?.role || 'user'}
                   viewMode={dashboardViewMode}
                   setViewMode={setDashboardViewMode}
+                  onJumpToCard={(cardId, sector) => {
+                    setActiveTab(sector as any);
+                    setJumpToCard({ id: cardId, sector });
+                  }}
                 />
               </div>
             </div>

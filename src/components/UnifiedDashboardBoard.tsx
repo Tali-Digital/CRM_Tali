@@ -50,18 +50,22 @@ const getLuminance = (hexColor: string) => {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 };
 
-const getDateProximity = (date: any) => {
-  if (!date) return 'normal';
+const getDateStatus = (date: any) => {
+  if (!date) return 'none';
   const d = date instanceof Timestamp ? date.toDate() : new Date(date);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const checkDate = new Date(d);
-  checkDate.setHours(0, 0, 0, 0);
-  const diffTime = checkDate.getTime() - now.getTime();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cardDate = new Date(d);
+  cardDate.setHours(0, 0, 0, 0);
+  
+  if (cardDate < today) return 'overdue';
+  if (cardDate.getTime() === today.getTime()) return 'today';
+  
+  const diffTime = cardDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays <= 0) return 'overdue';
   if (diffDays <= 3) return 'near';
-  return 'normal';
+  
+  return 'upcoming';
 };
 
 const formatDate = (date: any) => {
@@ -84,8 +88,8 @@ const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboard
       const isAssigned = assignedListIds.includes(c.listId) || c.assignees?.includes(currentUserUid);
       if (isAssigned) return true;
       if (isAdmin) {
-        if (getDateProximity(c.deliveryDate) !== 'normal') return true;
-        if (getDateProximity(getNextRecurrenceDate(c.recurrence)) !== 'normal') return true;
+        if (['overdue', 'today', 'near'].includes(getDateStatus(c.deliveryDate))) return true;
+        if (['overdue', 'today', 'near'].includes(getDateStatus(getNextRecurrenceDate(c.recurrence)))) return true;
       }
       return false;
     });
@@ -106,6 +110,38 @@ const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboard
   });
 };
 
+const sortCardsByDeadline = (cards: any[]) => {
+  const getWeight = (status: string) => {
+    switch (status) {
+      case 'overdue': return 0;
+      case 'today': return 1;
+      case 'near': return 2;
+      case 'upcoming': return 3;
+      default: return 4;
+    }
+  };
+
+  return [...cards].sort((a, b) => {
+    const statusA = getDateStatus(a.deliveryDate || getNextRecurrenceDate(a.recurrence));
+    const statusB = getDateStatus(b.deliveryDate || getNextRecurrenceDate(b.recurrence));
+    
+    const weightA = getWeight(statusA);
+    const weightB = getWeight(statusB);
+
+    if (weightA !== weightB) return weightA - weightB;
+
+    // Sub-sort by date
+    const dateA = a.deliveryDate ? (a.deliveryDate instanceof Timestamp ? a.deliveryDate.toDate() : new Date(a.deliveryDate)) : getNextRecurrenceDate(a.recurrence);
+    const dateB = b.deliveryDate ? (b.deliveryDate instanceof Timestamp ? b.deliveryDate.toDate() : new Date(b.deliveryDate)) : getNextRecurrenceDate(b.recurrence);
+
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    
+    return dateA.getTime() - dateB.getTime();
+  });
+};
+
 const DashboardCard = ({ 
   card, 
   lists, 
@@ -113,7 +149,8 @@ const DashboardCard = ({
   clients, 
   users, 
   onQuickView,
-  handleOpenMenu 
+  handleOpenMenu,
+  onJumpToCard 
 }: { 
   key?: any,
   card: any, 
@@ -122,7 +159,8 @@ const DashboardCard = ({
   clients: Client[],
   users: UserProfile[],
   onQuickView: (card: any, tab: any) => void,
-  handleOpenMenu: (e: React.MouseEvent, card: any, tab: any) => void
+  handleOpenMenu: (e: React.MouseEvent, card: any, tab: any) => void,
+  onJumpToCard?: (cardId: string, sector: string) => void
 }) => {
   const [isFinishing, setIsFinishing] = useState(false);
   
@@ -147,38 +185,46 @@ const DashboardCard = ({
   const completed = checklist.filter((i: any) => i.completed).length;
   const total = checklist.length;
 
-  const isCardOverdue = getDateProximity(card.deliveryDate) === 'overdue';
-  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (card.color || '#ffffff'));
-  const isDarkBg = isFinishing || getLuminance(bgColor) < 0.6;
+  const dateStatus = getDateStatus(card.deliveryDate);
+  const isCardOverdue = dateStatus === 'overdue';
+  const isCardDueToday = dateStatus === 'today';
+  const isCardNearDue = dateStatus === 'near';
+  
+  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (isCardDueToday ? '#FEF2F2' : (isCardNearDue ? '#FFFBF5' : (card.color || '#ffffff'))));
+  const isDarkBg = isFinishing || (isCardOverdue && !isFinishing);
   const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
   const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
-  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb'));
+  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isCardDueToday ? '#FECACA' : (isCardNearDue ? '#FFEDD5' : (isDarkBg ? 'transparent' : '#e5e7eb'))));
 
   return (
     <div 
-      onClick={() => !isFinishing && onQuickView(card, targetTab)}
+      onClick={() => !isFinishing && onJumpToCard?.(card.id, targetTab === 'internal_tasks' ? 'internal_tasks' : targetTab)}
       style={{ 
         backgroundColor: bgColor, 
         borderColor: borderColor,
         transform: isFinishing ? 'scale(1.02)' : 'none',
         zIndex: isFinishing ? 50 : undefined
       }}
-      className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
+      className={`p-3.5 rounded-2xl shadow-sm border-2 mb-2 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
     >
-      <div className="flex justify-between items-start mb-2 gap-2">
-        <div className="flex flex-col gap-1 min-w-0">
-          {client && (
-            <div className={`flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-lg w-fit border ${isDarkBg ? 'bg-white/10 border-white/10' : 'bg-stone-50 border-stone-100'}`}>
-              <User size={10} className={isDarkBg ? 'text-white/40' : 'text-stone-400'} />
-              <span className={`text-[9px] font-black uppercase tracking-wider truncate max-w-[150px] ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
-                {client.name}
-              </span>
-            </div>
-          )}
-          <h4 className={`font-extrabold text-sm leading-tight truncate ${textColorClass}`}>
-            {isClient ? 'Atendimento Geral' : displayName}
-          </h4>
+      {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div 
+            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
+            style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
+          >
+            {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
+          </div>
+          <span className={`text-[9px] font-black ${isDarkBg ? 'text-white/80' : isCardNearDue ? 'text-orange-500' : 'text-red-500'}`}>
+            {formatDate(card.deliveryDate)}
+          </span>
         </div>
+      )}
+      
+      <div className="flex justify-between items-start mb-1 gap-2">
+        <h4 className={`font-extrabold text-[13px] leading-tight flex-1 ${textColorClass}`}>
+          {isClient ? 'Atendimento Geral' : displayName}
+        </h4>
         
         {!isClient && (
           <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -201,51 +247,48 @@ const DashboardCard = ({
           </div>
         )}
       </div>
-      
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        {list && (
-          <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'text-stone-500 bg-stone-100 border-stone-200/50'}`}>
-            {list.name}
-          </span>
-        )}
-        {card.recurrence?.enabled && (
-          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-            <RotateCcw size={10} />
-            <span className="text-[9px] font-bold uppercase tracking-tighter">Recorrente</span>
+
+      {/* Hover Information Section */}
+      <div className="opacity-0 max-h-0 group-hover:max-h-40 group-hover:opacity-100 group-hover:mb-3 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden space-y-2">
+        {client && (
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg w-fit border ${isDarkBg ? 'bg-white/10 border-white/10' : 'bg-stone-50 border-stone-100'}`}>
+            <User size={10} className={isDarkBg ? 'text-white/40' : 'text-stone-400'} />
+            <span className={`text-[9px] font-black uppercase tracking-wider truncate max-w-[150px] ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
+              {client.name}
+            </span>
           </div>
         )}
-      </div>
 
-      <div className="flex items-center justify-between mt-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {list && (
+            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'text-stone-500 bg-stone-100 border-stone-200/50'}`}>
+              {list.name}
+            </span>
+          )}
+          {card.recurrence?.enabled && (
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100 font-black'}`}>
+              <RotateCcw size={10} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Recorrente</span>
+            </div>
+          )}
           {total > 0 && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
-              <CheckSquare size={12} />
+            <div className={`flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md bg-stone-50 border border-stone-100 ${isDarkBg ? 'text-white/90 bg-white/10' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
+              <CheckSquare size={10} />
               <span>{completed}/{total}</span>
             </div>
           )}
-          {(card.startDate || card.deliveryDate) && (
-            <div className="flex items-center gap-2">
-              {[card.deliveryDate].filter(Boolean).map((date, i) => {
-                const proximity = getDateProximity(date);
-                const colorClass = isDarkBg ? 'text-white' : (proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500');
-                return (
-                  <div key={i} className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
-                    <CalendarIcon size={10} />
-                    <span>{formatDate(date)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* Footer Area - Always visible responsible icons */}
+      <div className="flex justify-end mt-1">
         <div className="flex -space-x-1.5">
           {card.assignees?.map((userId: string) => {
             const u = users.find(user => user.id === userId);
             if (!u) return null;
             return (
               <div key={userId} className={`w-5 h-5 rounded-full border-2 overflow-hidden shadow-sm ${isDarkBg ? 'border-white/20 bg-white/10' : 'border-white bg-stone-100'}`} title={u.name}>
-                {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
+                {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[7px] font-black ${isDarkBg ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
               </div>
             );
           })}
@@ -270,6 +313,7 @@ interface Props {
   dashboardView: 'minhas' | 'global';
   currentUserUid: string;
   onNavigate: (tab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => void;
+  onJumpToCard?: (cardId: string, sector: string) => void;
   onUpdateCommercialCard: (id: string, data: any) => Promise<void>;
   onUpdateFinancialCard: (id: string, data: any) => Promise<void>;
   onUpdateOperationCard: (id: string, data: any) => Promise<void>;
@@ -295,6 +339,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   dashboardView,
   currentUserUid,
   onNavigate,
+  onJumpToCard,
   onUpdateCommercialCard,
   onUpdateFinancialCard,
   onUpdateOperationCard,
@@ -397,7 +442,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
 
 
   const FilterSection = () => (
-    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-4 shadow-sm">
+    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-1 shadow-sm">
       <div className="flex flex-wrap items-end gap-4">
         {/* Busca */}
         <div className="flex-1 min-w-[200px]">
@@ -492,10 +537,22 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   );
 
   return (
-    <div className="flex flex-col space-y-4 h-full">
-      <FilterSection />
+    <div className="flex flex-col h-full bg-[#fdfdfd] overflow-hidden">
+      {/* Search Header */}
+      <div className="flex justify-between items-center mb-1 py-1 px-2">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-900">Dashboard</h1>
+          <p className="text-stone-500 text-sm mt-0.5 font-medium">
+            Visão geral das atividades. Cards onde você está atribuído, em atraso ou próximos do vencimento.
+          </p>
+        </div>
+      </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="px-2 pb-2">
+        <FilterSection />
+      </div>
+
+      <div className="flex-1 min-h-0 px-1 overflow-visible">
         {viewMode === 'board' ? (
           <div 
             ref={boardRef}
@@ -503,10 +560,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
             className={`flex gap-6 overflow-x-auto pb-4 h-full custom-scrollbar pr-4 ${dragClassName}`}
           >
             {[
-              { id: 'comercial', name: 'Comercial', cards: filteredCommercialCards, lists: commercialLists, tab: 'comercial' },
-              { id: 'integracao', name: 'Integração', cards: filteredFinancialCards, lists: financialLists, tab: 'integracao' },
-              { id: 'operacao', name: 'Operação', cards: filteredOperationCards, lists: operationLists, tab: 'operacao' },
-              { id: 'internal_tasks', name: 'Tarefas Internas', cards: filteredInternalCards, lists: internalTaskLists, tab: 'internal_tasks' }
+              { id: 'comercial', name: 'Comercial', cards: sortCardsByDeadline(filteredCommercialCards), lists: commercialLists, tab: 'comercial' },
+              { id: 'integracao', name: 'Integração', cards: sortCardsByDeadline(filteredFinancialCards), lists: financialLists, tab: 'integracao' },
+              { id: 'operacao', name: 'Operação', cards: sortCardsByDeadline(filteredOperationCards), lists: operationLists, tab: 'operacao' },
+              { id: 'internal_tasks', name: 'Tarefas Internas', cards: sortCardsByDeadline(filteredInternalCards), lists: internalTaskLists, tab: 'internal_tasks' }
             ].filter(s => selectedSector === 'all' || s.id === selectedSector).map(sector => (
               <div key={sector.id} className="flex flex-col rounded-3xl bg-[#E6E6E6] shadow-sm min-w-[340px] w-[340px] border border-stone-300/50 overflow-hidden relative group/sector">
                 {/* Color Strip */}
@@ -548,6 +605,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                         users={users}
                         onQuickView={(c, tab) => { setQuickViewCard(c); setQuickViewTab(tab); }}
                         handleOpenMenu={handleOpenMenu}
+                        onJumpToCard={onJumpToCard}
                       />
                     ))}
                   </div>

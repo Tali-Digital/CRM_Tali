@@ -106,7 +106,8 @@ const getDateProximity = (date: any) => {
   const diffTime = checkDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) return 'overdue';
+  if (diffDays < 0) return 'overdue';
+  if (diffDays === 0) return 'today';
   if (diffDays <= 3) return 'near';
   return 'normal';
 };
@@ -132,6 +133,8 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const [localTitle, setLocalTitle] = useState('');
   const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>([]);
   const [newItemText, setNewItemText] = useState('');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemText, setEditingItemText] = useState('');
 
   useEffect(() => {
     if (card) {
@@ -149,8 +152,17 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     ...allFinancialCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'financial' as const })),
     ...allOperationCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'operation' as const })),
     ...allInternalTaskCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'internal' as const })),
-  ].sort((a, b) => {
+  ].sort((a: any, b: any) => {
+    // 1. Concluídos sempre ao final
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    
+    // 2. Ordenar por data de entrega (mais próximos primeiro)
+    const dateA = a.deliveryDate instanceof Timestamp ? a.deliveryDate.toDate().getTime() : (a.deliveryDate ? new Date(a.deliveryDate).getTime() : Infinity);
+    const dateB = b.deliveryDate instanceof Timestamp ? b.deliveryDate.toDate().getTime() : (b.deliveryDate ? new Date(b.deliveryDate).getTime() : Infinity);
+    
+    if (dateA !== dateB) return dateA - dateB;
+
+    // 3. Fallback para data de criação se a entrega for igual
     const t1 = (a as any).createdAt?.seconds || new Date((a as any).createdAt || 0).getTime();
     const t2 = (b as any).createdAt?.seconds || new Date((b as any).createdAt || 0).getTime();
     return t1 - t2;
@@ -207,6 +219,19 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const removeCheckItem = async (itemId: string) => {
     const updated = localChecklist.filter(i => i.id !== itemId);
     setLocalChecklist(updated);
+    await syncUpdate({ checklist: updated });
+    if (isClientCard && client) {
+      await updateClient(client.id, { checklist: updated });
+    }
+  };
+
+  const updateCheckItem = async (itemId: string, newText: string) => {
+    if (!newText.trim()) return;
+    const updated = localChecklist.map(item => 
+      item.id === itemId ? { ...item, text: newText.trim() } : item
+    );
+    setLocalChecklist(updated);
+    setEditingItemId(null);
     await syncUpdate({ checklist: updated });
     if (isClientCard && client) {
       await updateClient(client.id, { checklist: updated });
@@ -507,34 +532,44 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                             taskSector === 'financial' ? 'blue' :
                             taskSector === 'operation' ? 'green' : 'purple';
 
-                          const isOverdue = !task.completed && task.deliveryDate && getDateProximity(task.deliveryDate) === 'overdue';
+                          const proximity = !task.completed && task.deliveryDate ? getDateProximity(task.deliveryDate) : 'normal';
+                          const isOverdue = proximity === 'overdue';
+                          const isToday = proximity === 'today';
+                          const isNear = proximity === 'near';
 
                           return (
                             <div 
                               key={task.id}
                               onClick={() => onJumpToCard?.(task, taskSector === 'commercial' ? 'comercial' : taskSector === 'financial' ? 'integracao' : taskSector === 'operation' ? 'operacao' : 'internal_tasks')}
                               className={`rounded-[1.5rem] p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group border-2 flex flex-col justify-between min-h-[110px] ${
-                                task.completed ? 'bg-green-50 border-green-200 opacity-80' : 
-                                isOverdue ? 'bg-red-50 border-red-200' : 
-                                'bg-white border-stone-100 hover:border-stone-300'
+                                task.completed ? 'bg-green-50 border-green-200' : 
+                                isOverdue ? 'bg-[#991b1b] border-[#7f1d1d] text-white' : 
+                                isToday ? 'bg-[#FEF2F2] border-[#FCA5A5]' :
+                                isNear ? 'bg-[#FFF7ED] border-[#FED7AA]' :
+                                'bg-white border-stone-100'
                               }`}
                             >
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
-                                    task.completed ? 'bg-green-600 text-white' : 
-                                    isOverdue ? 'bg-red-600 text-white' : 
-                                    `bg-${sectorColorClass}-50 text-${sectorColorClass}-600 border border-${sectorColorClass}-100`
-                                  }`}>
-                                    {task.completed ? 'Concluído' : isOverdue ? 'Em Atraso' : taskSectorLabel}
+                                  <span 
+                                    className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-sm ${
+                                      task.completed ? 'bg-green-600 text-white' : 
+                                      isOverdue ? 'bg-red-600 text-white' : 
+                                      isToday ? 'text-white' :
+                                      isNear ? 'bg-orange-500 text-white' :
+                                      `bg-${sectorColorClass}-50 text-${sectorColorClass}-600 border border-${sectorColorClass}-100`
+                                    }`}
+                                    style={isToday ? { backgroundColor: '#ff3f42' } : undefined}
+                                  >
+                                    {task.completed ? 'Concluído' : isOverdue ? 'Em Atraso' : isToday ? 'Vence Hoje' : isNear ? 'Perto de Vencer' : taskSectorLabel}
                                   </span>
                                   {task.deliveryDate && !task.completed && (
-                                    <span className={`text-[8px] font-black uppercase tracking-widest ${isOverdue ? 'text-red-500 font-bold' : 'text-stone-400'}`}>
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${isOverdue ? 'text-white/80' : isToday ? 'text-red-500' : isNear ? 'text-orange-500' : 'text-stone-400'}`}>
                                       {formatDate(task.deliveryDate)}
                                     </span>
                                   )}
                                 </div>
-                                <h4 className={`text-sm font-black transition-colors line-clamp-2 leading-tight ${task.completed ? 'text-green-900/60' : isOverdue ? 'text-red-900' : 'text-stone-900 group-hover:text-stone-600'}`}>
+                                <h4 className={`text-sm font-black transition-colors line-clamp-2 leading-tight ${task.completed ? 'text-green-900/60' : isOverdue ? 'text-white' : isToday ? 'text-red-900' : isNear ? 'text-orange-900' : 'text-stone-900'}`}>
                                   {task.title || task.clientName || 'Card sem Título'}
                                 </h4>
                               </div>
@@ -544,16 +579,21 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                                           {task.assignees?.slice(0, 3).map(uid => {
                                               const u = users.find(user => user.id === uid);
                                               return u ? (
-                                                  <div key={uid} className="w-5 h-5 rounded-full border border-white overflow-hidden bg-stone-100 shadow-sm" title={u.name}>
-                                                      {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[6px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                                                  <div key={uid} className={`w-5 h-5 rounded-full border overflow-hidden bg-stone-100 shadow-sm ${isOverdue ? 'border-white/20' : 'border-white'}`} title={u.name}>
+                                                      {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[6px] font-bold ${isOverdue ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
                                                   </div>
                                               ) : null;
                                           })}
                                       </div>
                                       
                                       {task.checklist && task.checklist.length > 0 && (
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-stone-50 border border-stone-200 text-stone-500 text-[10px] font-black shadow-sm group-hover:bg-white transition-all">
-                                          <CheckSquare size={10} className="text-stone-400" />
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-black shadow-sm transition-all ${
+                                          isOverdue ? 'bg-white/10 border border-white/20 text-white' : 
+                                          isToday ? 'bg-red-50 border border-red-100 text-red-600' :
+                                          isNear ? 'bg-orange-50 border border-orange-100 text-orange-600' :
+                                          'bg-stone-50 border border-stone-200 text-stone-500'
+                                        }`}>
+                                          <CheckSquare size={10} className={isOverdue ? 'text-white/60' : 'text-stone-400'} />
                                           <span>{task.checklist.filter((i: any) => i.completed).length}/{task.checklist.length}</span>
                                         </div>
                                       )}
@@ -610,29 +650,61 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
 
                   {localChecklist.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {localChecklist.map((item) => (
+                      {[...localChecklist]
+                        .sort((a, b) => {
+                          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                          return parseInt(a.id) - parseInt(b.id);
+                        })
+                        .map((item) => (
                         <div 
                           key={item.id}
-                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group relative ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
+                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group relative ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200'}`}
                         >
-                          <button 
-                            onClick={() => toggleCheckItem(item.id)}
-                            className="flex items-center gap-4 flex-1 text-left"
-                          >
-                            <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
+                          <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                            <button 
+                              onClick={() => toggleCheckItem(item.id)}
+                              className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'}`}
+                            >
                               {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
-                            </div>
-                            <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
-                              {item.text}
-                            </span>
-                          </button>
-                          <button 
-                            onClick={() => removeCheckItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-all p-1 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                            title="Remover item"
-                          >
-                            <X size={14} />
-                          </button>
+                            </button>
+                            
+                            {editingItemId === item.id ? (
+                              <input 
+                                autoFocus
+                                value={editingItemText}
+                                onChange={(e) => setEditingItemText(e.target.value)}
+                                onBlur={() => updateCheckItem(item.id, editingItemText)}
+                                onKeyDown={(e) => e.key === 'Enter' && updateCheckItem(item.id, editingItemText)}
+                                className="flex-1 bg-white border border-stone-200 rounded-lg px-2 py-1 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                              />
+                            ) : (
+                              <span className={`text-sm font-bold flex-1 truncate ${item.completed ? 'line-through opacity-70' : ''}`}>
+                                {item.text}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {editingItemId !== item.id && !item.completed && (
+                              <button 
+                                onClick={() => {
+                                  setEditingItemId(item.id);
+                                  setEditingItemText(item.text);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-all p-1 text-stone-300 hover:text-stone-600 hover:bg-stone-100 rounded-lg"
+                                title="Editar item"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => removeCheckItem(item.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-all p-1 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                              title="Remover item"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

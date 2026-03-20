@@ -55,6 +55,14 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Allow native Undo/Redo in text fields and contentEditable
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || 
+                     target.tagName === 'TEXTAREA' || 
+                     target.isContentEditable;
+
+      if (isInput) return;
+
       // Ctrl + Z or Cmd + Z
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();

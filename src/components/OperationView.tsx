@@ -135,13 +135,22 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   const completed = checklist.filter(i => i.completed).length;
   const total = checklist.length;
   
-  const isOverdue = (date: any) => {
-    if (!date) return false;
+  const getDateStatus = (date: any) => {
+    if (!date) return 'none';
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    d.setHours(0, 0, 0, 0);
-    return d <= today;
+    const cardDate = new Date(d);
+    cardDate.setHours(0, 0, 0, 0);
+    
+    if (cardDate < today) return 'overdue';
+    if (cardDate.getTime() === today.getTime()) return 'today';
+    
+    const diffTime = cardDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays <= 3) return 'near';
+    
+    return 'upcoming';
   };
 
   const getLuminance = (hexColor: string) => {
@@ -153,14 +162,18 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   };
 
-  const isCardOverdue = isOverdue(card.deliveryDate);
-  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (card.color || '#ffffff'));
-  const isDarkBg = isFinishing || getLuminance(bgColor) < 0.6;
+  const dateStatus = getDateStatus(card.deliveryDate);
+  const isCardOverdue = dateStatus === 'overdue';
+  const isCardDueToday = dateStatus === 'today';
+  const isCardNearDue = dateStatus === 'near';
+  
+  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (isCardDueToday ? '#FEF2F2' : (isCardNearDue ? '#FFFBF5' : (card.color || '#ffffff'))));
+  const isDarkBg = isFinishing || (isCardOverdue && !isFinishing);
   
   const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
   const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
   const iconColorClass = isDarkBg ? 'text-white/60 hover:text-white' : 'text-stone-400 hover:text-stone-600';
-  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb'));
+  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isCardDueToday ? '#FECACA' : (isCardNearDue ? '#FFEDD5' : (isDarkBg ? 'transparent' : '#e5e7eb'))));
 
   const formatDate = (date: any) => {
     if (!date) return '';
@@ -225,16 +238,24 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       >
         <div className={`p-2 flex items-center justify-between border-b ${isDarkBg ? 'border-white/10 bg-black/5' : (client.themeColor === 'blue' ? 'border-[#5271FF]/20 bg-[#5271FF]/90' : 'border-yellow-200/60 bg-yellow-200/40')}`}>
           <div className="flex items-center gap-1">
-            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${client.themeColor === 'blue' ? 'text-white' : 'text-yellow-400'} card-draggable`}>
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${client.themeColor === 'blue' || isDarkBg ? 'text-white' : 'text-yellow-400'} card-draggable`}>
               <GripVertical size={12} />
             </div>
             <div className="flex items-center gap-1">
               <div className={`p-0.5 rounded-lg ${isDarkBg ? 'bg-white/20' : (client.themeColor === 'blue' ? 'bg-white/10' : 'bg-yellow-400/20')}`}>
-                <User size={10} className={client.themeColor === 'blue' ? 'text-white' : textColorClass} />
+                <User size={10} className={client.themeColor === 'blue' || isDarkBg ? 'text-white' : textColorClass} />
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest ${client.themeColor === 'blue' ? 'text-white' : textColorClass}`}>Cliente</span>
+              <span className={`text-[8px] font-black uppercase tracking-widest ${client.themeColor === 'blue' || isDarkBg ? 'text-white' : textColorClass}`}>Cliente</span>
             </div>
           </div>
+          {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+            <div 
+              className={`px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest text-white animate-pulse ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
+              style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
+            >
+              {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
+            </div>
+          )}
         </div>
         
         <div className="p-3">
@@ -352,6 +373,20 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
       title={`ID do Card: ${card.id}`}
       onClick={() => !isFinishing && onQuickView(card)}
     >
+      {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div 
+            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
+            style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
+          >
+            {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
+          </div>
+          <span className={`text-[9px] font-black transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/80' : isCardNearDue ? 'text-orange-500' : 'text-red-500'}`}>
+            {formatDate(card.deliveryDate)}
+          </span>
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass}`}>
@@ -361,7 +396,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
               {title}
               {card.recurrence?.enabled && (
-                <RotateCcw size={12} className={textColorClass} />
+                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100 font-black'}`}>
+                  <RotateCcw size={10} />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Recorrente</span>
+                </div>
               )}
             </h4>
           </div>
@@ -388,14 +426,14 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
 
 
       {total > 0 && (
-        <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
+        <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
           <CheckSquare size={12} />
           <span>{completed}/{total}</span>
         </div>
       )}
 
-      {(card.startDate || card.deliveryDate) && (
-        <div className="flex items-center gap-3 ml-6 mt-2">
+      {(card.startDate || card.deliveryDate) && !isCardOverdue && !isCardDueToday && !isCardNearDue && (
+        <div className="flex items-center gap-3 ml-6 mt-2 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
           {card.startDate && (
             <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
               <Calendar size={10} />
@@ -403,7 +441,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             </div>
           )}
           {card.deliveryDate && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white' : (isOverdue(card.deliveryDate) ? 'text-red-500' : 'text-stone-500')}`}>
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white' : 'text-stone-500'}`}>
               <Calendar size={10} />
               <span>{formatDate(card.deliveryDate)}</span>
             </div>
@@ -435,7 +473,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           {client && (
             <div 
               title={`Cliente: ${client.name}`}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${client.themeColor === 'yellow' ? 'bg-yellow-400' : 'bg-blue-400'}`} />
               <span className="text-[9px] font-bold truncate max-w-[80px] uppercase tracking-tight">
@@ -504,17 +542,17 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
       style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
       className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
     >
-      <div className="flex items-center justify-between mb-2 px-2">
+      <div className="flex items-center justify-between mb-2 px-2 group/header">
         <div className="flex items-center gap-2">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing ${iconColor} ${iconHoverColor} transition-colors`}>
             <GripVertical size={16} />
           </div>
           <h3 className={`font-black uppercase tracking-widest text-sm drop-shadow-sm ${textColor}`}>{list.name}</h3>
-          <span className={`${badgeBg} ${badgeText} text-[10px] font-black px-2 py-0.5 rounded-full border border-white/20 shadow-sm`}>
+          <span className={`opacity-0 group-hover/header:opacity-100 transition-opacity ${badgeBg} ${badgeText} text-[10px] font-black px-2 py-0.5 rounded-full border border-white/20 shadow-sm`}>
             {cards.length}
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 opacity-0 group-hover/header:opacity-100 transition-opacity">
           <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
             <button 
               onClick={() => setLocalFilter('activities')}
@@ -553,9 +591,9 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
           {/* Coluna de Atividades */}
           {showActivities && (
             <div className="flex-1 flex flex-col min-w-0">
-              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1`}>
+              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
                 <span>Atividades</span>
-                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter(c => c.type !== 'client').length}</span>
+                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter(c => c.type !== 'client').length}</span>
               </div>
               <div className="flex-1 space-y-3 pr-1 overflow-y-auto custom-scrollbar">
                 {cards
@@ -580,9 +618,9 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
           )}
           {showClients && (
             <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
-              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1`}>
+              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
                 <span>Clientes</span>
-                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
+                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
                   {[...new Set(cards.map(c => c.clientId).filter(Boolean))].length}
                 </span>
               </div>
