@@ -34,7 +34,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
     { id: 'internal_tasks', icon: CheckCircle2, label: 'Tarefas Internas' },
   ];
 
-  const themeClasses = 'bg-[#0C1122] text-white border-[#0C1122]';
+  const themeClasses = 'bg-purple-700 text-white border-purple-800';
   const itemHoverClasses = 'hover:bg-[#5271FF] hover:text-white';
   const activeItemClasses = 'bg-[#5271FF] text-white shadow-md';
 
