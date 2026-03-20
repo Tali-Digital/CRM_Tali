@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus } from 'lucide-react';
+import { playTickSound } from '../utils/audio';
 import { 
   deleteCommercialCard, 
   deleteFinancialCard, 
@@ -190,6 +191,10 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   };
 
   const toggleCheckItem = async (itemId: string) => {
+    const item = localChecklist.find(i => i.id === itemId);
+    if (item && !item.completed) {
+      playTickSound();
+    }
     const updated = localChecklist.map(item => 
       item.id === itemId ? { ...item, completed: !item.completed } : item
     );

@@ -3,6 +3,7 @@ import { CommercialList, CommercialCard, FinancialList, FinancialCard, Operation
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar as CalendarIcon, Clock, Search, Briefcase, Tag as TagIcon, X, LayoutGrid, Layers, AlignLeft, MousePointer2, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
+import { playSuccessSound } from '../utils/audio';
 import { 
   completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard,
   deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard,
@@ -167,6 +168,7 @@ const DashboardCard = ({
   const handleComplete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    playSuccessSound();
     setIsFinishing(true);
     
     setTimeout(async () => {

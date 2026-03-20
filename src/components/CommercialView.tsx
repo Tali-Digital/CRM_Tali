@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommercialList, CommercialCard, FinancialCard, OperationCard, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
+import { playSuccessSound } from '../utils/audio';
 import { 
   addCommercialList, 
   addCommercialCard, 
@@ -115,6 +116,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   const handleComplete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    playSuccessSound();
     setIsFinishing(true);
     
     // Esperar a animação de dopamina antes de concluir de fato
