@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile } from '../types';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar as CalendarIcon, Clock, Search, Briefcase, Tag as TagIcon, X, LayoutGrid, Layers, AlignLeft, MousePointer2 } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar as CalendarIcon, Clock, Search, Briefcase, Tag as TagIcon, X, LayoutGrid, Layers, AlignLeft, MousePointer2, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
-import { completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard } from '../services/firestoreService';
+import { 
+  completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard,
+  deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard,
+  duplicateCommercialCard, duplicateFinancialCard, duplicateOperationCard, duplicateInternalTaskCard
+} from '../services/firestoreService';
+import { CardOptionsMenu } from './CardOptionsMenu';
 import { QuickViewCardModal } from './QuickViewCardModal';
-import { RotateCcw, Trash2 } from 'lucide-react';
-import { deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard } from '../services/firestoreService';
 import { CalendarDashboardView } from './CalendarDashboardView';
 
 interface Props {
@@ -60,6 +63,10 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
 }) => {
   const [quickViewCard, setQuickViewCard] = useState<any>(null);
   const [quickViewTab, setQuickViewTab] = useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuCard, setMenuCard] = React.useState<any>(null);
+  const [menuTab, setMenuTab] = React.useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
+  const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
 
   // Sector Colors
   const [sectorColors, setSectorColors] = useState(() => {
@@ -127,6 +134,15 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     }
 
     return null;
+  };
+
+  const getLuminance = (hexColor: string) => {
+    if (!hexColor || hexColor === '#ffffff') return 1;
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   };
 
   const getDateProximity = (date: any) => {
@@ -209,6 +225,46 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     ...filteredInternalCards.map(c => ({...c, sector: 'internal_tasks'}))
   ], [filteredCommercialCards, filteredFinancialCards, filteredOperationCards, filteredInternalCards]);
 
+  const handleOpenMenu = (e: React.MouseEvent, card: any, tab: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuCard(card);
+    setMenuTab(tab);
+    setAnchorRect(e.currentTarget.getBoundingClientRect());
+    setMenuOpen(true);
+  };
+
+  const handleMenuAction = async (action: string) => {
+    if (!menuCard || !menuTab) return;
+    
+    switch (action) {
+      case 'open':
+        setQuickViewCard(menuCard);
+        setQuickViewTab(menuTab);
+        break;
+      case 'edit':
+        onNavigate(menuTab);
+        break;
+      case 'copy':
+      case 'duplicate':
+        if (menuTab === 'comercial') await duplicateCommercialCard(menuCard.id);
+        else if (menuTab === 'integracao') await duplicateFinancialCard(menuCard.id);
+        else if (menuTab === 'operacao') await duplicateOperationCard(menuCard.id);
+        else if (menuTab === 'internal_tasks') await duplicateInternalTaskCard(menuCard.id);
+        break;
+      case 'archive':
+        if (window.confirm('Deseja excluir este card?')) {
+          if (menuTab === 'comercial') await deleteCommercialCard(menuCard.id);
+          else if (menuTab === 'integracao') await deleteFinancialCard(menuCard.id);
+          else if (menuTab === 'operacao') await deleteOperationCard(menuCard.id);
+          else if (menuTab === 'internal_tasks') await deleteInternalTaskCard(menuCard.id);
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderCard = (card: any, lists: any[], targetTab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => {
     const client = clients.find(c => c.id === card.clientId);
     const list = lists.find(l => l.id === card.listId);
@@ -218,6 +274,13 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     const completed = checklist.filter((i: any) => i.completed).length;
     const total = checklist.length;
 
+    const isCardOverdue = getDateProximity(card.deliveryDate) === 'overdue';
+    const bgColor = isCardOverdue ? '#991b1b' : (card.color || '#ffffff');
+    const isDarkBg = getLuminance(bgColor) < 0.6;
+    const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
+    const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
+    const borderColor = isCardOverdue ? '#7f1d1d' : (isDarkBg ? 'transparent' : '#e5e7eb');
+
     return (
       <div 
         key={card.id} 
@@ -225,76 +288,60 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           setQuickViewCard(card);
           setQuickViewTab(targetTab);
         }}
-        className="p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative bg-white border-stone-200 card-draggable"
+        style={{ backgroundColor: bgColor, borderColor: borderColor }}
+        className={`p-4 rounded-2xl shadow-sm border-2 mb-3 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''}`}
       >
         <div className="flex justify-between items-start mb-2 gap-2">
           <div className="flex flex-col gap-1 min-w-0">
             {client && (
-              <div className="flex items-center gap-1.5 mb-1 bg-stone-50 border border-stone-100 px-2 py-0.5 rounded-lg w-fit">
-                <User size={10} className="text-stone-400" />
-                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 truncate max-w-[150px]">
+              <div className={`flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-lg w-fit border ${isDarkBg ? 'bg-white/10 border-white/10' : 'bg-stone-50 border-stone-100'}`}>
+                <User size={10} className={isDarkBg ? 'text-white/40' : 'text-stone-400'} />
+                <span className={`text-[9px] font-black uppercase tracking-wider truncate max-w-[150px] ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
                   {client.name}
                 </span>
               </div>
             )}
-            <h4 className="font-extrabold text-sm leading-tight text-stone-900 truncate">
+            <h4 className={`font-extrabold text-sm leading-tight truncate ${textColorClass}`}>
               {isClient ? 'Atendimento Geral' : displayName}
             </h4>
           </div>
           
-          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.preventDefault(); e.stopPropagation();
-                onNavigate(targetTab);
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
-              title="Ver no Setor"
-            >
-              <Edit2 size={14} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault(); e.stopPropagation();
-                if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                  if (targetTab === 'comercial') await deleteCommercialCard(card.id);
-                  else if (targetTab === 'integracao') await deleteFinancialCard(card.id);
-                  else if (targetTab === 'operacao') await deleteOperationCard(card.id);
-                  else if (targetTab === 'internal_tasks') await deleteInternalTaskCard(card.id);
-                }
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-500 transition-all z-30 relative cursor-pointer"
-              title="Excluir Atendimento"
-            >
-              <Trash2 size={14} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault(); e.stopPropagation();
-                if (targetTab === 'comercial') await completeCommercialCard(card.id);
-                else if (targetTab === 'integracao') await completeFinancialCard(card.id);
-                else if (targetTab === 'operacao') await completeOperationCard(card.id);
-                else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
-              title="Marcar como concluído"
-            >
-              <CheckSquare size={16} />
-            </button>
-          </div>
+          {!isClient && (
+            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  if (targetTab === 'comercial') await completeCommercialCard(card.id);
+                  else if (targetTab === 'integracao') await completeFinancialCard(card.id);
+                  else if (targetTab === 'operacao') await completeOperationCard(card.id);
+                  else if (targetTab === 'internal_tasks') await completeInternalTaskCard(card.id);
+                }}
+                className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
+                title="Marcar como concluído"
+              >
+                <CheckSquare size={16} />
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => handleOpenMenu(e, card, targetTab)}
+                className={`p-1 rounded-lg transition-all z-30 relative cursor-pointer ${isDarkBg ? 'hover:bg-white/20 text-white/60 hover:text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-stone-900'}`}
+                title="Mais opções"
+              >
+                <Edit2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {list && (
-            <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200/50">
+            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'text-stone-500 bg-stone-100 border-stone-200/50'}`}>
               {list.name}
             </span>
           )}
           {card.recurrence?.enabled && (
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-100">
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
               <RotateCcw size={10} />
               <span className="text-[9px] font-bold uppercase tracking-tighter">Recorrente</span>
             </div>
@@ -304,7 +351,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-3">
             {total > 0 && (
-              <div className={`flex items-center gap-1 text-[10px] font-bold ${completed === total ? 'text-green-600' : 'text-stone-500'}`}>
+              <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
                 <CheckSquare size={12} />
                 <span>{completed}/{total}</span>
               </div>
@@ -313,7 +360,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               <div className="flex items-center gap-2">
                 {[card.deliveryDate].filter(Boolean).map((date, i) => {
                   const proximity = getDateProximity(date);
-                  const colorClass = proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500';
+                  const colorClass = isDarkBg ? 'text-white' : (proximity === 'overdue' ? 'text-red-500' : proximity === 'near' ? 'text-orange-500' : 'text-stone-500');
                   return (
                     <div key={i} className={`flex items-center gap-1 text-[10px] font-bold ${colorClass}`}>
                       <CalendarIcon size={10} />
@@ -329,8 +376,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               const u = users.find(user => user.id === userId);
               if (!u) return null;
               return (
-                <div key={userId} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-stone-100 shadow-sm" title={u.name}>
-                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                <div key={userId} className={`w-5 h-5 rounded-full border-2 overflow-hidden shadow-sm ${isDarkBg ? 'border-[#991b1b] bg-white/10' : 'border-white bg-stone-100'}`} title={u.name}>
+                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-400'}`}>{u.name.charAt(0)}</div>}
                 </div>
               );
             })}
@@ -516,6 +563,21 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           quickViewTab === 'operacao' ? 'operation' :
           'internal'
         }
+        allCommercialCards={commercialCards}
+        allFinancialCards={financialCards}
+        allOperationCards={operationCards}
+        allInternalTaskCards={internalTaskCards}
+        onJumpToCard={(targetCard, targetSector) => {
+          setQuickViewCard(targetCard);
+          setQuickViewTab(targetSector as any);
+        }}
+      />
+
+      <CardOptionsMenu 
+        isOpen={menuOpen} 
+        onClose={() => setMenuOpen(false)} 
+        anchorRect={anchorRect}
+        onAction={handleMenuAction}
       />
     </div>
   );

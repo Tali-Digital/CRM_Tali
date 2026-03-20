@@ -34,7 +34,7 @@ interface UnifiedCardManagerViewProps {
   users: UserProfile[];
   tags: Tag[];
   onRestoreCard: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => Promise<void>;
-  onPermanentDelete: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => Promise<void>;
+  onPermanentDelete: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal', skipConfirm?: boolean) => Promise<void>;
 }
 
 export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
@@ -140,6 +140,24 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
         </button>
       </div>
 
+      {activeTab === 'deleted' && filteredCards.length > 0 && (
+        <div className="flex justify-start mb-4">
+          <button 
+            onClick={async () => {
+              if (window.confirm('Deseja apagar TOTALMENTE todos os cards da lixeira? Esta ação não pode ser desfeita.')) {
+                for (const card of filteredCards) {
+                  await onPermanentDelete(card.id, card.metaType, true);
+                }
+              }
+            }}
+            className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-100 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
+          >
+            <Trash2 size={12} />
+            Esvaziar Lixeira
+          </button>
+        </div>
+      )}
+
       <div className="bg-white border border-stone-200 rounded-3xl shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Filters Area */}
         <div className="p-6 border-b border-stone-100 flex items-center justify-between gap-4">
@@ -242,7 +260,7 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                         )}
                         
                         <button 
-                          onClick={() => onPermanentDelete(card.id, card.metaType)}
+                          onClick={() => onPermanentDelete(card.id, card.metaType, activeTab === 'deleted')}
                           title={card.deleted ? "Excluir Permanentemente" : "Mover para Lixeira"}
                           className={`p-2.5 rounded-2xl bg-white border border-stone-200 transition-all font-bold shadow-sm ${card.deleted ? 'text-red-500 hover:bg-red-50 hover:border-red-200' : 'text-stone-400 hover:text-red-500'}`}
                         >

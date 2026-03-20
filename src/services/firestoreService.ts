@@ -164,7 +164,7 @@ export const deleteClient = async (clientId: string) => {
     await deleteDoc(doc(db, 'clients', clientId));
 
     // 2. Find and delete all associated cards in all funnels
-    const collections = ['commercial_cards', 'financial_cards', 'operation_cards'];
+    const collections = ['commercial_cards', 'financial_cards', 'operation_cards', 'internal_tasks_cards'];
     
     for (const collName of collections) {
       const q = query(collection(db, collName), where('clientId', '==', clientId));
@@ -907,5 +907,72 @@ export const permanentDeleteInternalTaskCard = async (cardId: string) => {
     await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
+  }
+};
+export const duplicateCommercialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'commercial_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (!cardSnap.exists()) throw new Error('Card não encontrado');
+    
+    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as CommercialCard & { id: string };
+    return await addCommercialCard({
+      ...data,
+      title: `${data.title || 'Novo Card'} (Cópia)`,
+      order: (data.order || 0) + 1
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `commercial_cards/${cardId}/duplicate`);
+  }
+};
+
+export const duplicateFinancialCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'financial_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (!cardSnap.exists()) throw new Error('Card não encontrado');
+    
+    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as FinancialCard & { id: string };
+    return await addFinancialCard({
+      ...data,
+      title: `${data.title || 'Novo Card'} (Cópia)`,
+      order: (data.order || 0) + 1
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `financial_cards/${cardId}/duplicate`);
+  }
+};
+
+export const duplicateOperationCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'operation_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (!cardSnap.exists()) throw new Error('Card não encontrado');
+    
+    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as OperationCard & { id: string };
+    return await addOperationCard({
+      ...data,
+      title: `${data.title || 'Novo Card'} (Cópia)`,
+      order: (data.order || 0) + 1
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `operation_cards/${cardId}/duplicate`);
+  }
+};
+
+export const duplicateInternalTaskCard = async (cardId: string) => {
+  try {
+    const cardRef = doc(db, 'internal_tasks_cards', cardId);
+    const cardSnap = await getDoc(cardRef);
+    if (!cardSnap.exists()) throw new Error('Card não encontrado');
+    
+    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as InternalTaskCard & { id: string };
+    return await addInternalTaskCard({
+      ...data,
+      title: `${data.title || 'Novo Card'} (Cópia)`,
+      order: (data.order || 0) + 1
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `internal_tasks_cards/${cardId}/duplicate`);
   }
 };

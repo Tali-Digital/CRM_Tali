@@ -69,10 +69,12 @@ import {
   addOperationCard,
   addInternalTaskCard,
   updateClient,
+  deleteClient,
   createNotification
 } from './services/firestoreService';
 
 export function App() {
+  const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string } | null>(null);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
@@ -323,7 +325,7 @@ export function App() {
     }
   };
 
-  const handlePermanentDelete = async (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => {
+  const handlePermanentDelete = async (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal', skipConfirm: boolean = false) => {
     const allCards = [
       ...commercialCards.map(c => ({...c, metaType: 'commercial' as const})),
       ...financialCards.map(c => ({...c, metaType: 'financial' as const})),
@@ -333,7 +335,7 @@ export function App() {
     const card = allCards.find(c => c.id === cardId);
     
     if (card?.deleted) {
-      if (!window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) return;
+      if (!skipConfirm && !window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) return;
       switch (type) {
         case 'commercial': await permanentDeleteCommercialCard(cardId); break;
         case 'financial': await permanentDeleteFinancialCard(cardId); break;
@@ -600,17 +602,113 @@ export function App() {
             financialCards={financialCards}
             operationLists={operationLists}
             operationCards={operationCards}
+            internalTaskLists={internalTaskLists}
+            internalTaskCards={internalTaskCards}
             users={users}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
           />
         );
       case 'comercial':
-        return <CommercialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={commercialLists} cards={commercialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} />;
+        return (
+          <CommercialView 
+            viewMode={sectorViewMode} 
+            cardFilter={sectorCardFilter} 
+            companyId={selectedCompanyId} 
+            lists={commercialLists} 
+            cards={commercialCards.filter(c => !c.deleted && !c.completed)} 
+            clients={clients} 
+            tags={tags} 
+            users={users} 
+            onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'comercial', target)} 
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
+          />
+        );
       case 'integracao':
-        return <FinancialView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={financialLists} cards={financialCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} />;
+        return (
+          <FinancialView 
+            viewMode={sectorViewMode} 
+            cardFilter={sectorCardFilter} 
+            companyId={selectedCompanyId} 
+            lists={financialLists} 
+            cards={financialCards.filter(c => !c.deleted && !c.completed)} 
+            clients={clients} 
+            tags={tags} 
+            users={users} 
+            onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'integracao', target)} 
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
+          />
+        );
       case 'operacao':
-        return <OperationView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={operationLists} cards={operationCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} />;
+        return (
+          <OperationView 
+            viewMode={sectorViewMode} 
+            cardFilter={sectorCardFilter} 
+            companyId={selectedCompanyId} 
+            lists={operationLists} 
+            cards={operationCards.filter(c => !c.deleted && !c.completed)} 
+            clients={clients} 
+            tags={tags} 
+            users={users} 
+            onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'operacao', target)} 
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
+          />
+        );
       case 'internal_tasks':
-        return <InternalTasksView viewMode={sectorViewMode} cardFilter={sectorCardFilter} companyId={selectedCompanyId} lists={internalTaskLists} cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} clients={clients} tags={tags} users={users} onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} />;
+        return (
+          <InternalTasksView 
+            viewMode={sectorViewMode} 
+            cardFilter={sectorCardFilter} 
+            companyId={selectedCompanyId} 
+            lists={internalTaskLists} 
+            cards={internalTaskCards.filter(c => !c.deleted && !c.completed)} 
+            clients={clients} 
+            tags={tags} 
+            users={users} 
+            onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'internal_tasks', target)} 
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
+          />
+        );
       case 'gestao':
         return (
           <UnifiedCardManagerView 

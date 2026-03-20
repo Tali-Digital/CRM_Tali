@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { InternalTaskList, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
-import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard, completeInternalTaskCard } from '../services/firestoreService';
+import { InternalTaskList, InternalTaskCard, CommercialCard, FinancialCard, OperationCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
+import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard, completeInternalTaskCard, duplicateInternalTaskCard } from '../services/firestoreService';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers } from 'lucide-react';
+import { CardOptionsMenu } from './CardOptionsMenu';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
@@ -45,9 +46,47 @@ interface InternalTasksViewProps {
   tags: Tag[];
   users: UserProfile[];
   onMoveToSector: (card: InternalTaskCard, targetSector: string) => void;
+  // All cards for related tasks
+  allCommercialCards?: CommercialCard[];
+  allFinancialCards?: FinancialCard[];
+  allOperationCards?: OperationCard[];
+  allInternalTaskCards?: InternalTaskCard[];
+  jumpToCard?: { id: string, sector: string } | null;
+  onClearJump?: () => void;
+  onJumpToCard?: (cardId: string, sector: string) => void;
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, viewMode }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onQuickView: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' | 'calendar' }) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, viewMode, isHighlighted }: { key?: string | number, card: InternalTaskCard, client?: Client, tags: Tag[], users: UserProfile[], onEdit: (card: InternalTaskCard) => void, onQuickView: (card: InternalTaskCard) => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical' | 'calendar', isHighlighted?: boolean }) => {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
+
+  const handleOpenMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAnchorRect(e.currentTarget.getBoundingClientRect());
+    setMenuOpen(true);
+  };
+
+  const handleMenuAction = async (action: string) => {
+    switch (action) {
+      case 'open':
+        onQuickView(card);
+        break;
+      case 'edit':
+        onEdit(card);
+        break;
+      case 'duplicate':
+        await duplicateInternalTaskCard(card.id);
+        break;
+      case 'archive':
+        if (window.confirm('Deseja excluir este card?')) {
+          await deleteInternalTaskCard(card.id);
+        }
+        break;
+      default:
+        break;
+    }
+  };
   const {
     attributes,
     listeners,
@@ -111,9 +150,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     if (isCompact) {
       return (
         <div 
+          id={`card-${card.id}`}
           ref={setNodeRef}
           style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''}`}
+          className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 ring-2 ring-white ring-inset mb-1 ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
           onClick={() => onQuickView(card)}
         >
           <div className="flex items-center gap-3 overflow-hidden">
@@ -136,54 +176,16 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onEdit(card);
-              }}
-              className={`p-1.5 rounded-lg hover:bg-black/5 ${iconColorClass} transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer`}
-              title="Editar Card"
-            >
-              <Edit2 size={12} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                  await deleteInternalTaskCard(card.id);
-                }
-              }}
-              className="p-1.5 rounded-lg hover:bg-white/50 text-stone-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-              title="Excluir Card"
-            >
-              <Trash2 size={12} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await completeInternalTaskCard(card.id);
-              }}
-              className={`p-1.5 rounded-lg hover:bg-black/5 ${iconColorClass} transition-colors shrink-0 z-30 relative cursor-pointer`}
-              title="Concluir Atendimento"
-            >
-              <CheckCircle2 size={12} />
-            </button>
-          </div>
         </div>
       );
     }
+
     return (
       <div 
+        id={`card-${card.id}`}
         ref={setNodeRef}
         style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
+        className={`p-0 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden ring-2 ring-white ring-inset mb-2 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
         onClick={() => onQuickView(card)}
       >
         <div className={`p-2 flex items-center justify-between border-b ${isDarkBg ? 'border-white/10 bg-black/5' : (client.themeColor === 'blue' ? 'border-blue-200 bg-blue-100/30' : 'border-yellow-200 bg-yellow-100/30')}`}>
@@ -197,46 +199,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               </div>
               <span className={`text-[8px] font-black uppercase tracking-widest ${textColorClass}`}>Cliente</span>
             </div>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onEdit(card);
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
-              title="Editar Card"
-            >
-              <Edit2 size={14} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                  await deleteInternalTaskCard(card.id);
-                }
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-500 transition-all z-30 relative cursor-pointer"
-              title="Excluir Card"
-            >
-              <Trash2 size={14} />
-            </button>
-            <button 
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await completeInternalTaskCard(card.id);
-              }}
-              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-green-600 transition-colors z-30 relative cursor-pointer"
-              title="Concluir Atendimento"
-            >
-              <CheckSquare size={14} />
-            </button>
           </div>
         </div>
         
@@ -276,9 +238,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
   if (isCompact) {
     return (
       <div 
+        id={`card-${card.id}`}
         ref={setNodeRef}
         style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''}`}
+        className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
         onClick={() => onQuickView(card)}
       >
         <div className="flex items-center gap-3 overflow-hidden">
@@ -297,45 +260,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               <span>{completed}/{total}</span>
             </div>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex -space-x-1">
-            {card.assignees?.slice(0, 2).map(userId => {
-              const u = users.find(user => user.id === userId);
-              if (!u) return null;
-              return (
-                <div key={userId} className="w-4 h-4 rounded-full border border-white overflow-hidden bg-stone-100" title={u.name}>
-                  {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="w-full h-full flex items-center justify-center text-[6px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
-                </div>
-              );
-            })}
-          </div>
-          <button 
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onEdit(card);
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-            title="Editar Card"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                await deleteInternalTaskCard(card.id);
-              }
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer"
-            title="Excluir Card"
-          >
-            <Trash2 size={14} />
-          </button>
+        </div>        <div className="flex items-center gap-2">
           <button 
             type="button"
             onClick={async (e) => {
@@ -348,7 +273,21 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           >
             <CheckCircle2 size={16} />
           </button>
+          <button 
+            type="button"
+            onClick={handleOpenMenu}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all opacity-0 group-hover:opacity-100 z-30 relative cursor-pointer text-pencil-button"
+            title="Mais opções"
+          >
+            <Edit2 size={14} />
+          </button>
         </div>
+        <CardOptionsMenu 
+          isOpen={menuOpen} 
+          onClose={() => setMenuOpen(false)} 
+          anchorRect={anchorRect}
+          onAction={handleMenuAction}
+        />
       </div>
     );
   }
@@ -356,9 +295,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
 
   return (
     <div 
+      id={`card-${card.id}`}
       ref={setNodeRef}
       style={{ ...style, backgroundColor: bgColor, borderColor: borderColor }}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${isDragging ? 'card-placeholder' : ''}`}
+      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''}`}
       onClick={() => onQuickView(card)}
     >
       <div className="flex justify-between items-start mb-2">
@@ -372,34 +312,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               {title}
             </h4>
           </div>
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onEdit(card);
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer"
-            title="Editar Card"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                await deleteInternalTaskCard(card.id);
-              }
-            }}
-            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-red-600 transition-all z-30 relative cursor-pointer"
-            title="Excluir Card"
-          >
-            <Trash2 size={14} />
-          </button>
+        </div>        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
             type="button"
             onClick={async (e) => {
@@ -411,6 +324,14 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             title="Marcar como concluído"
           >
             <CheckSquare size={16} />
+          </button>
+          <button 
+            type="button"
+            onClick={handleOpenMenu}
+            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-900 transition-all z-30 relative cursor-pointer text-pencil-button"
+            title="Mais opções"
+          >
+            <Edit2 size={14} />
           </button>
         </div>
       </div>
@@ -473,6 +394,13 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             </div>
           )}
         </div>
+        
+        <CardOptionsMenu 
+          isOpen={menuOpen} 
+          onClose={() => setMenuOpen(false)} 
+          anchorRect={anchorRect}
+          onAction={handleMenuAction}
+        />
     </div>
   );
 };
@@ -489,7 +417,7 @@ const isLightColor = (color: string) => {
   return brightness > 155;
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onQuickView: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter }) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter, highlightedListId, highlightedCardId }: { key?: string | number, list: InternalTaskList, cards: InternalTaskCard[], clients: Client[], tags: Tag[], users: UserProfile[], onEditCard: (card: InternalTaskCard) => void, onQuickView: (card: InternalTaskCard) => void, onSettings: () => void, onAddCard: () => void, onUpdateCard: (cardId: string, data: Partial<InternalTaskCard>) => Promise<void>, viewMode: 'kanban' | 'list' | 'vertical', cardFilter: SectorCardFilter, highlightedListId: string | null, highlightedCardId: string | null }) => {
   const [localFilter, setLocalFilter] = useState<SectorCardFilter>(cardFilter);
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
@@ -507,7 +435,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
     ...(isDragging ? { zIndex: 40, position: 'relative' as const } : {}),
   };
 
-  const hasClientsInSector = cards.some(c => c.type === 'client');
+  const hasClientsInSector = cards.some(c => c.clientId);
   const showActivities = localFilter === 'activities' || localFilter === 'both';
   const showClients = (localFilter === 'clients' || (localFilter === 'both' && hasClientsInSector));
 
@@ -521,9 +449,10 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
 
   return (
     <div 
+      id={`list-${list.id}`}
       ref={setNodeRef} 
       style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
-      className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0`}
+      className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
     >
       <div className="flex items-center justify-between mb-2 px-2">
         <div className="flex items-center gap-2">
@@ -593,6 +522,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
                       onQuickView={onQuickView}
                       onUpdateCard={onUpdateCard}
                       viewMode={viewMode}
+                      isHighlighted={highlightedCardId === card.id}
                     />
                   ))}
               </div>
@@ -604,25 +534,47 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
             <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
               <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1`}>
                 <span>Clientes</span>
-                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter(c => c.type === 'client').length}</span>
+                <span className={`${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
+                  {[...new Set(cards.map(c => c.clientId).filter(Boolean))].length}
+                </span>
               </div>
               <div className="flex-1 space-y-2 pr-1 overflow-y-auto custom-scrollbar">
-                {cards
-                  .filter(c => c.type === 'client')
-                  .sort((a, b) => (a.order || 0) - (b.order || 0))
-                  .map(card => (
-                    <SortableCard 
-                      key={card.id} 
-                      card={card} 
-                      client={clients.find(c => c.id === card.clientId)}
-                      tags={tags}
-                      users={users}
-                      onEdit={onEditCard} 
-                      onQuickView={onQuickView}
-                      onUpdateCard={onUpdateCard}
-                      viewMode={viewMode}
-                    />
-                  ))}
+                {(() => {
+                  const clientIdsInList = [...new Set(cards.map(c => c.clientId).filter(Boolean))];
+                  
+                  return clientIdsInList.map(clientId => {
+                    const existingCard = cards.find(c => c.clientId === clientId && c.type === 'client');
+                    const client = clients.find(c => c.id === clientId);
+                    if (!client) return null;
+
+                    const cardToRender = existingCard || {
+                      id: `virtual-${clientId}`,
+                      clientId,
+                      type: 'client',
+                      listId: list.id,
+                      order: 0,
+                      companyId: list.companyId,
+                      createdAt: client.createdAt,
+                      updatedAt: client.createdAt,
+                      title: client.name,
+                    } as InternalTaskCard;
+
+                    return (
+                      <SortableCard 
+                        key={cardToRender.id} 
+                        card={cardToRender} 
+                        client={client}
+                        tags={tags}
+                        users={users}
+                        onEdit={onEditCard} 
+                        onQuickView={onQuickView}
+                        onUpdateCard={onUpdateCard}
+                        viewMode={viewMode}
+                        isHighlighted={highlightedCardId === cardToRender.id}
+                      />
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}
@@ -640,7 +592,16 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
   );
 };
 
-export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, cardFilter, companyId, lists, cards, clients, tags, users, onMoveToSector }) => {
+export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ 
+  viewMode, cardFilter, companyId, lists, cards, clients, tags, users, onMoveToSector,
+  allCommercialCards = [],
+  allFinancialCards = [],
+  allOperationCards = [],
+  allInternalTaskCards = [],
+  jumpToCard,
+  onClearJump,
+  onJumpToCard
+}) => {
   const { ref: boardRef, props: boardScrollProps, dragClassName } = useDraggableScroll();
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
@@ -653,7 +614,44 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
   
   const [editingList, setEditingList] = useState<InternalTaskList | null>(null);
   const [editingCard, setEditingCard] = useState<InternalTaskCard | null>(null);
-  const [quickViewCard, setQuickViewCard] = useState<InternalTaskCard | null>(null);
+
+  const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (jumpToCard && (jumpToCard.sector === 'internal_tasks' || jumpToCard.sector === 'internal') && jumpToCard.id) {
+      const targetCard = allInternalTaskCards.find(c => c.id === jumpToCard.id);
+      if (targetCard) {
+        // Step 1: Scroll to list and highlight list
+        setHighlightedListId(targetCard.listId);
+        
+        const listEl = document.getElementById(`list-${targetCard.listId}`);
+        listEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        
+        // Step 2: After 2 seconds, highlight and scroll to card
+        const cardTimer = setTimeout(() => {
+          setHighlightedCardId(targetCard.id);
+          const cardEl = document.getElementById(`card-${targetCard.id}`);
+          cardEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Step 3: After 1 more second, open Quick View
+          const openTimer = setTimeout(() => {
+            setQuickViewCard(targetCard);
+            setHighlightedCardId(null);
+            setHighlightedListId(null);
+            onClearJump?.();
+          }, 1000);
+
+          return () => clearTimeout(openTimer);
+        }, 2000);
+
+        return () => clearTimeout(cardTimer);
+      }
+    }
+  }, [jumpToCard, allInternalTaskCards, onClearJump]);
+
+  const [quickViewCard, setQuickViewCard] = useState<any>(null);
+  const [quickViewSector, setQuickViewSector] = useState<'commercial' | 'financial' | 'operation' | 'internal'>('internal');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeCard, setActiveCard] = useState<InternalTaskCard | null>(null);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
@@ -677,8 +675,9 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
     setEditingCard(card);
   };
 
-  const onQuickView = (card: InternalTaskCard) => {
+  const onQuickView = (card: any) => {
     setQuickViewCard(card);
+    setQuickViewSector('internal');
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -931,6 +930,8 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
                     onAddCard={() => openAddCard(list.id)}
                     onUpdateCard={updateInternalTaskCard}
                     cardFilter={cardFilter}
+                    highlightedListId={highlightedListId}
+                    highlightedCardId={highlightedCardId}
                   />
                 ))}
 
@@ -1121,7 +1122,15 @@ export const InternalTasksView: React.FC<InternalTasksViewProps> = ({ viewMode, 
             setEditingCard(quickViewCard);
           }
         }}
-        sector="internal"
+        sector={quickViewSector}
+        allCommercialCards={allCommercialCards}
+        allFinancialCards={allFinancialCards}
+        allOperationCards={allOperationCards}
+        allInternalTaskCards={allInternalTaskCards}
+        onJumpToCard={(targetTask, targetSector) => {
+          setQuickViewCard(null);
+          onJumpToCard?.(targetTask.id, targetSector);
+        }}
       />
     </div>
   );

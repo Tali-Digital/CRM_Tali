@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NotesEditor } from './NotesEditor';
-import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, UserProfile } from '../types';
+import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, UserProfile } from '../types';
 import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
 import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus, ExternalLink } from 'lucide-react';
 import { Modal } from './Modal';
@@ -16,7 +16,12 @@ interface ClientsViewProps {
   financialCards: FinancialCard[];
   operationLists: OperationList[];
   operationCards: OperationCard[];
+  internalTaskLists: InternalTaskList[];
+  internalTaskCards: InternalTaskCard[];
   users: UserProfile[];
+  jumpToCard?: { id: string, sector: string } | null;
+  onClearJump?: () => void;
+  onJumpToCard?: (cardId: string, sector: string) => void;
 }
 
 const DriveIcon = ({ size = 20 }: { size?: number }) => (
@@ -46,8 +51,13 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   financialLists,
   financialCards,
   operationLists,
-  operationCards,
-  users
+  operationCards = [],
+  internalTaskLists,
+  internalTaskCards = [],
+  users = [],
+  jumpToCard,
+  onClearJump,
+  onJumpToCard
 }) => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -188,22 +198,32 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             </thead>
             <tbody>
               {filteredClients.map(client => {
-                // Prioritize 'client' type cards (primary client cards)
-                const commCard = commercialCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
+                // Find any card for this client in each sector
+                const clientCommCards = commercialCards.filter(c => c.clientId === client.id && !c.deleted);
+                const commCard = clientCommCards.find(c => c.type === 'client') || clientCommCards[0];
                 const commList = commCard ? commercialLists.find(l => l.id === commCard.listId) : null;
                 
-                const finCard = financialCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
+                const clientFinCards = financialCards.filter(c => c.clientId === client.id && !c.deleted);
+                const finCard = clientFinCards.find(c => c.type === 'client') || clientFinCards[0];
                 const finList = finCard ? financialLists.find(l => l.id === finCard.listId) : null;
 
-                const opCard = operationCards.find(c => c.clientId === client.id && c.type === 'client' && !c.deleted);
+                const clientOpCards = operationCards.filter(c => c.clientId === client.id && !c.deleted);
+                const opCard = clientOpCards.find(c => c.type === 'client') || clientOpCards[0];
                 const opList = opCard ? operationLists.find(l => l.id === opCard.listId) : null;
 
+                const clientInternalTaskCards = internalTaskCards.filter(c => c.clientId === client.id && !c.deleted);
+                const internalTaskCard = clientInternalTaskCards.find(c => c.type === 'client') || clientInternalTaskCards[0];
+                const internalTaskList = internalTaskCard ? internalTaskLists.find(l => l.id === internalTaskCard.listId) : null;
+
                 const handleRowClick = () => {
-                  const firstCard = commCard || finCard || opCard;
+                  const firstCard = commCard || finCard || opCard || internalTaskCard;
                   if (firstCard) {
                     setSelectedCardForQuickView(firstCard);
                     setSelectedSectorForQuickView(
-                      commCard ? 'commercial' : (finCard ? 'financial' : 'operation')
+                      commCard ? 'commercial' : 
+                      (finCard ? 'financial' : 
+                      (opCard ? 'operation' : 
+                      (internalTaskCard ? 'internal' : null)))
                     );
                     setIsQuickViewOpen(true);
                   }
@@ -240,7 +260,13 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                             <span className="uppercase tracking-wider">{opList.name}</span>
                           </div>
                         )}
-                        {!commList && !finList && !opList && (
+                        {internalTaskList && (
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-600">
+                            <UserPlus size={12} className="text-stone-400" /> {/* Placeholder icon, consider a specific one for internal tasks */}
+                            <span className="uppercase tracking-wider">{internalTaskList.name}</span>
+                          </div>
+                        )}
+                        {!commList && !finList && !opList && !internalTaskList && (
                           <span className="text-stone-400 text-[10px] italic">Sem setor ativo</span>
                         )}
                       </div>
@@ -351,7 +377,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-2`}
                   style={{ 
-                    backgroundColor: clientTags.includes(tag.id) ? tag.color : 'white',
+                    backgroundColor: clientTags.includes(tag.id) 
+                      ? tag.color 
+                      : 'white',
                     borderColor: tag.color,
                     color: clientTags.includes(tag.id) 
                       ? (isLightColor(tag.color) ? 'black' : 'white') 
@@ -459,6 +487,18 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         tags={tags}
         sector={selectedSectorForQuickView}
         onEdit={() => {}} // Could be implemented to open specific edit modal
+        allCommercialCards={commercialCards}
+        allFinancialCards={financialCards}
+        allOperationCards={operationCards}
+        allInternalTaskCards={internalTaskCards}
+        onJumpToCard={(targetTask, targetSector) => {
+          setSelectedCardForQuickView(null); // Assuming setQuickViewCard was a typo for setSelectedCardForQuickView
+          onJumpToCard?.(targetTask.id, targetSector);
+        }}
+        commercialLists={commercialLists}
+        financialLists={financialLists}
+        operationLists={operationLists}
+        internalTaskLists={internalTaskLists}
       />
     </div>
   );

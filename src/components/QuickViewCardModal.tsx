@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2 } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2 } from 'lucide-react';
 import { 
   deleteCommercialCard, 
   deleteFinancialCard, 
   deleteOperationCard, 
   deleteInternalTaskCard,
+  permanentDeleteCommercialCard,
+  permanentDeleteFinancialCard,
+  permanentDeleteOperationCard,
+  permanentDeleteInternalTaskCard,
   updateCommercialCard,
   updateFinancialCard,
   updateOperationCard,
@@ -36,6 +40,12 @@ interface QuickViewCardModalProps {
   tags: Tag[];
   onEdit: () => void;
   sector: 'commercial' | 'financial' | 'operation' | 'internal';
+  // All cards for related tasks
+  allCommercialCards?: CommercialCard[];
+  allFinancialCards?: FinancialCard[];
+  allOperationCards?: OperationCard[];
+  allInternalTaskCards?: InternalTaskCard[];
+  onJumpToCard?: (card: any, sector: string) => void;
 }
 
 const getNextRecurrenceDate = (recurrence: any) => {
@@ -108,7 +118,12 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   users, 
   tags, 
   onEdit,
-  sector
+  sector,
+  allCommercialCards = [],
+  allFinancialCards = [],
+  allOperationCards = [],
+  allInternalTaskCards = [],
+  onJumpToCard
 }) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -123,12 +138,25 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
       setLocalChecklist(card.checklist || client?.checklist || []);
     }
   }, [card, client]);
-
   if (!card) return null;
 
+  const isClientCard = card.type === 'client';
+  
+  const relatedTasks = isClientCard && client ? [
+    ...allCommercialCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'commercial' as const })),
+    ...allFinancialCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'financial' as const })),
+    ...allOperationCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'operation' as const })),
+    ...allInternalTaskCards.filter(c => c.clientId === client.id && c.id !== card.id && !c.deleted && c.type !== 'client').map(c => ({ ...c, metaType: 'internal' as const })),
+  ].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    const t1 = (a as any).createdAt?.seconds || new Date((a as any).createdAt || 0).getTime();
+    const t2 = (b as any).createdAt?.seconds || new Date((b as any).createdAt || 0).getTime();
+    return t1 - t2;
+  }) : [];
+
   const checklist = localChecklist;
-  const completedCount = checklist.filter(i => i.completed).length;
-  const totalCount = checklist.length;
+  const completedCount = checklist.filter(i => i.completed).length + relatedTasks.filter(t => t.completed).length;
+  const totalCount = checklist.length + relatedTasks.length;
   
   const formatDate = (date: any) => {
     if (!date) return 'Não definida';
@@ -153,6 +181,14 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     );
     setLocalChecklist(updated);
     await syncUpdate({ checklist: updated });
+  };
+
+  const toggleRelatedTask = async (taskId: string, type: string, currentCompleted: boolean) => {
+    const data = { completed: !currentCompleted, updatedAt: Timestamp.now() };
+    if (type === 'commercial') await updateCommercialCard(taskId, data);
+    else if (type === 'financial') await updateFinancialCard(taskId, data);
+    else if (type === 'operation') await updateOperationCard(taskId, data);
+    else if (type === 'internal') await updateInternalTaskCard(taskId, data);
   };
 
   const handleNotesBlur = async () => {
@@ -250,21 +286,33 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 >
                   <Edit2 size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
-                <button 
-                  onClick={async () => {
-                    if (window.confirm('Tem certeza que deseja excluir este card?')) {
-                      if ('commercialListId' in card) await deleteCommercialCard(card.id);
-                      else if ('financialListId' in card) await deleteFinancialCard(card.id);
-                      else if ('operationListId' in card) await deleteOperationCard(card.id);
-                      else if ('internalTaskListId' in card) await deleteInternalTaskCard(card.id);
-                      onClose();
-                    }
-                  }}
-                  className="p-3 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-red-100"
-                  title="Excluir Card"
-                >
-                  <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
-                </button>
+                {!isClientCard && (
+                  <button 
+                    onClick={async () => {
+                      if (card.deleted) {
+                        if (window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) {
+                          if (sector === 'commercial') await permanentDeleteCommercialCard(card.id);
+                          else if (sector === 'financial') await permanentDeleteFinancialCard(card.id);
+                          else if (sector === 'operation') await permanentDeleteOperationCard(card.id);
+                          else if (sector === 'internal') await permanentDeleteInternalTaskCard(card.id);
+                          onClose();
+                        }
+                      } else {
+                        if (window.confirm('Deseja mover este card para a lixeira?')) {
+                          if (sector === 'commercial') await deleteCommercialCard(card.id);
+                          else if (sector === 'financial') await deleteFinancialCard(card.id);
+                          else if (sector === 'operation') await deleteOperationCard(card.id);
+                          else if (sector === 'internal') await deleteInternalTaskCard(card.id);
+                          onClose();
+                        }
+                      }
+                    }}
+                    className="p-3 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-red-100"
+                    title="Excluir Card"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
                 <button 
                   onClick={onClose}
                   className="p-3 hover:bg-red-50 text-stone-400 hover:text-red-500 rounded-2xl transition-all duration-300 ml-2"
@@ -395,11 +443,136 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
 
               {/* Seção Principal de Conteúdo */}
               <div className="space-y-12">
+                {/* Linked Cards (Primary for Clients) */}
+                {isClientCard && relatedTasks.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
+                        <Layers size={16} className="text-stone-400" />
+                        Cards Vinculados
+                      </div>
+                      <div className="text-[10px] font-black text-stone-400 bg-stone-100 px-3 py-1 rounded-full border border-stone-200">
+                        {relatedTasks.length} CARDS
+                      </div>
+                    </div>
+                    
+                    <div className="max-h-[360px] overflow-y-auto custom-scrollbar pr-2 -mr-2 pb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {relatedTasks.map(task => {
+                          const taskSector = (task as any).metaType;
+                          const taskSectorLabel = 
+                            taskSector === 'commercial' ? 'Comercial' :
+                            taskSector === 'financial' ? 'Integração' :
+                            taskSector === 'operation' ? 'Operação' : 'Tarefas Internas';
+
+                          const sectorColorClass = 
+                            taskSector === 'commercial' ? 'stone' :
+                            taskSector === 'financial' ? 'blue' :
+                            taskSector === 'operation' ? 'green' : 'purple';
+
+                          const isOverdue = !task.completed && task.deliveryDate && getDateProximity(task.deliveryDate) === 'overdue';
+
+                          return (
+                            <div 
+                              key={task.id}
+                              onClick={() => onJumpToCard?.(task, taskSector === 'commercial' ? 'comercial' : taskSector === 'financial' ? 'integracao' : taskSector === 'operation' ? 'operacao' : 'internal_tasks')}
+                              className={`rounded-[1.5rem] p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group border-2 flex flex-col justify-between min-h-[110px] ${
+                                task.completed ? 'bg-green-50 border-green-200 opacity-80' : 
+                                isOverdue ? 'bg-red-50 border-red-200' : 
+                                'bg-white border-stone-100 hover:border-stone-300'
+                              }`}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                                    task.completed ? 'bg-green-600 text-white' : 
+                                    isOverdue ? 'bg-red-600 text-white' : 
+                                    `bg-${sectorColorClass}-50 text-${sectorColorClass}-600 border border-${sectorColorClass}-100`
+                                  }`}>
+                                    {task.completed ? 'Concluído' : isOverdue ? 'Em Atraso' : taskSectorLabel}
+                                  </span>
+                                  {task.deliveryDate && !task.completed && (
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${isOverdue ? 'text-red-500 font-bold' : 'text-stone-400'}`}>
+                                      {formatDate(task.deliveryDate)}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className={`text-sm font-black transition-colors line-clamp-2 leading-tight ${task.completed ? 'text-green-900/60' : isOverdue ? 'text-red-900' : 'text-stone-900 group-hover:text-stone-600'}`}>
+                                  {task.title || task.clientName || 'Card sem Título'}
+                                </h4>
+                              </div>
+                              
+                              {!task.completed && (
+                                  <div className="mt-3 flex items-center justify-between">
+                                      <div className="flex -space-x-1">
+                                          {task.assignees?.slice(0, 3).map(uid => {
+                                              const u = users.find(user => user.id === uid);
+                                              return u ? (
+                                                  <div key={uid} className="w-5 h-5 rounded-full border border-white overflow-hidden bg-stone-100 shadow-sm" title={u.name}>
+                                                      {u.photoURL ? <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[6px] font-bold text-stone-400">{u.name.charAt(0)}</div>}
+                                                  </div>
+                                              ) : null;
+                                          })}
+                                      </div>
+                                  </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Checklist Interativo */}
+                {(localChecklist.length > 0) && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
+                        <CheckSquare size={16} className="text-stone-400" />
+                        Checklist do Cliente
+                      </div>
+                      <div className="text-[11px] font-black text-stone-900 bg-stone-200 px-3 py-1 rounded-full border border-stone-300 shadow-sm">
+                        {localChecklist.filter(i => i.completed).length}/{localChecklist.length}
+                      </div>
+                    </div>
+                    
+                    {/* Barra de Progresso do Checklist Específico */}
+                    <div className="h-4 bg-stone-100 rounded-full overflow-hidden border border-stone-200 shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(localChecklist.filter(i => i.completed).length / localChecklist.length) * 100}%` }}
+                        className={`h-full bg-gradient-to-r from-${sectorColor}-600 to-${sectorColor}-800 shadow-xl`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {localChecklist.map((item) => (
+                        <button 
+                          key={item.id}
+                          onClick={() => toggleCheckItem(item.id)}
+                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
+                        >
+                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
+                            {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
+                          </div>
+                          <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
+                            {item.text}
+                          </span>
+                          {!item.completed && (
+                            <CheckCircle2 size={16} className="text-stone-200 opacity-0 group-hover:opacity-100 transition-all" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Notas Editáveis */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
                     <AlignLeft size={16} className="text-stone-400" />
-                    Anotações
+                    Anotações Gerais
                   </div>
                   <div 
                     className={`transition-all min-h-[160px] shadow-sm rounded-3xl overflow-hidden ${isEditingNotes ? '' : 'bg-stone-50 border-2 border-stone-200 hover:border-stone-300 cursor-text p-8'}`}
@@ -432,50 +605,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Checklist Interativo */}
-                {totalCount > 0 && (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-stone-600 text-[11px] font-black uppercase tracking-[0.2em]">
-                        <CheckSquare size={16} className="text-stone-400" />
-                        Checklist de Progresso
-                      </div>
-                      <div className="text-[11px] font-black text-stone-900 bg-stone-200 px-3 py-1 rounded-full border border-stone-300 shadow-sm">
-                        {completedCount}/{totalCount}
-                      </div>
-                    </div>
-                    
-                    {/* Barra de Progresso */}
-                    <div className="h-4 bg-stone-100 rounded-full overflow-hidden border border-stone-200 shadow-inner">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(completedCount / totalCount) * 100}%` }}
-                        className={`h-full bg-gradient-to-r from-${sectorColor}-600 to-${sectorColor}-800 shadow-xl`}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {checklist.map((item) => (
-                        <button 
-                          key={item.id}
-                          onClick={() => toggleCheckItem(item.id)}
-                          className={`w-full text-left flex items-center gap-4 p-4 rounded-2xl border-2 transition-all group ${item.completed ? 'bg-green-50/50 border-green-200 text-green-800/60 shadow-none' : 'bg-white border-stone-100 text-stone-700 shadow-md hover:border-stone-200 active:scale-[0.98]'}`}
-                        >
-                          <div className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${item.completed ? 'bg-green-100 text-green-600' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}`}>
-                            {item.completed ? <Check size={16} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-stone-300" />}
-                          </div>
-                          <span className={`text-sm font-bold flex-1 ${item.completed ? 'line-through opacity-70' : ''}`}>
-                            {item.text}
-                          </span>
-                          {!item.completed && (
-                            <CheckCircle2 size={16} className="text-stone-200 opacity-0 group-hover:opacity-100 transition-all" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
