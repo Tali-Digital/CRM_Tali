@@ -3,6 +3,7 @@ import { NotesEditor } from './NotesEditor';
 import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, UserProfile } from '../types';
 import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
 import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus, ExternalLink } from 'lucide-react';
+import { playCashSound } from '../utils/audio';
 import { Modal } from './Modal';
 import { QuickViewCardModal } from './QuickViewCardModal';
 
@@ -116,6 +117,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     if (editingClient) {
       await updateClient(editingClient.id, clientData);
     } else {
+      playCashSound();
       await addClient(clientData);
     }
     setIsClientModalOpen(false);

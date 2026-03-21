@@ -3,7 +3,7 @@ import { CommercialList, CommercialCard, FinancialList, FinancialCard, Operation
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar as CalendarIcon, Clock, Search, Briefcase, Tag as TagIcon, X, LayoutGrid, Layers, AlignLeft, MousePointer2, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
-import { playSuccessSound } from '../utils/audio';
+import { playSuccessSound, playDeleteSound } from '../utils/audio';
 import { 
   completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard,
   deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard,
@@ -430,6 +430,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         else if (menuTab === 'internal_tasks') await duplicateInternalTaskCard(menuCard.id);
         break;
       case 'archive':
+        playDeleteSound();
         if (window.confirm('Deseja excluir este card?')) {
           if (menuTab === 'comercial') await deleteCommercialCard(menuCard.id);
           else if (menuTab === 'integracao') await deleteFinancialCard(menuCard.id);

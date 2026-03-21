@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Notification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead } from '../services/firestoreService';
 import { Bell, Check, X } from 'lucide-react';
+import { playNotificationSound } from '../utils/audio';
 
 interface NotificationCenterProps {
   userId: string;
@@ -12,9 +13,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const prevNotificationsCount = useRef(0);
+  const hasLoadedInitial = useRef(false);
+
   useEffect(() => {
     if (userId) {
-      const unsubscribe = subscribeToNotifications(userId, setNotifications);
+      const unsubscribe = subscribeToNotifications(userId, (newNotifs) => {
+        if (hasLoadedInitial.current && newNotifs.length > prevNotificationsCount.current) {
+          playNotificationSound();
+        }
+        prevNotificationsCount.current = newNotifs.length;
+        setNotifications(newNotifs);
+        hasLoadedInitial.current = true;
+      });
       return () => unsubscribe();
     }
   }, [userId]);
@@ -50,7 +61,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-            <h3 className="font-bold text-stone-900">Notificações</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-stone-900">Notificações</h3>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playNotificationSound();
+                }}
+                className="text-stone-300 hover:text-stone-900 transition-colors"
+                title="Testar som de notificação"
+              >
+                <Bell size={12} />
+              </button>
+            </div>
             {unreadCount > 0 && (
               <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
                 {unreadCount} novas

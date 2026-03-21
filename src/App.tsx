@@ -25,6 +25,7 @@ import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut,
 import { auth } from './firebase';
 import { googleCalendarService } from './services/googleCalendarService';
 import logoLogin from './logo_login.png';
+import { playSuccessSound, playDeleteSound, initAudio, setAudioMuted } from './utils/audio';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -76,6 +77,8 @@ import {
 export function App() {
   const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string } | null>(null);
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const selectedCompanyId: CompanyType = 'digital';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
@@ -93,7 +96,6 @@ export function App() {
   const [internalTaskCards, setInternalTaskCards] = useState<InternalTaskCard[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const userProfile = users.find(u => u.id === user?.uid);
 
@@ -335,6 +337,7 @@ export function App() {
     const card = allCards.find(c => c.id === cardId);
     
     if (card?.deleted) {
+      playDeleteSound();
       if (!skipConfirm && !window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) return;
       switch (type) {
         case 'commercial': await permanentDeleteCommercialCard(cardId); break;
@@ -343,6 +346,7 @@ export function App() {
         case 'internal': await permanentDeleteInternalTaskCard(cardId); break;
       }
     } else {
+      playDeleteSound();
       if (!window.confirm('Deseja mover este card para a lixeira?')) return;
       switch (type) {
         case 'commercial': await deleteCommercialCard(cardId); break;
@@ -857,14 +861,19 @@ export function App() {
           </div>
 
           <div className="flex items-center space-x-3 shrink-0">
-            <div className="relative hidden 2xl:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Buscar..." 
-                className="bg-stone-50 border border-stone-200 rounded-full pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 w-48 transition-all font-bold"
-              />
-            </div>
+            <button 
+              onClick={() => {
+                const newState = !isAudioEnabled;
+                setIsAudioEnabled(newState);
+                setAudioMuted(!newState);
+                if (newState) initAudio();
+              }}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-stone-50 text-stone-400 border-stone-200'}`}
+              title={isAudioEnabled ? "Sons estão ativos (clique para silenciar)" : "Sons estão em mudo (clique para ativar)"}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
+              {isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}
+            </button>
             <NotificationCenter userId={user.uid} />
             <div className="pl-2 border-l border-stone-100">
               <UserMenu 

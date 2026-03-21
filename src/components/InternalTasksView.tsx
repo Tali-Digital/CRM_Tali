@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { playSuccessSound } from '../utils/audio';
+import { playSuccessSound, playDeleteSound } from '../utils/audio';
 import { InternalTaskList, InternalTaskCard, CommercialCard, FinancialCard, OperationCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
 import { addInternalTaskList, addInternalTaskCard, updateInternalTaskCard, updateInternalTaskList, deleteInternalTaskList, updateClient, deleteInternalTaskCard, permanentDeleteInternalTaskCard, completeInternalTaskCard, duplicateInternalTaskCard } from '../services/firestoreService';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, History, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers } from 'lucide-react';
@@ -80,6 +80,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         await duplicateInternalTaskCard(card.id);
         break;
       case 'archive':
+        playDeleteSound();
         if (window.confirm('Deseja excluir este card?')) {
           await deleteInternalTaskCard(card.id);
         }

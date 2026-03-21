@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { OperationList, OperationCard, CommercialCard, FinancialCard, InternalTaskCard, CompanyType, Client, Tag, UserProfile, SectorCardFilter } from '../types';
-import { playSuccessSound } from '../utils/audio';
+import { playSuccessSound, playDeleteSound } from '../utils/audio';
 import { 
   addOperationList, 
   addOperationCard, 
@@ -91,6 +91,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         await duplicateOperationCard(card.id);
         break;
       case 'archive':
+        playDeleteSound();
         if (window.confirm('Deseja excluir este card?')) {
           await deleteOperationCard(card.id);
         }

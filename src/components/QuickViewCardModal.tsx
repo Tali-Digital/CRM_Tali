@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus } from 'lucide-react';
-import { playTickSound } from '../utils/audio';
+import { playTickSound, playRemoveItemSound, playDeleteSound } from '../utils/audio';
 import { 
   deleteCommercialCard, 
   deleteFinancialCard, 
@@ -222,6 +222,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   };
 
   const removeCheckItem = async (itemId: string) => {
+    playRemoveItemSound();
     const updated = localChecklist.filter(i => i.id !== itemId);
     setLocalChecklist(updated);
     await syncUpdate({ checklist: updated });
@@ -349,6 +350,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 {card.deleted && !isClientCard && (
                   <button 
                     onClick={async () => {
+                      playDeleteSound();
                       if (window.confirm('Tem certeza que deseja excluir PERMANENTEMENTE? Esta ação não pode ser desfeita.')) {
                         if (sector === 'commercial') await permanentDeleteCommercialCard(card.id);
                         else if (sector === 'financial') await permanentDeleteFinancialCard(card.id);
@@ -366,6 +368,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 {!card.deleted && !isClientCard && (
                   <button 
                     onClick={async () => {
+                      playDeleteSound();
                       if (window.confirm('Deseja mover este card para a lixeira?')) {
                         if (sector === 'commercial') await deleteCommercialCard(card.id);
                         else if (sector === 'financial') await deleteFinancialCard(card.id);
