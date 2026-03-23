@@ -128,32 +128,34 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                             <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
                               {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
                             </span>
-                            {notification.cardId && notification.sector && (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onJumpToCard?.(notification.cardId!, notification.sector!);
-                                  handleMarkAsRead(notification.id);
-                                  setIsOpen(false);
-                                }}
-                                className="bg-stone-900 text-white text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-stone-800 transition-all shadow-md active:scale-95 flex items-center gap-2"
-                              >
-                                Ir para o card
-                                <ExternalLink size={10} strokeWidth={3} />
-                              </button>
-                            )}
                           </div>
                         </div>
                         
-                        {!notification.read && (
-                          <button 
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-0 group-hover:opacity-100 shrink-0 border border-transparent hover:border-green-100"
-                            title="Marcar como lida"
-                          >
-                            <Check size={14} strokeWidth={3} />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {notification.cardId && notification.sector && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onJumpToCard?.(notification.cardId!, notification.sector!);
+                                handleMarkAsRead(notification.id);
+                                setIsOpen(false);
+                              }}
+                              className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-stone-100"
+                              title="Ir para o card"
+                            >
+                              <ExternalLink size={14} strokeWidth={3} />
+                            </button>
+                          )}
+                          {!notification.read && (
+                            <button 
+                              onClick={() => handleMarkAsRead(notification.id)}
+                              className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-green-100"
+                              title="Marcar como lida"
+                            >
+                              <Check size={14} strokeWidth={3} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
