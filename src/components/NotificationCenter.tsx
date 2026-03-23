@@ -195,7 +195,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
         onDragEnd={handleDragEnd}
         style={{ x }}
         onClick={handleCardClick}
-        className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-blue-50/20' : 'bg-white'}`}
+        className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-[#f0f7ff]' : 'bg-white'}`}
       >
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -204,9 +204,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
                 {cleanTitle}
               </h4>
               {isRecurrence && (
-                <span className="shrink-0 bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center gap-1">
-                  <RotateCcw size={8} strokeWidth={3} />
-                  Recorrente
+                <span className="shrink-0 bg-blue-50 text-blue-600 p-1.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center justify-center" title="Recorrente">
+                  <RotateCcw size={10} strokeWidth={3} />
                 </span>
               )}
             </div>
