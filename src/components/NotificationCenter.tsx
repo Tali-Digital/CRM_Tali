@@ -96,7 +96,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="absolute right-[-80px] md:right-0 mt-2 w-[380px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-stone-900">Notificações</h3>
