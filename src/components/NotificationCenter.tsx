@@ -185,10 +185,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
   return (
     <div className="relative overflow-hidden group">
 
-      <div 
-        onClick={handleCardClick}
-        className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-[#f0f7ff]' : 'bg-white'}`}
-      >
+        <div 
+          onClick={handleCardClick}
+          className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-blue-100' : 'bg-white'}`}
+        >
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center flex-wrap gap-2 mb-1.5">
@@ -215,18 +215,19 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   if (!notification.read) {
                     onMarkAsRead(notification.id);
                   }
                 }}
-                className={`p-1.5 rounded-full transition-all flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent ${
+                className={`p-3 rounded-full transition-all flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent ${
                   notification.read 
-                    ? 'text-green-500 bg-green-50/50' 
+                    ? 'text-green-500 bg-green-50' 
                     : 'text-stone-300 hover:text-green-600 hover:bg-green-50 hover:border-green-100'
                 }`}
                 title="Concluir Notificação"
               >
-                <CheckCircle2 size={18} strokeWidth={notification.read ? 2 : 3} />
+                <CheckCircle2 size={24} strokeWidth={notification.read ? 2 : 3} />
               </button>
             </div>
           </div>
