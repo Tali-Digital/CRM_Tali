@@ -203,10 +203,12 @@ export function App() {
             for (const assigneeId of card.assignees) {
               await createNotification({
                 userId: assigneeId,
-                title: `Lembrete Recorrente: ${cardTitle}`,
-                message: `Este card está programado para lembrete ${card.recurrence.period}. Verifique as tarefas pendentes no setor ${card.sector}.`,
+                title: cardTitle,
+                message: `Tarefa recorrente ${card.recurrence.period}.`,
                 read: false,
-                link: card.sector
+                cardId: card.id,
+                sector: card.sector,
+                type: 'recurrence'
               });
             }
 
@@ -886,7 +888,13 @@ export function App() {
               <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
               <span className="hidden lg:inline">{isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}</span>
             </button>
-            <NotificationCenter userId={user.uid} />
+            <NotificationCenter 
+              userId={user.uid} 
+              onJumpToCard={(cardId, sector) => {
+                setActiveTab(sector as any);
+                setJumpToCard({ id: cardId, sector });
+              }}
+            />
             <div className="pl-2 border-l border-stone-100">
               <UserMenu 
                 user={user} 

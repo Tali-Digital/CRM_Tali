@@ -56,8 +56,9 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
         await createNotification({
           userId: assigneeId,
           title: 'Novo Setor Atribuído',
-          message: `Você foi atribuído ao setor: ${name}`,
-          read: false
+          message: `Atribuído ao setor: ${name}`,
+          read: false,
+          type: 'system'
         });
       }
     }

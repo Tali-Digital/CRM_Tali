@@ -48,6 +48,9 @@ export interface Notification {
   read: boolean;
   createdAt: any;
   link?: string;
+  cardId?: string;
+  sector?: string;
+  type?: 'recurrence' | 'system';
 }
 
 export interface Client {
