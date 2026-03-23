@@ -387,6 +387,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string>('all');
   const [hasDateOnly, setHasDateOnly] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(window.innerWidth > 1024);
 
   const filteredCommercialCards = filterCardsHelper(commercialCards, commercialLists, 'comercial', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
   const filteredFinancialCards = filterCardsHelper(financialCards, financialLists, 'integracao', dashboardView, currentUserUid, users, clients, searchTerm, selectedSector, selectedClient, selectedUser, selectedTag, hasDateOnly);
@@ -443,103 +444,126 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
     }
   };
 
-
   const FilterSection = () => (
-    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-2 shadow-sm">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
-        {/* Busca */}
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Busca</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-300" size={14} />
-            <input 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="NOME OU TÍTULO..."
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-            />
+    <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden transition-all duration-300">
+      <button 
+        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+        className="w-full flex items-center justify-between p-4 hover:bg-stone-50 transition-colors"
+      >
+        <div className="flex items-center gap-2 text-stone-700 font-black text-[10px] uppercase tracking-widest">
+          <Search size={14} className="text-stone-400" />
+          Filtros de Busca
+          {(searchTerm || selectedSector !== 'all' || selectedTag !== 'all' || selectedClient !== 'all' || selectedUser !== 'all' || hasDateOnly) && (
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          )}
+        </div>
+        <div className={`transition-transform duration-300 ${isFiltersOpen ? 'rotate-180' : ''}`}>
+          <MoreVertical size={16} className="text-stone-400" />
+        </div>
+      </button>
+
+      {isFiltersOpen && (
+        <div className="px-4 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
+            {/* Busca */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest px-1">Busca</label>
+              <div className="relative group">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-stone-800 transition-colors" />
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nome ou título..."
+                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border-2 border-transparent focus:border-stone-800 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all placeholder:text-stone-300 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Setor */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest px-1">Setor</label>
+              <select 
+                value={selectedSector}
+                onChange={(e) => setSelectedSector(e.target.value)}
+                className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-stone-800 rounded-2xl text-[11px] font-black uppercase tracking-widest appearance-none transition-all cursor-pointer outline-none"
+              >
+                <option value="all">Todos os Setores</option>
+                <option value="comercial">Comercial</option>
+                <option value="integracao">Integração</option>
+                <option value="operacao">Operação</option>
+                <option value="internal_tasks">Tarefas Internas</option>
+              </select>
+            </div>
+
+            {/* Tag */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest px-1">Tag</label>
+              <select 
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+                className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-stone-800 rounded-2xl text-[11px] font-black uppercase tracking-widest appearance-none transition-all cursor-pointer outline-none"
+              >
+                <option value="all">Todas as Tags</option>
+                {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+
+            {/* Cliente */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest px-1">Cliente</label>
+              <select 
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-stone-800 rounded-2xl text-[11px] font-black uppercase tracking-widest appearance-none transition-all cursor-pointer outline-none"
+              >
+                <option value="all">Todos os Clientes</option>
+                {clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            {/* Responsável */}
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest px-1">Responsável</label>
+              <select 
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                className="w-full px-4 py-3 bg-stone-50 border-2 border-transparent focus:border-stone-800 rounded-2xl text-[11px] font-black uppercase tracking-widest appearance-none transition-all cursor-pointer outline-none"
+              >
+                <option value="all">Todos os Responsáveis</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+
+            {/* Filtro por Data */}
+            <button 
+              onClick={() => setHasDateOnly(!hasDateOnly)}
+              className={`w-full py-3.5 px-4 rounded-2xl border-2 transition-all text-center flex items-center justify-center gap-2 group ${hasDateOnly ? 'bg-stone-800 border-stone-800 text-white' : 'bg-stone-50 border-transparent text-stone-400 hover:border-stone-200'}`}
+            >
+              <Clock size={14} className={hasDateOnly ? 'text-white' : 'text-stone-300'} />
+              <span className={`text-[10px] font-black uppercase tracking-widest ${hasDateOnly ? 'text-white' : 'text-stone-400'}`}>
+                {hasDateOnly ? 'Com Data' : 'Todos os Cards'}
+              </span>
+            </button>
           </div>
-        </div>
 
-        {/* Setor */}
-        <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Setor</label>
-          <select 
-            value={selectedSector}
-            onChange={(e) => setSelectedSector(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-          >
-            <option value="all">TODOS OS SETORES</option>
-            <option value="comercial">COMERCIAL</option>
-            <option value="integracao">INTEGRAÇÃO</option>
-            <option value="operacao">OPERAÇÃO</option>
-            <option value="internal_tasks">INTERNO</option>
-          </select>
-        </div>
-
-        {/* Tag */}
-        <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Tag</label>
-          <select 
-            value={selectedTag}
-            onChange={(e) => setSelectedTag(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all"
-          >
-            <option value="all">TODAS AS TAGS</option>
-            {tags.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
-          </select>
-        </div>
-
-        {/* Cliente */}
-        <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Cliente</label>
-          <select 
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-          >
-            <option value="all">TODOS OS CLIENTES</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
-          </select>
-        </div>
-
-        {/* Responsável */}
-        <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Responsável</label>
-          <select 
-            value={selectedUser}
-            onChange={(e) => setSelectedUser(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-          >
-            <option value="all">TODOS OS RESPONSÁVEIS</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>)}
-          </select>
-        </div>
-
-        {/* Toggle Data */}
-        <div>
-          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Período</label>
-          <button 
-            onClick={() => setHasDateOnly(!hasDateOnly)}
-            className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${hasDateOnly ? 'bg-stone-900 border-stone-900 text-white shadow-md' : 'bg-stone-50 border border-stone-200 text-stone-400 hover:bg-stone-100'}`}
-          >
-            {hasDateOnly ? <CalendarIcon size={12} /> : <Clock size={12} />}
-            {hasDateOnly ? 'COM PRAZO' : 'TODOS OS CARDS'}
-          </button>
-        </div>
-      </div>
-
-      {(searchTerm || selectedSector !== 'all' || selectedTag !== 'all' || selectedClient !== 'all' || selectedUser !== 'all' || hasDateOnly) && (
-        <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between">
-          <p className="text-[10px] font-bold text-stone-400 italic">Filtrando {allFilteredCards.length} cards</p>
-          <button 
-            onClick={() => {
-              setSearchTerm(''); setSelectedSector('all'); setSelectedTag('all'); setSelectedClient('all'); setSelectedUser('all'); setHasDateOnly(false);
-            }}
-            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg transition-all"
-          >
-            <X size={12} /> Limpar Filtros
-          </button>
+          {(searchTerm || selectedSector !== 'all' || selectedTag !== 'all' || selectedClient !== 'all' || selectedUser !== 'all' || hasDateOnly) && (
+            <div className="mt-4 flex justify-center">
+              <button 
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedSector('all');
+                  setSelectedTag('all');
+                  setSelectedClient('all');
+                  setSelectedUser('all');
+                  setHasDateOnly(false);
+                }}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-red-500 transition-colors bg-stone-50 hover:bg-red-50 px-6 py-2 rounded-full border border-stone-100 hover:border-red-100"
+              >
+                <X size={12} /> Limpar Filtros
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -548,12 +572,46 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   return (
     <div className="flex flex-col h-full bg-[#fdfdfd] overflow-hidden">
       {/* Search Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 py-1 px-2 gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 py-1 px-2 gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Dashboard</h1>
           <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">
             Visão geral das atividades.
           </p>
+        </div>
+
+        {/* Mobile View Toggles */}
+        <div className="flex md:hidden flex-wrap gap-2 w-full">
+          {userRole === 'admin' && (
+            <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50 flex-1">
+              <button 
+                onClick={() => setDashboardView('minhas')}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${dashboardView === 'minhas' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+              >
+                Meus Cards
+              </button>
+              <button 
+                onClick={() => setDashboardView('global')}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${dashboardView === 'global' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+              >
+                Visão Global
+              </button>
+            </div>
+          )}
+          <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50 flex-1">
+            <button 
+              onClick={() => setViewMode('board')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'board' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              <LayoutGrid size={12} /> Blocos
+            </button>
+            <button 
+              onClick={() => setViewMode('calendar')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              <CalendarIcon size={12} /> Agenda
+            </button>
+          </div>
         </div>
       </div>
 
