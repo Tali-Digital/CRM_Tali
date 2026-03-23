@@ -183,17 +183,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
 
   return (
     <div className="relative overflow-hidden group">
-      {/* Background for drag action */}
-      <div className={`absolute inset-0 flex items-center pl-6 text-white transition-opacity ${!notification.read ? 'opacity-100 bg-green-500' : 'opacity-0'}`}>
-        <Check size={20} strokeWidth={3} />
-      </div>
 
-      <motion.div 
-        drag={notification.read ? false : "x"}
-        dragConstraints={{ left: 0, right: 150 }}
-        dragElastic={0.1}
-        onDragEnd={handleDragEnd}
-        style={{ x }}
+      <div 
         onClick={handleCardClick}
         className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-[#f0f7ff]' : 'bg-white'}`}
       >
@@ -220,7 +211,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
           
           <div className="flex items-center gap-1 shrink-0">
             {notification.cardId && notification.sector && (
-              <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-0 group-hover:opacity-100">
+              <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
                 <ExternalLink size={14} strokeWidth={3} />
               </div>
             )}
@@ -230,7 +221,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
                   e.stopPropagation();
                   onMarkAsRead(notification.id);
                 }}
-                className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-green-100"
+                className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent hover:border-green-100"
                 title="Marcar como lida"
               >
                 <Check size={14} strokeWidth={3} />
@@ -238,7 +229,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
