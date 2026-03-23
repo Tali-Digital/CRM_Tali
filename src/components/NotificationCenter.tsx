@@ -203,18 +203,18 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
               <h4 className={`text-[13px] leading-tight flex-1 min-w-0 break-words ${!notification.read ? 'font-black text-stone-900' : 'font-bold text-stone-700'}`}>
                 {cleanTitle}
               </h4>
-              {isRecurrence && (
-                <span className="shrink-0 bg-blue-50 text-blue-600 p-1.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center justify-center" title="Recorrente">
-                  <RotateCcw size={10} strokeWidth={3} />
-                </span>
-              )}
             </div>
             <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed mb-3">{notification.message}</p>
             
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
-                {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
+                  {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
+                </span>
+                {isRecurrence && (
+                  <RotateCcw size={10} className="text-stone-400" strokeWidth={3} />
+                )}
+              </div>
             </div>
           </div>
           
