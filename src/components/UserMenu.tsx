@@ -108,9 +108,9 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
                   console.log(`User response to the install prompt: ${outcome}`);
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2 font-bold"
+                className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
               >
-                <Smartphone size={16} className="text-amber-500" />
+                <Smartphone size={16} className="text-stone-400" />
                 Baixar App Android
               </button>
             )}
