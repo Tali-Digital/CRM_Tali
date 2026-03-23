@@ -8,9 +8,10 @@ import { playNotificationSound } from '../utils/audio';
 interface NotificationCenterProps {
   userId: string;
   onJumpToCard?: (cardId: string, sector: string) => void;
+  onTestNotification?: () => void;
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onJumpToCard }) => {
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onJumpToCard, onTestNotification }) => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -103,10 +104,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  playNotificationSound();
+                  onTestNotification?.();
                 }}
                 className="text-stone-300 hover:text-stone-900 transition-colors"
-                title="Testar som de notificação"
+                title="Testar notificação"
               >
                 <Bell size={12} />
               </button>

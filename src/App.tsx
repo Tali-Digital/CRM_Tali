@@ -253,6 +253,19 @@ export function App() {
 
     return () => clearInterval(interval);
   }, [user, loading, commercialCards, financialCards, operationCards, internalTaskCards]);
+  const handleTestNotification = async () => {
+    if (!user) return;
+    const firstCard = commercialCards[0] || financialCards[0] || operationCards[0] || internalTaskCards[0];
+    await createNotification({
+      userId: user.uid,
+      title: '📢 Notificação de Teste',
+      message: 'Este é um teste para visualizar o novo design e o link direto do card.',
+      read: false,
+      cardId: firstCard?.id,
+      sector: firstCard ? (commercialCards.find(c => c.id === firstCard.id) ? 'comercial' : financialCards.find(c => c.id === firstCard.id) ? 'integracao' : 'operacao') : undefined,
+      type: 'recurrence'
+    });
+  };
 
   const moveCardBetweenSectors = async (card: any, sourceSector: string, targetSector: string) => {
     if (!selectedCompanyId) return;
@@ -900,23 +913,6 @@ export function App() {
 
           <div className="flex items-center space-x-3 shrink-0">
             <button 
-              onClick={async () => {
-                const firstCard = commercialCards[0] || financialCards[0] || operationCards[0] || internalTaskCards[0];
-                await createNotification({
-                  userId: user.uid,
-                  title: '📢 Notificação de Teste',
-                  message: 'Este é um teste para validar o novo design e o link direto.',
-                  read: false,
-                  cardId: firstCard?.id,
-                  sector: firstCard ? (commercialCards.find(c => c.id === firstCard.id) ? 'comercial' : financialCards.find(c => c.id === firstCard.id) ? 'integracao' : 'operacao') : undefined,
-                  type: 'recurrence'
-                });
-              }}
-              className="px-4 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-md active:scale-95"
-            >
-              Notificação Teste
-            </button>
-            <button 
               onClick={() => {
                 const newState = !isAudioEnabled;
                 setIsAudioEnabled(newState);
@@ -935,6 +931,7 @@ export function App() {
                 setActiveTab(sector as any);
                 setJumpToCard({ id: cardId, sector });
               }}
+              onTestNotification={handleTestNotification}
             />
             <div className="pl-2 border-l border-stone-100">
               <UserMenu 
