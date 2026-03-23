@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Notification as AppNotification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
 import { Bell, RotateCcw, Trash2, CheckCircle2 } from 'lucide-react';
-import { playNotificationSound } from '../utils/audio';
+import { playNotificationSound, playTickSound } from '../utils/audio';
 
 interface NotificationCenterProps {
   userId: string;
@@ -181,6 +181,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
     if (isFinishing) return;
     
     setIsFinishing(true);
+    playTickSound();
     // Short delay to show the green state before dismissal
     setTimeout(() => {
       onMarkAsRead(notification.id);
