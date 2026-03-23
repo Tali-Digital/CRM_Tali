@@ -100,20 +100,22 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
               Sincronizar Google Agenda
             </button>
 
-            {deferredPrompt && (
-              <button 
-                onClick={async () => {
+            <button 
+              onClick={async () => {
+                if (deferredPrompt) {
                   deferredPrompt.prompt();
                   const { outcome } = await deferredPrompt.userChoice;
                   console.log(`User response to the install prompt: ${outcome}`);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
-              >
-                <Smartphone size={16} className="text-stone-400" />
-                Baixar App Android
-              </button>
-            )}
+                } else {
+                  alert('Para baixar o App no Android:\n1. Clique nos três pontinhos (⋮) do seu navegador Chrome.\n2. Escolha "Instalar aplicativo" ou "Adicionar à tela inicial".');
+                }
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+            >
+              <Smartphone size={16} className="text-stone-400" />
+              Baixar App Android
+            </button>
           </div>
 
           <div className="border-t border-stone-100 py-2">
