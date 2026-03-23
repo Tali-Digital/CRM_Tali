@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Notification as AppNotification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
-import { Bell, Check, X, RotateCcw, ExternalLink, Trash2, CheckCircle2, Maximize2 } from 'lucide-react';
+import { Bell, RotateCcw, Trash2, CheckCircle2 } from 'lucide-react';
 import { playNotificationSound } from '../utils/audio';
 
 interface NotificationCenterProps {
@@ -129,7 +129,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                 Nenhuma notificação.
               </div>
             ) : (
-                notifications.map(notification => {
+              <AnimatePresence initial={false}>
+                {notifications.filter(n => !n.read).map(notification => {
                   const isRecurrence = notification.type === 'recurrence' || notification.title.toLowerCase().includes('lembrete recorrente');
                   const cleanTitle = notification.title.replace(/^Lembrete Recorrente: /i, '');
                   
@@ -144,7 +145,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                       onCloseMenu={() => setIsOpen(false)}
                     />
                   );
-                })
+                })}
+              </AnimatePresence>
             )}
           </div>
         </div>
@@ -163,16 +165,7 @@ interface NotificationItemProps {
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, cleanTitle, isRecurrence, onJumpToCard, onMarkAsRead, onCloseMenu }) => {
-  const x = useMotionValue(0);
-  const opacity = useTransform(x, [0, 150], [1, 0]);
-  
-  const handleDragEnd = (_: any, info: any) => {
-    if (info.offset.x > 100) {
-      onMarkAsRead(notification.id);
-    }
-    // Snap back
-    x.set(0);
-  };
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const handleCardClick = () => {
     if (notification.cardId && notification.sector) {
@@ -182,17 +175,37 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
     }
   };
 
-  return (
-    <div className="relative overflow-hidden group">
+  const handleComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (isFinishing) return;
+    
+    setIsFinishing(true);
+    // Short delay to show the green state before dismissal
+    setTimeout(() => {
+      onMarkAsRead(notification.id);
+    }, 400);
+  };
 
-        <div 
-          onClick={handleCardClick}
-          className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-blue-100' : 'bg-white'}`}
-        >
+  return (
+    <motion.div 
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0, transition: { duration: 0.3 } }}
+      className="relative overflow-hidden group"
+    >
+      <div 
+        onClick={handleCardClick}
+        className={`p-4 border-b border-stone-50 transition-all duration-300 relative z-10 cursor-pointer ${
+          isFinishing ? 'bg-green-50' : !notification.read ? 'bg-[#f8fafc]' : 'bg-white'
+        }`}
+      >
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center flex-wrap gap-2 mb-1.5">
-              <h4 className={`text-[13px] leading-tight flex-1 min-w-0 break-words ${!notification.read ? 'font-black text-stone-900' : 'font-bold text-stone-700'}`}>
+              <h4 className={`text-[13px] leading-tight flex-1 min-w-0 break-words transition-colors duration-300 ${
+                isFinishing ? 'text-green-700' : !notification.read ? 'font-black text-stone-900' : 'font-bold text-stone-700'
+              }`}>
                 {cleanTitle}
               </h4>
             </div>
@@ -200,7 +213,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
             
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
+                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100/50 px-2 py-0.5 rounded-md">
                   {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
                 </span>
                 {isRecurrence && (
@@ -210,29 +223,21 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
             </div>
           </div>
           
-          <div className="flex items-center gap-1 shrink-0">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (!notification.read) {
-                    onMarkAsRead(notification.id);
-                  }
-                }}
-                className={`p-3 rounded-full transition-all flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent ${
-                  notification.read 
-                    ? 'text-green-500 bg-green-50' 
-                    : 'text-stone-300 hover:text-green-600 hover:bg-green-50 hover:border-green-100'
-                }`}
-                title="Concluir Notificação"
-              >
-                <CheckCircle2 size={24} strokeWidth={notification.read ? 2 : 3} />
-              </button>
-            </div>
+          <div className="flex items-center gap-1 shrink-0 pt-1">
+            <button 
+              onClick={handleComplete}
+              className={`p-2 rounded-full transition-all flex items-center justify-center border border-transparent ${
+                isFinishing 
+                  ? 'text-green-600 bg-green-100/50 shadow-sm' 
+                  : 'text-stone-300 hover:text-green-500 hover:bg-green-50'
+              }`}
+              title="Concluir"
+            >
+              <CheckCircle2 size={20} strokeWidth={isFinishing ? 3 : 2} />
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
