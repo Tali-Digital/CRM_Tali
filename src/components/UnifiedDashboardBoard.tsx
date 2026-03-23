@@ -445,23 +445,25 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
 
 
   const FilterSection = () => (
-    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-1 shadow-sm">
-      <div className="flex flex-wrap items-end gap-4">
+    <div className="bg-white rounded-3xl border border-stone-200 p-4 mb-2 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
         {/* Busca */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Busca</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-300" size={14} />
             <input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="BUSCA: NOME OU TÍTULO..."
+              placeholder="NOME OU TÍTULO..."
               className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10"
             />
           </div>
         </div>
 
         {/* Setor */}
-        <div className="w-[180px]">
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Setor</label>
           <select 
             value={selectedSector}
             onChange={(e) => setSelectedSector(e.target.value)}
@@ -476,7 +478,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         </div>
 
         {/* Tag */}
-        <div className="w-[180px]">
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Tag</label>
           <select 
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
@@ -488,7 +491,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         </div>
 
         {/* Cliente */}
-        <div className="w-[180px]">
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Cliente</label>
           <select 
             value={selectedClient}
             onChange={(e) => setSelectedClient(e.target.value)}
@@ -500,7 +504,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         </div>
 
         {/* Responsável */}
-        <div className="w-[180px]">
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Responsável</label>
           <select 
             value={selectedUser}
             onChange={(e) => setSelectedUser(e.target.value)}
@@ -512,7 +517,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         </div>
 
         {/* Toggle Data */}
-        <div className="w-[180px]">
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1 mb-1 block">Período</label>
           <button 
             onClick={() => setHasDateOnly(!hasDateOnly)}
             className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${hasDateOnly ? 'bg-stone-900 border-stone-900 text-white shadow-md' : 'bg-stone-50 border border-stone-200 text-stone-400 hover:bg-stone-100'}`}
@@ -542,11 +548,11 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   return (
     <div className="flex flex-col h-full bg-[#fdfdfd] overflow-hidden">
       {/* Search Header */}
-      <div className="flex justify-between items-center mb-1 py-1 px-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 py-1 px-2 gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Dashboard</h1>
-          <p className="text-stone-500 text-sm mt-0.5 font-medium">
-            Visão geral das atividades. Cards onde você está atribuído, em atraso ou próximos do vencimento.
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Dashboard</h1>
+          <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">
+            Visão geral das atividades.
           </p>
         </div>
       </div>
@@ -568,7 +574,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               { id: 'operacao', name: 'Operação', cards: sortCardsByDeadline(filteredOperationCards), lists: operationLists, tab: 'operacao' },
               { id: 'internal_tasks', name: 'Tarefas Internas', cards: sortCardsByDeadline(filteredInternalCards), lists: internalTaskLists, tab: 'internal_tasks' }
             ].filter(s => selectedSector === 'all' || s.id === selectedSector).map(sector => (
-              <div key={sector.id} className="flex flex-col rounded-3xl bg-[#E6E6E6] shadow-sm min-w-[340px] w-[340px] border border-stone-300/50 overflow-hidden relative group/sector">
+              <div key={sector.id} className="flex flex-col rounded-3xl bg-[#E6E6E6] shadow-sm min-w-[280px] sm:min-w-[340px] w-[280px] sm:w-[340px] border border-stone-300/50 overflow-hidden relative group/sector">
                 {/* Color Strip */}
                 <div 
                   className="h-1.5 w-full shrink-0" 

@@ -153,25 +153,25 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Clientes</h1>
-          <p className="text-stone-500 text-sm mt-1">Base central de clientes e serviços.</p>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Clientes</h1>
+          <p className="text-stone-500 text-xs md:text-sm mt-1">Base central de clientes e serviços.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex w-full md:w-auto gap-2">
           <button 
             onClick={() => setIsTagsModalOpen(true)}
-            className="bg-white border border-stone-200 text-stone-700 px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-sm"
+            className="flex-1 md:flex-none bg-white border border-stone-200 text-stone-700 px-3 md:px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center justify-center gap-2 text-[11px] md:text-sm font-bold shadow-sm"
           >
-            <Settings size={16} />
-            Gerenciar Tags
+            <Settings size={14} />
+            Tags
           </button>
           <button 
             onClick={openNewClientModal}
-            className="bg-stone-900 text-white px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center gap-2 text-sm font-bold"
+            className="flex-1 md:flex-none bg-stone-900 text-white px-3 md:px-4 py-2 rounded-xl hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 text-[11px] md:text-sm font-bold shadow-sm"
           >
-            <Plus size={16} />
-            Novo Cliente
+            <Plus size={14} />
+            Novo
           </button>
         </div>
       </div>
@@ -188,7 +188,90 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           />
         </div>
         <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse">
+          {/* Mobile Card Grid */}
+          <div className="md:hidden p-4 space-y-4">
+            {filteredClients.map(client => {
+              const clientCommCards = commercialCards.filter(c => c.clientId === client.id && !c.deleted);
+              const commCard = clientCommCards.find(c => c.type === 'client') || clientCommCards[0];
+              const commList = commCard ? commercialLists.find(l => l.id === commCard.listId) : null;
+
+              const clientFinCards = financialCards.filter(c => c.clientId === client.id && !c.deleted);
+              const finCard = clientFinCards.find(c => c.type === 'client') || clientFinCards[0];
+              const finList = finCard ? financialLists.find(l => l.id === finCard.listId) : null;
+
+              const clientOpCards = operationCards.filter(c => c.clientId === client.id && !c.deleted);
+              const opCard = clientOpCards.find(c => c.type === 'client') || clientOpCards[0];
+              const opList = opCard ? operationLists.find(l => l.id === opCard.listId) : null;
+
+              const handleCardClick = () => {
+                const firstCard = commCard || finCard || opCard;
+                if (firstCard) {
+                  setSelectedCardForQuickView(firstCard);
+                  setSelectedSectorForQuickView(
+                    commCard ? 'commercial' : (finCard ? 'financial' : 'operation')
+                  );
+                  setIsQuickViewOpen(true);
+                }
+              };
+
+              return (
+                <div key={client.id} className="bg-stone-50 rounded-2xl p-4 border border-stone-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2" onClick={handleCardClick}>
+                      <div className={`w-3 h-3 rounded-full ${client.themeColor === 'blue' ? 'bg-[#5271FF]' : 'bg-[#FFD166]'}`} />
+                      <span className="font-bold text-sm text-stone-900">{client.name}</span>
+                    </div>
+                    <div className="flex gap-2">
+                       {client.driveLink && (
+                        <a href={client.driveLink} target="_blank" rel="noopener noreferrer">
+                          <DriveIcon size={20} />
+                        </a>
+                      )}
+                      <button onClick={() => openEditClientModal(client)} className="text-stone-400">
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1.5">
+                    {client.serviceTags?.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId);
+                      if (!tag) return null;
+                      return (
+                        <span key={tag.id} className="px-2 py-0.5 rounded-md text-[9px] font-bold text-white" style={{ backgroundColor: tag.color }}>
+                          {tag.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {commList && (
+                      <div className="bg-white p-2 rounded-lg border border-stone-200">
+                        <span className="text-[8px] uppercase text-stone-400 font-black block">Comercial</span>
+                        <span className="text-[10px] font-bold text-stone-700 truncate block">{commList.name}</span>
+                      </div>
+                    )}
+                    {finList && (
+                      <div className="bg-white p-2 rounded-lg border border-stone-200">
+                        <span className="text-[8px] uppercase text-stone-400 font-black block">Integração</span>
+                        <span className="text-[10px] font-bold text-stone-700 truncate block">{finList.name}</span>
+                      </div>
+                    )}
+                    {opList && (
+                      <div className="bg-white p-2 rounded-lg border border-stone-200">
+                        <span className="text-[8px] uppercase text-stone-400 font-black block">Operação</span>
+                        <span className="text-[10px] font-bold text-stone-700 truncate block">{opList.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <table className="hidden md:table w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/50">
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-stone-500">Nome do Cliente</th>

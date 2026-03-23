@@ -502,7 +502,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
       id={`list-${list.id}`}
       ref={setNodeRef} 
       style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
-      className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
+      className={`${viewMode === 'kanban' ? 'w-[88vw] sm:w-[450px] h-full' : 'w-full'} shadow-xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
     >
       <div className="flex items-center justify-between mb-2 px-2 group/header">
         <div className="flex items-center gap-2">
@@ -514,31 +514,31 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
             {cards.length}
           </span>
         </div>
-        <div className="flex items-center gap-3 opacity-0 group-hover/header:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2 sm:gap-3 opacity-0 group-hover/header:opacity-100 transition-opacity">
           <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
             <button 
-              onClick={() => setLocalFilter('activities')}
+              onClick={(e) => { e.stopPropagation(); setLocalFilter('activities'); }}
               className={`p-1 rounded-md transition-all ${localFilter === 'activities' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
               title="Apenas Atividades"
             >
               <LayoutGrid size={12} />
             </button>
             <button 
-              onClick={() => setLocalFilter('clients')}
+              onClick={(e) => { e.stopPropagation(); setLocalFilter('clients'); }}
               className={`p-1 rounded-md transition-all ${localFilter === 'clients' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
               title="Apenas Clientes"
             >
               <User size={12} />
             </button>
             <button 
-              onClick={() => setLocalFilter('both')}
+              onClick={(e) => { e.stopPropagation(); setLocalFilter('both'); }}
               className={`p-1 rounded-md transition-all ${localFilter === 'both' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
               title="Duo"
             >
               <Layers size={12} />
             </button>
           </div>
-          <button onClick={onSettings} className={`${iconColor} ${iconHoverColor} p-1 rounded-lg hover:bg-white/20 transition-colors`}>
+          <button onClick={(e) => { e.stopPropagation(); onSettings(); }} className={`${iconColor} ${iconHoverColor} p-1 rounded-lg hover:bg-white/20 transition-colors`}>
             <Settings size={16} />
           </button>
         </div>

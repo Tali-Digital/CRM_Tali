@@ -21,7 +21,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon } from 'lucide-react';
 import { auth } from './firebase';
 import { googleCalendarService } from './services/googleCalendarService';
 import logoLogin from './logo_login.png';
@@ -106,10 +106,10 @@ export function App() {
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  // Modal states
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -746,28 +746,38 @@ export function App() {
       <Sidebar 
         onLogout={handleLogout} 
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setIsMobileMenuOpen(false);
+        }}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
       
-      <main className={`flex-1 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
-        <header className="flex items-center justify-between px-6 py-2 shrink-0 bg-white border-b border-stone-100 relative z-20">
-          <div className="flex items-center gap-4 flex-1 min-w-0 mr-4">
+      <main className={`flex-1 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
+        <header className="flex items-center justify-between px-4 md:px-6 py-2 shrink-0 bg-white border-b border-stone-100 relative z-20">
+          <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0 mr-4">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 -ml-2 rounded-xl text-stone-600 hover:bg-stone-100 md:hidden"
+            >
+              <Menu size={24} />
+            </button>
             <div className="shrink-0">
-              <h1 className="text-lg font-black text-stone-900 tracking-tight leading-none">Talí Agência Digital</h1>
-              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1.5">
+              <h1 className="text-base md:text-lg font-black text-stone-900 tracking-tight leading-none">Talí Agência Digital</h1>
+              <p className="text-[9px] md:text-[10px] text-stone-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Olá, {user.displayName || userProfile?.name || user.email?.split('@')[0] || 'Usuário'}
+                <span className="truncate max-w-[100px] md:max-w-none">Olá, {user.displayName || userProfile?.name || user.email?.split('@')[0] || 'Usuário'}</span>
               </p>
             </div>
             
-            <div className="h-6 w-[1px] bg-stone-200 shrink-0 mx-1"></div>
+            <div className="hidden md:block h-6 w-[1px] bg-stone-200 shrink-0 mx-1"></div>
 
             <div className="flex items-center gap-2 min-w-0">
-
             {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
-              <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
+              <div className="hidden sm:flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
                 <button 
                   onClick={() => setSectorViewMode('kanban')}
                   className={`p-1.5 rounded-md transition-all ${sectorViewMode === 'kanban' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
@@ -800,7 +810,7 @@ export function App() {
             )}
 
             {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
-              <div className="flex bg-stone-200 p-1 rounded-lg">
+              <div className="hidden sm:flex bg-stone-200 p-1 rounded-lg">
                 <button 
                   onClick={() => setSectorCardFilter('activities')}
                   className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'activities' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
@@ -841,7 +851,7 @@ export function App() {
                   </div>
                 )}
 
-                <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
+                <div className="hidden sm:flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
                   <button 
                     onClick={() => setDashboardViewMode('board')}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardViewMode === 'board' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
@@ -872,7 +882,7 @@ export function App() {
               title={isAudioEnabled ? "Sons estão ativos (clique para silenciar)" : "Sons estão em mudo (clique para ativar)"}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
-              {isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}
+              <span className="hidden sm:inline">{isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}</span>
             </button>
             <NotificationCenter userId={user.uid} />
             <div className="pl-2 border-l border-stone-100">
@@ -888,7 +898,7 @@ export function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col p-8 pt-4">
+        <div className="flex-1 overflow-hidden flex flex-col p-4 md:p-8 pt-4">
           {renderContent()}
       {userProfile?.role === 'admin' && (
         <UserManagementModal 

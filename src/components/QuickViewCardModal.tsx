@@ -303,7 +303,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
             initial={{ opacity: 0, scale: 0.9, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 30 }}
-            className="relative bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
+            className="relative bg-white w-full max-w-5xl rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
           >
             {/* Header com Gradiente Sutil */}
             {(() => {
@@ -317,15 +317,15 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
               return <div className={`h-2 bg-gradient-to-r from-${sectorColor}-500 to-${sectorColor}-700 shadow-sm`} />;
             })()}
             
-            <div className="flex items-center justify-between p-8 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="px-4 py-1.5 rounded-full bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 sm:p-8 pb-4 gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="px-3 sm:px-4 py-1.5 rounded-full bg-stone-100 border border-stone-300 text-stone-700 text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getDateProximity(card.deliveryDate) === 'overdue' ? '#991b1b' : (card.color || '#e5e7eb') }} />
                   {getSectorLabel()}
                 </div>
                 {client && (
-                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
-                    <User size={12} className="text-blue-500" />
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-sm">
+                    <User size={10} className="text-blue-500" />
                     {client.name}
                   </div>
                 )}
@@ -392,7 +392,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
               </div>
             </div>
 
-            <div className="px-8 pb-8 overflow-y-auto custom-scrollbar">
+            <div className="px-4 sm:px-8 pb-8 overflow-y-auto custom-scrollbar">
               {/* Título Editável */}
               {isEditingTitle && card.type !== 'client' ? (
                 <input 
@@ -401,12 +401,12 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   onChange={(e) => setLocalTitle(e.target.value)}
                   onBlur={handleTitleBlur}
                   onKeyDown={(e) => e.key === 'Enter' && handleTitleBlur()}
-                  className="text-3xl font-black text-stone-900 leading-tight mb-8 w-full bg-transparent border-b-2 border-stone-200 focus:outline-none focus:border-stone-900 pb-1"
+                  className="text-2xl sm:text-3xl font-black text-stone-900 leading-tight mb-6 sm:mb-8 w-full bg-transparent border-b-2 border-stone-200 focus:outline-none focus:border-stone-900 pb-1"
                 />
               ) : (
                 <h1 
                   onClick={() => card.type !== 'client' && setIsEditingTitle(true)}
-                  className={`text-3xl font-black text-stone-900 leading-tight mb-8 ${card.type !== 'client' ? 'cursor-text hover:text-stone-600 transition-colors' : ''}`}
+                  className={`text-2xl sm:text-3xl font-black text-stone-900 leading-tight mb-6 sm:mb-8 ${card.type !== 'client' ? 'cursor-text hover:text-stone-600 transition-colors' : ''}`}
                 >
                   {localTitle}
                 </h1>
@@ -640,12 +640,12 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   )}
 
                   {/* Input de Adição Rápida */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                      <input 
                        value={newItemText}
                        onChange={(e) => setNewItemText(e.target.value)}
                        onKeyDown={(e) => e.key === 'Enter' && addCheckItem()}
-                       placeholder="Adicionar novo item ao checklist..."
+                       placeholder="Adicionar novo item..."
                        className="flex-1 bg-stone-50 border-2 border-stone-100 hover:border-stone-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-stone-400 transition-all font-bold placeholder:text-stone-400"
                      />
                      <button 
@@ -760,13 +760,13 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-8 pt-4 bg-stone-100/50 border-t border-stone-200 flex justify-between items-center mt-auto">
+            <div className="p-4 sm:p-8 pt-4 bg-stone-100/50 border-t border-stone-200 flex flex-col sm:flex-row justify-between items-center mt-auto gap-4">
               <div className="text-[10px] text-stone-500 font-black uppercase tracking-widest bg-white px-3 py-1 rounded-lg border border-stone-200 shadow-sm">
                 ID: {card.id.substring(0, 8)}
               </div>
               <button 
                 onClick={onClose}
-                className="px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-stone-800 transition-all shadow-lg hover:shadow-stone-900/20 active:scale-95 flex items-center gap-2"
+                className="w-full sm:w-auto px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-stone-800 transition-all shadow-lg hover:shadow-stone-900/20 active:scale-95 flex items-center justify-center gap-2"
               >
                 <Check size={16} strokeWidth={3} />
                 Entendido

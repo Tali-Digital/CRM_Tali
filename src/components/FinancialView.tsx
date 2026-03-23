@@ -533,7 +533,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
       id={`list-${list.id}`}
       ref={setNodeRef} 
       style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
-      className={`${viewMode === 'kanban' ? 'w-[450px] h-full' : 'w-full'} shadow-xl rounded-[2rem] p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
+      className={`${viewMode === 'kanban' ? 'w-[88vw] sm:w-[450px] h-full' : 'w-full'} shadow-xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
     >
       <div className="flex items-center justify-between mb-2 px-2 group/header">
         <div className="flex items-center gap-2">
