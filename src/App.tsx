@@ -21,7 +21,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon } from 'lucide-react';
+import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon, Smartphone, Volume2, VolumeX } from 'lucide-react';
 import { auth } from './firebase';
 import { googleCalendarService } from './services/googleCalendarService';
 import logoLogin from './logo_login.png';
@@ -922,7 +922,10 @@ export function App() {
               className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-stone-50 text-stone-400 border-stone-200'}`}
               title={isAudioEnabled ? "Sons estão ativos (clique para silenciar)" : "Sons estão em mudo (clique para ativar)"}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
+              <div className="lg:hidden">
+                {isAudioEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              </div>
+              <div className={`hidden lg:block w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
               <span className="hidden lg:inline">{isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}</span>
             </button>
             <NotificationCenter 
