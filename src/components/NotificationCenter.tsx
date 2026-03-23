@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Notification as AppNotification } from '../types';
-import { subscribeToNotifications, markNotificationAsRead } from '../services/firestoreService';
-import { Bell, Check, X, RotateCcw, ExternalLink } from 'lucide-react';
+import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
+import { Bell, Check, X, RotateCcw, ExternalLink, Trash2 } from 'lucide-react';
 import { playNotificationSound } from '../utils/audio';
 
 interface NotificationCenterProps {
@@ -58,6 +58,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
   const handleMarkAsRead = async (id: string) => {
     await markNotificationAsRead(id);
   };
+  
+  const handleClearAll = async () => {
+    if (notifications.length === 0) return;
+    if (window.confirm('Deseja realmente limpar todas as notificações? Esta ação é permanente.')) {
+      await clearAllNotifications(userId);
+    }
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -87,10 +94,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                 <Bell size={12} />
               </button>
             </div>
-            {unreadCount > 0 && (
-              <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {unreadCount} novas
-              </span>
+            {notifications.length > 0 && (
+              <button 
+                onClick={handleClearAll}
+                className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-red-500 transition-colors flex items-center gap-1 bg-stone-50 px-2 py-1 rounded-lg border border-stone-200"
+              >
+                <Trash2 size={10} />
+                Limpar
+              </button>
             )}
           </div>
 

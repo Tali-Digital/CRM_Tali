@@ -290,6 +290,17 @@ export const markNotificationAsRead = async (notificationId: string) => {
   }
 };
 
+export const clearAllNotifications = async (userId: string) => {
+  try {
+    const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `notifications/clear/${userId}`);
+  }
+};
+
 export const subscribeToUsers = (callback: (users: UserProfile[]) => void) => {
   const q = query(collection(db, 'users'));
   return onSnapshot(q, (snapshot) => {
