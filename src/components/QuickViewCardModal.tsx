@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus } from 'lucide-react';
-import { playTickSound, playRemoveItemSound, playDeleteSound } from '../utils/audio';
+import { playTickSound, playRemoveItemSound, playDeleteSound, playSuccessSound } from '../utils/audio';
 import { 
   deleteCommercialCard, 
   deleteFinancialCard, 
@@ -16,7 +16,11 @@ import {
   updateFinancialCard,
   updateOperationCard,
   updateInternalTaskCard,
-  updateClient
+  updateClient,
+  completeCommercialCard,
+  completeFinancialCard,
+  completeOperationCard,
+  completeInternalTaskCard
 } from '../services/firestoreService';
 import { Timestamp } from 'firebase/firestore';
 import { CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Client, UserProfile, Tag, ChecklistItem } from '../types';
@@ -265,6 +269,21 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
       await syncUpdate({ title: localTitle });
     }
   };
+  const handleCompleteCard = async () => {
+    if (card.completed) return;
+    if (!window.confirm('Marcar este card como concluído?')) return;
+    
+    playSuccessSound();
+    try {
+      if (sector === 'commercial') await completeCommercialCard(card.id);
+      else if (sector === 'financial') await completeFinancialCard(card.id);
+      else if (sector === 'operation') await completeOperationCard(card.id);
+      else if (sector === 'internal') await completeInternalTaskCard(card.id);
+      onClose();
+    } catch (err) {
+      console.error('Erro ao concluir card:', err);
+    }
+  };
 
   const getSectorLabel = () => {
     switch (sector) {
@@ -347,6 +366,15 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 >
                   <Edit2 size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
+                {!card.completed && !isClientCard && (
+                  <button 
+                    onClick={handleCompleteCard}
+                    className="p-3 bg-green-50 hover:bg-green-600 text-green-600 hover:text-white rounded-2xl transition-all duration-300 group shadow-sm border border-green-200"
+                    title="Concluir Card"
+                  >
+                    <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
                 {card.deleted && !isClientCard && (
                   <button 
                     onClick={async () => {
@@ -764,13 +792,24 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
               <div className="text-[10px] text-stone-500 font-black uppercase tracking-widest bg-white px-3 py-1 rounded-lg border border-stone-200 shadow-sm">
                 ID: {card.id.substring(0, 8)}
               </div>
-              <button 
-                onClick={onClose}
-                className="w-full sm:w-auto px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-stone-800 transition-all shadow-lg hover:shadow-stone-900/20 active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Check size={16} strokeWidth={3} />
-                Entendido
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                {!card.completed && !isClientCard && (
+                  <button 
+                    onClick={handleCompleteCard}
+                    className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-green-700 transition-all shadow-lg hover:shadow-green-900/20 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16} strokeWidth={3} />
+                    Concluir Card
+                  </button>
+                )}
+                <button 
+                  onClick={onClose}
+                  className="w-full sm:w-auto px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-stone-800 transition-all shadow-lg hover:shadow-stone-900/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Check size={16} strokeWidth={3} />
+                  Entendido
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>
