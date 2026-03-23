@@ -211,11 +211,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
           
           <div className="flex items-center gap-1 shrink-0">
             <div className="flex items-center gap-2">
-              {notification.cardId && notification.sector && (
-                <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                  <Maximize2 size={16} strokeWidth={3} />
-                </div>
-              )}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
