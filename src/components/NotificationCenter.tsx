@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Notification as AppNotification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
-import { Bell, Check, X, RotateCcw, ExternalLink, Trash2 } from 'lucide-react';
+import { Bell, Check, X, RotateCcw, ExternalLink, Trash2, CheckCircle2 } from 'lucide-react';
 import { playNotificationSound } from '../utils/audio';
 
 interface NotificationCenterProps {
@@ -215,18 +215,29 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
                 <ExternalLink size={14} strokeWidth={3} />
               </div>
             )}
-            {!notification.read && (
+            <div className="flex items-center gap-2">
+              {notification.cardId && notification.sector && (
+                <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                  <ExternalLink size={16} strokeWidth={3} />
+                </div>
+              )}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onMarkAsRead(notification.id);
+                  if (!notification.read) {
+                    onMarkAsRead(notification.id);
+                  }
                 }}
-                className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent hover:border-green-100"
-                title="Marcar como lida"
+                className={`p-1.5 rounded-full transition-all flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-transparent ${
+                  notification.read 
+                    ? 'text-green-500 bg-green-50/50' 
+                    : 'text-stone-300 hover:text-green-600 hover:bg-green-50 hover:border-green-100'
+                }`}
+                title="Concluir Notificação"
               >
-                <Check size={14} strokeWidth={3} />
+                <CheckCircle2 size={18} strokeWidth={notification.read ? 2 : 3} />
               </button>
-            )}
+            </div>
           </div>
         </div>
       </div>
