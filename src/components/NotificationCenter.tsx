@@ -116,7 +116,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                               {cleanTitle}
                             </h4>
                             {isRecurrence && (
-                              <span className="shrink-0 bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border border-amber-200/50 shadow-sm flex items-center gap-1">
+                              <span className="shrink-0 bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center gap-1">
                                 <RotateCcw size={8} strokeWidth={3} />
                                 Recorrente
                               </span>
