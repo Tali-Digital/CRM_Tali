@@ -766,8 +766,10 @@ export function App() {
               <Menu size={24} />
             </button>
             <div className="shrink-0">
-              <h1 className="text-base md:text-lg font-black text-stone-900 tracking-tight leading-none">Talí Agência Digital</h1>
-              <p className="text-[9px] md:text-[10px] text-stone-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1.5">
+              <h1 className="text-base md:text-lg font-black text-stone-900 tracking-tight leading-none">
+                Talí<span className="hidden sm:inline"> Agência Digital</span>
+              </h1>
+              <p className="hidden md:flex text-[9px] md:text-[10px] text-stone-400 font-bold uppercase tracking-wider mt-1 items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 <span className="truncate max-w-[100px] md:max-w-none">Olá, {user.displayName || userProfile?.name || user.email?.split('@')[0] || 'Usuário'}</span>
               </p>
@@ -835,7 +837,7 @@ export function App() {
             {activeTab === 'dashboard' && (
               <div className="flex items-center gap-2">
                 {userProfile?.role === 'admin' && (
-                  <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
+                  <div className="hidden sm:flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
                     <button 
                       onClick={() => setDashboardView('minhas')}
                       className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${dashboardView === 'minhas' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
@@ -878,11 +880,11 @@ export function App() {
                 setAudioMuted(!newState);
                 if (newState) initAudio();
               }}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-stone-50 text-stone-400 border-stone-200'}`}
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-stone-50 text-stone-400 border-stone-200'}`}
               title={isAudioEnabled ? "Sons estão ativos (clique para silenciar)" : "Sons estão em mudo (clique para ativar)"}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 animate-pulse' : 'bg-stone-300'}`} />
-              <span className="hidden sm:inline">{isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}</span>
+              <span className="hidden lg:inline">{isAudioEnabled ? 'Sons Ativos' : 'Sons em Mudo'}</span>
             </button>
             <NotificationCenter userId={user.uid} />
             <div className="pl-2 border-l border-stone-100">
