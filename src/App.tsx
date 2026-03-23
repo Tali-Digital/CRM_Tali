@@ -123,6 +123,19 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!loading && user) {
+      const params = new URLSearchParams(window.location.search);
+      const jumpToId = params.get('jumpTo');
+      const sector = params.get('sector');
+      if (jumpToId && sector) {
+        setActiveTab(sector as any);
+        setJumpToCard({ id: jumpToId, sector });
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
     if (user) {
       const unsubUsers = subscribeToUsers(setUsers);
       const unsubCommLists = subscribeToCommercialLists(selectedCompanyId, setCommercialLists);

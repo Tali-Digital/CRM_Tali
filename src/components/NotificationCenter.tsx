@@ -29,10 +29,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
           
           const latest = newNotifs[0];
           if (latest && !latest.read && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(latest.title, {
-              body: latest.message,
-              icon: '/logo192.png'
-            });
+            const showNotification = async () => {
+              if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                (registration as any).showNotification(latest.title, {
+                  body: latest.message,
+                  icon: '/favicon.png',
+                  badge: '/favicon.png',
+                  vibrate: [100, 50, 100],
+                  data: {
+                    link: (latest.cardId && latest.sector) ? `/?jumpTo=${latest.cardId}&sector=${latest.sector}` : '/'
+                  }
+                });
+              } else {
+                new Notification(latest.title, {
+                  body: latest.message,
+                  icon: '/favicon.png'
+                });
+              }
+            };
+            showNotification();
           }
         }
         prevNotificationsCount.current = newNotifs.length;
