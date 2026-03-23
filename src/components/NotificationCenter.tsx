@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Notification as AppNotification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
 import { Bell, Check, X, RotateCcw, ExternalLink, Trash2 } from 'lucide-react';
@@ -132,65 +133,113 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
                   const cleanTitle = notification.title.replace(/^Lembrete Recorrente: /i, '');
                   
                   return (
-                    <div 
-                      key={notification.id} 
-                      className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors group relative ${!notification.read ? 'bg-blue-50/20' : ''}`}
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                            <h4 className={`text-[13px] leading-tight flex-1 min-w-0 break-words ${!notification.read ? 'font-black text-stone-900' : 'font-bold text-stone-700'}`}>
-                              {cleanTitle}
-                            </h4>
-                            {isRecurrence && (
-                              <span className="shrink-0 bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center gap-1">
-                                <RotateCcw size={8} strokeWidth={3} />
-                                Recorrente
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed mb-3">{notification.message}</p>
-                          
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
-                              {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1 shrink-0">
-                          {notification.cardId && notification.sector && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onJumpToCard?.(notification.cardId!, notification.sector!);
-                                handleMarkAsRead(notification.id);
-                                setIsOpen(false);
-                              }}
-                              className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-stone-100"
-                              title="Ir para o card"
-                            >
-                              <ExternalLink size={14} strokeWidth={3} />
-                            </button>
-                          )}
-                          {!notification.read && (
-                            <button 
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-green-100"
-                              title="Marcar como lida"
-                            >
-                              <Check size={14} strokeWidth={3} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <NotificationItem 
+                      key={notification.id}
+                      notification={notification}
+                      cleanTitle={cleanTitle}
+                      isRecurrence={isRecurrence}
+                      onJumpToCard={onJumpToCard}
+                      onMarkAsRead={handleMarkAsRead}
+                      onCloseMenu={() => setIsOpen(false)}
+                    />
                   );
                 })
             )}
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+interface NotificationItemProps {
+  notification: AppNotification;
+  cleanTitle: string;
+  isRecurrence: boolean;
+  onJumpToCard?: (cardId: string, sector: string) => void;
+  onMarkAsRead: (id: string) => void;
+  onCloseMenu: () => void;
+}
+
+const NotificationItem: React.FC<NotificationItemProps> = ({ notification, cleanTitle, isRecurrence, onJumpToCard, onMarkAsRead, onCloseMenu }) => {
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [0, 150], [1, 0]);
+  
+  const handleDragEnd = (_: any, info: any) => {
+    if (info.offset.x > 100) {
+      onMarkAsRead(notification.id);
+    }
+    // Snap back
+    x.set(0);
+  };
+
+  const handleCardClick = () => {
+    if (notification.cardId && notification.sector) {
+      onJumpToCard?.(notification.cardId, notification.sector);
+      onMarkAsRead(notification.id);
+      onCloseMenu();
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden group">
+      {/* Background for drag action */}
+      <div className={`absolute inset-0 flex items-center pl-6 text-white transition-opacity ${!notification.read ? 'opacity-100 bg-green-500' : 'opacity-0'}`}>
+        <Check size={20} strokeWidth={3} />
+      </div>
+
+      <motion.div 
+        drag={notification.read ? false : "x"}
+        dragConstraints={{ left: 0, right: 150 }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
+        style={{ x }}
+        onClick={handleCardClick}
+        className={`p-4 border-b border-stone-50 hover:bg-stone-50 transition-colors relative z-10 cursor-pointer ${!notification.read ? 'bg-blue-50/20' : 'bg-white'}`}
+      >
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center flex-wrap gap-2 mb-1.5">
+              <h4 className={`text-[13px] leading-tight flex-1 min-w-0 break-words ${!notification.read ? 'font-black text-stone-900' : 'font-bold text-stone-700'}`}>
+                {cleanTitle}
+              </h4>
+              {isRecurrence && (
+                <span className="shrink-0 bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border border-blue-200/50 shadow-sm flex items-center gap-1">
+                  <RotateCcw size={8} strokeWidth={3} />
+                  Recorrente
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed mb-3">{notification.message}</p>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
+                {notification.createdAt?.toDate ? notification.createdAt.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agora'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1 shrink-0">
+            {notification.cardId && notification.sector && (
+              <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-0 group-hover:opacity-100">
+                <ExternalLink size={14} strokeWidth={3} />
+              </div>
+            )}
+            {!notification.read && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMarkAsRead(notification.id);
+                }}
+                className="text-stone-300 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-green-100"
+                title="Marcar como lida"
+              >
+                <Check size={14} strokeWidth={3} />
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
