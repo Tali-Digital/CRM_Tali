@@ -110,6 +110,17 @@ export function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -933,6 +944,7 @@ export function App() {
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenManagement={() => setIsManagementOpen(true)}
                 onGoogleSync={handleGoogleLogin}
+                deferredPrompt={deferredPrompt}
               />
             </div>
           </div>

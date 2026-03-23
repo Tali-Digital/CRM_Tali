@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { LogOut, User, Settings, Users, Key, Layers, Calendar as CalendarIcon } from 'lucide-react';
+import { LogOut, User, Settings, Users, Key, Layers, Calendar as CalendarIcon, Smartphone } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { UserManagementModal } from './UserManagementModal';
@@ -13,9 +13,10 @@ interface UserMenuProps {
   onOpenProfile: () => void;
   onOpenManagement: () => void;
   onGoogleSync: () => void;
+  deferredPrompt?: any;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement, onGoogleSync }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement, onGoogleSync, deferredPrompt }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +99,21 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
               <CalendarIcon size={16} className="text-stone-400" />
               Sincronizar Google Agenda
             </button>
+
+            {deferredPrompt && (
+              <button 
+                onClick={async () => {
+                  deferredPrompt.prompt();
+                  const { outcome } = await deferredPrompt.userChoice;
+                  console.log(`User response to the install prompt: ${outcome}`);
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2 font-bold"
+              >
+                <Smartphone size={16} className="text-amber-500" />
+                Baixar App Android
+              </button>
+            )}
           </div>
 
           <div className="border-t border-stone-100 py-2">
