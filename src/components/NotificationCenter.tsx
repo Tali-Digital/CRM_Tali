@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Notification as AppNotification } from '../types';
 import { subscribeToNotifications, markNotificationAsRead, clearAllNotifications } from '../services/firestoreService';
-import { Bell, Check, X, RotateCcw, ExternalLink, Trash2, CheckCircle2 } from 'lucide-react';
+import { Bell, Check, X, RotateCcw, ExternalLink, Trash2, CheckCircle2, Maximize2 } from 'lucide-react';
 import { playNotificationSound } from '../utils/audio';
 
 interface NotificationCenterProps {
@@ -210,15 +210,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, clean
           </div>
           
           <div className="flex items-center gap-1 shrink-0">
-            {notification.cardId && notification.sector && (
-              <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                <ExternalLink size={14} strokeWidth={3} />
-              </div>
-            )}
             <div className="flex items-center gap-2">
               {notification.cardId && notification.sector && (
                 <div className="text-stone-300 hover:text-stone-900 p-1.5 rounded-full hover:bg-stone-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                  <ExternalLink size={16} strokeWidth={3} />
+                  <Maximize2 size={16} strokeWidth={3} />
                 </div>
               )}
               <button 
