@@ -416,7 +416,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         </div>
       </div>
 
-      <Modal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} title={editingClient ? "Editar Cliente" : "Novo Cliente"}>
+      <Modal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} title={editingClient ? "Editar Cliente" : "Novo Cliente"} maxWidth="max-w-5xl">
         <form onSubmit={handleSaveClient} className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Nome do Cliente</label>

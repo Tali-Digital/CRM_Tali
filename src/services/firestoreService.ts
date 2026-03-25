@@ -13,7 +13,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { googleCalendarService } from './googleCalendarService';
+
 import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification } from '../types';
 
 export enum OperationType {
@@ -178,7 +178,7 @@ export const deleteClient = async (clientId: string) => {
   }
 };
 
-export const saveUser = async (user: any, overrides?: { name?: string, photoURL?: string }) => {
+export const saveUser = async (user: any, overrides?: { name?: string, photoURL?: string, teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados' }) => {
   try {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
@@ -198,11 +198,14 @@ export const saveUser = async (user: any, overrides?: { name?: string, photoURL?
       role = 'admin';
     }
 
+    const existingData = userSnap.exists() ? userSnap.data() : {};
+    
     await setDoc(userRef, {
-      name: overrides?.name || user.displayName || user.email?.split('@')[0] || 'Usuário',
+      name: overrides?.name || existingData?.name || user.displayName || user.email?.split('@')[0] || 'Usuário',
       email: user.email,
-      photoURL: overrides?.photoURL || user.photoURL || '',
-      role: role
+      photoURL: overrides?.photoURL || existingData?.photoURL || user.photoURL || '',
+      role: role,
+      teamCategory: overrides?.teamCategory || existingData?.teamCategory || null
     }, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
@@ -213,7 +216,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-export const adminCreateUser = async (email: string, name: string, role: 'admin' | 'client' | 'outsourced') => {
+export const adminCreateUser = async (email: string, name: string, role: 'admin' | 'client' | 'equipe', teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados') => {
   try {
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
@@ -228,7 +231,8 @@ export const adminCreateUser = async (email: string, name: string, role: 'admin'
       name: name,
       email: email,
       photoURL: '',
-      role: role
+      role: role,
+      teamCategory: role === 'equipe' ? (teamCategory || null) : null
     });
 
     // Sign out the secondary app
@@ -241,12 +245,33 @@ export const adminCreateUser = async (email: string, name: string, role: 'admin'
   }
 };
 
-export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 'outsourced') => {
+export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 'equipe', teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados') => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, { role });
+    await updateDoc(userRef, { 
+      role, 
+      teamCategory: role === 'equipe' ? (teamCategory || null) : null 
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+  }
+};
+
+export const updateUserTags = async (userId: string, tags: string[]) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { serviceTags: tags });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${userId}/tags`);
+  }
+};
+
+export const updateUserHourlyRate = async (userId: string, rate: number) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { hourlyRate: rate });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${userId}/hourlyRate`);
   }
 };
 
@@ -417,12 +442,7 @@ export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
     }));
     
     const cardWithId = { ...card, id: docRef.id } as CommercialCard;
-    if (cardWithId.startDate || cardWithId.deliveryDate) {
-      const eventId = await googleCalendarService.syncCard(cardWithId, 'Comercial');
-      if (eventId) {
-        await updateDoc(docRef, { googleEventId: eventId });
-      }
-    }
+    return docRef.id;
     
     return docRef.id;
   } catch (error) {
@@ -434,22 +454,6 @@ export const updateCommercialCard = async (cardId: string, data: Partial<Commerc
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
-    
-    // Sync to Google Calendar
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists()) {
-      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as CommercialCard;
-      if (fullCard.startDate || fullCard.deliveryDate) {
-        const eventId = await googleCalendarService.syncCard(fullCard, 'Comercial');
-        if (eventId && fullCard.googleEventId !== eventId) {
-          await updateDoc(cardRef, { googleEventId: eventId });
-        }
-      } else if (fullCard.googleEventId) {
-        // If dates were removed, delete the event
-        await googleCalendarService.deleteEvent(fullCard.googleEventId);
-        await updateDoc(cardRef, { googleEventId: null });
-      }
-    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `commercial_cards/${cardId}`);
   }
@@ -496,10 +500,6 @@ export const restoreCommercialCard = async (cardId: string) => {
 export const permanentDeleteCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists() && cardSnap.data().googleEventId) {
-      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
-    }
     await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `commercial_cards/${cardId}`);
@@ -550,12 +550,7 @@ export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
     }));
 
     const cardWithId = { ...card, id: docRef.id } as FinancialCard;
-    if (cardWithId.startDate || cardWithId.deliveryDate) {
-      const eventId = await googleCalendarService.syncCard(cardWithId, 'Integração');
-      if (eventId) {
-        await updateDoc(docRef, { googleEventId: eventId });
-      }
-    }
+    return docRef.id;
 
     return docRef.id;
   } catch (error) {
@@ -567,20 +562,6 @@ export const updateFinancialCard = async (cardId: string, data: Partial<Financia
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
-
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists()) {
-      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as FinancialCard;
-      if (fullCard.startDate || fullCard.deliveryDate) {
-        const eventId = await googleCalendarService.syncCard(fullCard, 'Integração');
-        if (eventId && fullCard.googleEventId !== eventId) {
-          await updateDoc(cardRef, { googleEventId: eventId });
-        }
-      } else if (fullCard.googleEventId) {
-        await googleCalendarService.deleteEvent(fullCard.googleEventId);
-        await updateDoc(cardRef, { googleEventId: null });
-      }
-    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `financial_cards/${cardId}`);
   }
@@ -627,10 +608,6 @@ export const restoreFinancialCard = async (cardId: string) => {
 export const permanentDeleteFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists() && cardSnap.data().googleEventId) {
-      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
-    }
     await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `financial_cards/${cardId}`);
@@ -681,12 +658,7 @@ export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
     }));
 
     const cardWithId = { ...card, id: docRef.id } as OperationCard;
-    if (cardWithId.startDate || cardWithId.deliveryDate) {
-      const eventId = await googleCalendarService.syncCard(cardWithId, 'Operação');
-      if (eventId) {
-        await updateDoc(docRef, { googleEventId: eventId });
-      }
-    }
+    return docRef.id;
 
     return docRef.id;
   } catch (error) {
@@ -698,20 +670,6 @@ export const updateOperationCard = async (cardId: string, data: Partial<Operatio
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
-
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists()) {
-      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as OperationCard;
-      if (fullCard.startDate || fullCard.deliveryDate) {
-        const eventId = await googleCalendarService.syncCard(fullCard, 'Operação');
-        if (eventId && fullCard.googleEventId !== eventId) {
-          await updateDoc(cardRef, { googleEventId: eventId });
-        }
-      } else if (fullCard.googleEventId) {
-        await googleCalendarService.deleteEvent(fullCard.googleEventId);
-        await updateDoc(cardRef, { googleEventId: null });
-      }
-    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `operation_cards/${cardId}`);
   }
@@ -758,10 +716,6 @@ export const restoreOperationCard = async (cardId: string) => {
 export const permanentDeleteOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists() && cardSnap.data().googleEventId) {
-      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
-    }
     await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `operation_cards/${cardId}`);
@@ -834,12 +788,7 @@ export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) =>
     }));
 
     const cardWithId = { ...card, id: docRef.id } as InternalTaskCard;
-    if (cardWithId.startDate || cardWithId.deliveryDate) {
-      const eventId = await googleCalendarService.syncCard(cardWithId, 'Interno');
-      if (eventId) {
-        await updateDoc(docRef, { googleEventId: eventId });
-      }
-    }
+    return docRef.id;
 
     return docRef.id;
   } catch (error) {
@@ -851,20 +800,6 @@ export const updateInternalTaskCard = async (cardId: string, data: Partial<Inter
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
     await updateDoc(cardRef, sanitizeData(data));
-
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists()) {
-      const fullCard = { id: cardSnap.id, ...cardSnap.data() } as InternalTaskCard;
-      if (fullCard.startDate || fullCard.deliveryDate) {
-        const eventId = await googleCalendarService.syncCard(fullCard, 'Interno');
-        if (eventId && fullCard.googleEventId !== eventId) {
-          await updateDoc(cardRef, { googleEventId: eventId });
-        }
-      } else if (fullCard.googleEventId) {
-        await googleCalendarService.deleteEvent(fullCard.googleEventId);
-        await updateDoc(cardRef, { googleEventId: null });
-      }
-    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `internal_tasks_cards/${cardId}`);
   }
@@ -911,10 +846,6 @@ export const restoreInternalTaskCard = async (cardId: string) => {
 export const permanentDeleteInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    const cardSnap = await getDoc(cardRef);
-    if (cardSnap.exists() && cardSnap.data().googleEventId) {
-      await googleCalendarService.deleteEvent(cardSnap.data().googleEventId);
-    }
     await deleteDoc(cardRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `internal_tasks_cards/${cardId}`);
@@ -926,7 +857,7 @@ export const duplicateCommercialCard = async (cardId: string) => {
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
     
-    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as CommercialCard & { id: string };
+    const { id, createdAt, updatedAt, ...data } = cardSnap.data() as CommercialCard & { id: string };
     return await addCommercialCard({
       ...data,
       title: `${data.title || 'Novo Card'} (Cópia)`,
@@ -943,7 +874,7 @@ export const duplicateFinancialCard = async (cardId: string) => {
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
     
-    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as FinancialCard & { id: string };
+    const { id, createdAt, updatedAt, ...data } = cardSnap.data() as FinancialCard & { id: string };
     return await addFinancialCard({
       ...data,
       title: `${data.title || 'Novo Card'} (Cópia)`,
@@ -960,7 +891,7 @@ export const duplicateOperationCard = async (cardId: string) => {
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
     
-    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as OperationCard & { id: string };
+    const { id, createdAt, updatedAt, ...data } = cardSnap.data() as OperationCard & { id: string };
     return await addOperationCard({
       ...data,
       title: `${data.title || 'Novo Card'} (Cópia)`,
@@ -977,7 +908,7 @@ export const duplicateInternalTaskCard = async (cardId: string) => {
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
     
-    const { id, googleEventId, createdAt, updatedAt, ...data } = cardSnap.data() as InternalTaskCard & { id: string };
+    const { id, createdAt, updatedAt, ...data } = cardSnap.data() as InternalTaskCard & { id: string };
     return await addInternalTaskCard({
       ...data,
       title: `${data.title || 'Novo Card'} (Cópia)`,
@@ -985,5 +916,29 @@ export const duplicateInternalTaskCard = async (cardId: string) => {
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `internal_tasks_cards/${cardId}/duplicate`);
+  }
+};
+export const updateCardTimer = async (
+  cardId: string, 
+  sector: string, 
+  data: { 
+    timeSpent: number; 
+    timerStartedAt: any | null; 
+    timerStatus: 'running' | 'paused' | 'idle';
+  }
+) => {
+  try {
+    const colName = sector === 'comercial' ? 'commercial_cards' : 
+                   sector === 'financeiro' ? 'financial_cards' : 
+                   sector === 'operacional' ? 'operation_cards' : 
+                   'internal_tasks_cards';
+    
+    const cardRef = doc(db, colName, cardId);
+    await updateDoc(cardRef, sanitizeData({
+      ...data,
+      updatedAt: Timestamp.now()
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `timer/${sector}/${cardId}`);
   }
 };

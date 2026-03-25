@@ -574,7 +574,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
       {/* Search Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 py-1 px-2 gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Dashboard</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Visão Geral</h1>
           <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">
             Visão geral das atividades.
           </p>
@@ -609,7 +609,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               onClick={() => setViewMode('calendar')}
               className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-stone-900 border border-stone-100' : 'text-stone-500 hover:text-stone-700'}`}
             >
-              <CalendarIcon size={12} /> Agenda
+              <CalendarIcon size={12} /> Calendário
             </button>
           </div>
         </div>
@@ -631,7 +631,11 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               { id: 'integracao', name: 'Integração', cards: sortCardsByDeadline(filteredFinancialCards), lists: financialLists, tab: 'integracao' },
               { id: 'operacao', name: 'Operação', cards: sortCardsByDeadline(filteredOperationCards), lists: operationLists, tab: 'operacao' },
               { id: 'internal_tasks', name: 'Tarefas Internas', cards: sortCardsByDeadline(filteredInternalCards), lists: internalTaskLists, tab: 'internal_tasks' }
-            ].filter(s => selectedSector === 'all' || s.id === selectedSector).map(sector => (
+            ].filter(s => {
+              const isAgencySector = ['comercial', 'integracao', 'operacao'].includes(s.id);
+              if (userRole === 'equipe' && isAgencySector) return false;
+              return selectedSector === 'all' || s.id === selectedSector;
+            }).map(sector => (
               <div key={sector.id} className="flex flex-col rounded-3xl bg-[#E6E6E6] shadow-sm min-w-[280px] sm:min-w-[340px] w-[280px] sm:w-[340px] border border-stone-300/50 overflow-hidden relative group/sector">
                 {/* Color Strip */}
                 <div 

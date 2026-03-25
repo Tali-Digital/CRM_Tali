@@ -37,7 +37,10 @@ export interface UserProfile {
   name: string;
   email: string;
   photoURL: string;
-  role: 'admin' | 'client' | 'outsourced';
+  role: 'admin' | 'client' | 'equipe';
+  teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados';
+  serviceTags?: string[]; // Array of Tag IDs
+  hourlyRate?: number;
 }
 
 export interface Notification {
@@ -97,8 +100,12 @@ export interface CommercialCard {
   // Legacy fields for backward compatibility
   clientName?: string;
   recurrence?: RecurrenceSettings;
-  googleEventId?: string;
   color?: string;
+  timeSpent?: number; // Total seconds spent
+  timerStartedAt?: any; // Timestamp of last start
+  timerStatus?: 'running' | 'paused' | 'idle';
+  workerFinished?: boolean;
+  price?: number;
 }
 
 export interface FinancialList {
@@ -131,8 +138,12 @@ export interface FinancialCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
-  googleEventId?: string;
   color?: string;
+  timeSpent?: number;
+  timerStartedAt?: any;
+  timerStatus?: 'running' | 'paused' | 'idle';
+  workerFinished?: boolean;
+  price?: number;
 }
 
 export interface OperationList {
@@ -165,8 +176,12 @@ export interface OperationCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
-  googleEventId?: string;
   color?: string;
+  timeSpent?: number;
+  timerStartedAt?: any;
+  timerStatus?: 'running' | 'paused' | 'idle';
+  workerFinished?: boolean;
+  price?: number;
 }
 
 export interface InternalTaskList {
@@ -200,8 +215,12 @@ export interface InternalTaskCard {
   completed?: boolean;
   completedAt?: any;
   recurrence?: RecurrenceSettings;
-  googleEventId?: string;
   color?: string;
+  timeSpent?: number;
+  timerStartedAt?: any;
+  timerStatus?: 'running' | 'paused' | 'idle';
+  workerFinished?: boolean;
+  price?: number;
 }
 
 export interface Company {

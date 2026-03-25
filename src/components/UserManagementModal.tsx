@@ -17,7 +17,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
   // New user form state
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState<'admin' | 'client' | 'outsourced'>('client');
+  const [newRole, setNewRole] = useState<'admin' | 'client' | 'equipe'>('client');
+  const [newTeamCategory, setNewTeamCategory] = useState<'terceirizado' | 'internalizado' | 'intermediados'>('terceirizado');
   const [isCreating, setIsCreating] = useState(false);
   const [createdPassword, setCreatedPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,8 +33,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
     }
   }, [isOpen]);
 
-  const handleRoleChange = async (userId: string, newRole: 'admin' | 'client' | 'outsourced') => {
-    await updateUserRole(userId, newRole);
+  const handleRoleChange = async (userId: string, newRole: 'admin' | 'client' | 'equipe', teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados') => {
+    await updateUserRole(userId, newRole, teamCategory);
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
@@ -47,13 +48,14 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
     setIsCreating(true);
     setError('');
     
-    const result = await adminCreateUser(newEmail, newName, newRole);
+    const result = await adminCreateUser(newEmail, newName, newRole, newRole === 'equipe' ? newTeamCategory : undefined);
     
     if (result.success) {
       setCreatedPassword(result.password || '');
       setNewName('');
       setNewEmail('');
       setNewRole('client');
+      setNewTeamCategory('terceirizado');
     } else {
       setError(result.error || 'Erro ao criar usuário');
     }
@@ -142,9 +144,24 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
                   >
                     <option value="admin">Administrador</option>
                     <option value="client">Cliente</option>
-                    <option value="outsourced">Terceirizado</option>
+                    <option value="equipe">Equipe</option>
                   </select>
                 </div>
+
+                {newRole === 'equipe' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-widest text-stone-400 ml-1">Categoria de Equipe</label>
+                    <select
+                      value={newTeamCategory}
+                      onChange={(e) => setNewTeamCategory(e.target.value as any)}
+                      className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                    >
+                      <option value="terceirizado">Terceirizados</option>
+                      <option value="internalizado">Internalizados</option>
+                      <option value="intermediados">Intermediados</option>
+                    </select>
+                  </div>
+                )}
 
                 <button 
                   type="submit"
@@ -175,15 +192,28 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({ isOpen
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <select
-                    value={user.role || 'client'}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
-                    className="bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-900/10"
-                  >
-                    <option value="admin">Administrador</option>
-                    <option value="client">Cliente</option>
-                    <option value="outsourced">Terceirizado</option>
-                  </select>
+                  <div className="flex flex-col gap-1">
+                    <select
+                      value={user.role || 'client'}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value as any, user.teamCategory)}
+                      className="bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                    >
+                      <option value="admin">Administrador</option>
+                      <option value="client">Cliente</option>
+                      <option value="equipe">Equipe</option>
+                    </select>
+                    {user.role === 'equipe' && (
+                      <select
+                        value={user.teamCategory || 'terceirizado'}
+                        onChange={(e) => handleRoleChange(user.id, 'equipe', e.target.value as any)}
+                        className="bg-white border border-stone-200 rounded-xl px-2 py-1 text-[10px] font-bold text-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-900/10"
+                      >
+                        <option value="terceirizado">Terceirizados</option>
+                        <option value="internalizado">Internalizado</option>
+                        <option value="intermediados">Intermediados</option>
+                      </select>
+                    )}
+                  </div>
                   <button
                     onClick={() => handleDeleteUser(user.id, user.name)}
                     className="p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"

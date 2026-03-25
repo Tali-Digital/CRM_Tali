@@ -18,12 +18,13 @@ import { UserMenu } from './components/UserMenu';
 import { UserProfileModal } from './components/UserProfileModal';
 import { UserManagementModal } from './components/UserManagementModal';
 import { NotificationCenter } from './components/NotificationCenter';
+import { TeamView } from './components/TeamView';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon, Smartphone, Volume2, VolumeX } from 'lucide-react';
 import { auth } from './firebase';
-import { googleCalendarService } from './services/googleCalendarService';
+
 import logoLogin from './logo_login.png';
 import { playSuccessSound, playDeleteSound, initAudio, setAudioMuted } from './utils/audio';
 import { 
@@ -73,6 +74,7 @@ import {
   deleteClient,
   createNotification
 } from './services/firestoreService';
+import { MemberDashboard } from './components/MemberDashboard';
 
 export function App() {
   const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string } | null>(null);
@@ -80,7 +82,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe'>('dashboard');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
@@ -400,14 +402,8 @@ export function App() {
     setIsAuthLoading(true);
     setAuthError('');
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
     try {
       const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      if (token) {
-        googleCalendarService.setAccessToken(token);
-      }
       const additionalInfo = getAdditionalUserInfo(result);
       
       const allowedEmails = ['tali.agenciadigital@gmail.com', 'diogotorres2907@gmail.com'];
@@ -475,9 +471,8 @@ export function App() {
       <div className="min-h-screen bg-stone-900 flex items-center justify-center p-6 font-nunito">
           <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-stone-200 text-center">
           <div className="mb-8 flex justify-center">
-            <img src={logoLogin} alt="CRM Talí Digital" className="h-20 w-auto" />
+            <img src={logoLogin} alt="Talí Digital" className="h-20 w-auto" />
           </div>
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">CRM Talí Digital</h1>
           <p className="text-stone-500 mb-8">Faça login para gerenciar seus projetos.</p>
           
           <form onSubmit={handleEmailAuth} className="space-y-4 mb-6 text-left">
@@ -552,11 +547,30 @@ export function App() {
     );
   }
 
-  const selectedCompanyName = 'Tali Digital';
+  const handleUpdateCard = async (cardId: string, sector: string, data: any) => {
+    if (sector === 'comercial') await updateCommercialCard(cardId, data);
+    else if (sector === 'integracao') await updateFinancialCard(cardId, data);
+    else if (sector === 'operacao') await updateOperationCard(cardId, data);
+    else if (sector === 'internal_tasks') await updateInternalTaskCard(cardId, data);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
+        if (userProfile?.role === 'equipe') {
+          return (
+            <MemberDashboard 
+              userProfile={userProfile}
+              commercialCards={commercialCards}
+              financialCards={financialCards}
+              operationCards={operationCards}
+              internalTaskCards={internalTaskCards}
+              tags={tags}
+              clients={clients}
+              onUpdateCard={handleUpdateCard}
+            />
+          );
+        }
         const assignedCommercialLists = commercialLists.filter(l => l.assignees?.includes(user?.uid || ''));
         const assignedFinancialLists = financialLists.filter(l => l.assignees?.includes(user?.uid || ''));
         const assignedOperationLists = operationLists.filter(l => l.assignees?.includes(user?.uid || ''));
@@ -637,6 +651,7 @@ export function App() {
           </div>
         );
       case 'clientes':
+        if (userProfile?.role === 'equipe') return null;
         return (
           <ClientsView 
             key={`clients-${commercialCards.length}-${financialCards.length}-${operationCards.length}`}
@@ -661,6 +676,7 @@ export function App() {
           />
         );
       case 'comercial':
+        if (userProfile?.role === 'equipe') return null;
         return (
           <CommercialView 
             viewMode={sectorViewMode} 
@@ -685,6 +701,7 @@ export function App() {
           />
         );
       case 'integracao':
+        if (userProfile?.role === 'equipe') return null;
         return (
           <FinancialView 
             viewMode={sectorViewMode} 
@@ -709,6 +726,7 @@ export function App() {
           />
         );
       case 'operacao':
+        if (userProfile?.role === 'equipe') return null;
         return (
           <OperationView 
             viewMode={sectorViewMode} 
@@ -733,6 +751,7 @@ export function App() {
           />
         );
       case 'internal_tasks':
+        if (userProfile?.role === 'equipe') return null;
         return (
           <InternalTasksView 
             viewMode={sectorViewMode} 
@@ -770,6 +789,24 @@ export function App() {
             onPermanentDelete={handlePermanentDelete}
           />
         );
+      case 'equipe':
+        return (
+          <TeamView 
+            users={users} 
+            allTags={tags} 
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            internalTaskLists={internalTaskLists}
+            selectedCompanyId={selectedCompanyId}
+            currentUser={userProfile}
+            onJumpToCard={(cardId, sector) => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector });
+            }}
+          />
+        );
       default:
         return null;
     }
@@ -793,6 +830,7 @@ export function App() {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isMobileOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        userRole={userProfile?.role}
       />
       
       <main className={`flex-1 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
@@ -817,7 +855,7 @@ export function App() {
             <div className="hidden md:block h-6 w-[1px] bg-stone-200 shrink-0 mx-1"></div>
 
             <div className="flex items-center gap-2 min-w-0">
-            {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
+            {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'equipe' && (
               <div className="hidden sm:flex bg-stone-100 p-0.5 rounded-xl border border-stone-200/50">
                 <button 
                   onClick={() => setSectorViewMode('kanban')}
@@ -850,7 +888,7 @@ export function App() {
               </div>
             )}
 
-            {activeTab !== 'dashboard' && activeTab !== 'clientes' && (
+            {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'equipe' && (
               <div className="hidden sm:flex bg-stone-200 p-1 rounded-lg">
                 <button 
                   onClick={() => setSectorCardFilter('activities')}
@@ -943,7 +981,6 @@ export function App() {
                 onOpenCardManager={() => setActiveTab('gestao')}
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenManagement={() => setIsManagementOpen(true)}
-                onGoogleSync={handleGoogleLogin}
                 deferredPrompt={deferredPrompt}
               />
             </div>
@@ -963,6 +1000,7 @@ export function App() {
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
         user={user}
+        userProfile={userProfile}
       />
     </div>
 

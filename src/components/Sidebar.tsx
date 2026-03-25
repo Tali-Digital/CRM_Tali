@@ -17,23 +17,28 @@ import { Logo } from './Logo';
 
 interface Props {
   onLogout: () => void;
-  activeTab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao';
-  onTabChange: (tab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao') => void;
+  activeTab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe';
+  onTabChange: (tab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe') => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isMobileOpen?: boolean;
   onClose?: () => void;
+  userRole?: string;
 }
 
-export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose }) => {
+export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole }) => {
   const menuItems: any[] = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { type: 'header', label: 'Blocos da Agência' },
-    { id: 'comercial', icon: TrendingUp, label: 'Comercial' },
-    { id: 'integracao', icon: UserPlus, label: 'Integração do Cliente' },
-    { id: 'operacao', icon: RefreshCw, label: 'Operação Contínua' },
-    { type: 'header', label: 'Tarefas Internas' },
-    { id: 'internal_tasks', icon: CheckCircle2, label: 'Tarefas Internas' },
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
+    ...(userRole !== 'equipe' ? [
+      { type: 'header', label: 'Blocos da Agência' },
+      { id: 'comercial', icon: TrendingUp, label: 'Comercial' },
+      { id: 'integracao', icon: UserPlus, label: 'Integração do Cliente' },
+      { id: 'operacao', icon: RefreshCw, label: 'Operação Contínua' },
+    ] : []),
+    ...(userRole !== 'equipe' ? [
+      { type: 'header', label: 'Tarefas Internas' },
+      { id: 'internal_tasks', icon: CheckCircle2, label: 'Tarefas Internas' },
+    ] : []),
   ];
 
   const themeClasses = 'bg-[#0C1122] text-white border-[#0C1122] shadow-2xl';
@@ -125,17 +130,31 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
 
         <div className="pt-4 border-t space-y-1 border-white/10">
           <button
-            onClick={() => onTabChange('clientes')}
+            onClick={() => onTabChange('equipe')}
             className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
-              activeTab === 'clientes' 
+              activeTab === 'equipe' 
                 ? activeItemClasses 
                 : itemHoverClasses
             }`}
-            title={isCollapsed ? 'Clientes' : ''}
+            title={isCollapsed ? 'Equipe' : ''}
           >
-            <Users size={20} className="shrink-0" />
-            {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Clientes</span>}
+            <Briefcase size={20} className="shrink-0" />
+            {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Equipe</span>}
           </button>
+          {userRole !== 'equipe' && (
+            <button
+              onClick={() => onTabChange('clientes')}
+              className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'clientes' 
+                  ? activeItemClasses 
+                  : itemHoverClasses
+              }`}
+              title={isCollapsed ? 'Clientes' : ''}
+            >
+              <Users size={20} className="shrink-0" />
+              {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Clientes</span>}
+            </button>
+          )}
           <button 
             onClick={onLogout}
             className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all hover:bg-red-600 hover:text-white text-white/80`}

@@ -11,14 +11,22 @@ interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: any;
+  userProfile?: any;
 }
 
-export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose, user }) => {
-  const [name, setName] = useState(user?.displayName || '');
-  const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
+export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose, user, userProfile }) => {
+  const [name, setName] = useState(userProfile?.name || user?.displayName || '');
+  const [photoURL, setPhotoURL] = useState(userProfile?.photoURL || user?.photoURL || '');
   const [newPassword, setNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  
+  React.useEffect(() => {
+    if (isOpen) {
+      setName(userProfile?.name || user?.displayName || '');
+      setPhotoURL(userProfile?.photoURL || user?.photoURL || '');
+    }
+  }, [isOpen, userProfile, user]);
   
   // Image Upload and Crop State
   const [imageSrc, setImageSrc] = useState<string | null>(null);

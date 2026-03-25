@@ -12,11 +12,10 @@ interface UserMenuProps {
   onOpenCardManager: () => void;
   onOpenProfile: () => void;
   onOpenManagement: () => void;
-  onGoogleSync: () => void;
   deferredPrompt?: any;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement, onGoogleSync, deferredPrompt }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCardManager, onOpenProfile, onOpenManagement, deferredPrompt }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +40,13 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
   const roleLabels = {
     admin: 'Administrador',
     client: 'Cliente',
-    outsourced: 'Terceirizado'
+    equipe: 'Equipe'
+  };
+
+  const categoryLabels = {
+    terceirizado: 'Terceirizado',
+    internalizado: 'Internalizado',
+    intermediados: 'Intermediados'
   };
 
   return (
@@ -58,11 +63,16 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
           <div className="px-4 py-3 border-b border-stone-100">
             <p className="text-sm font-bold text-stone-900 truncate">{userProfile?.name || user.displayName || 'Usuário'}</p>
             <p className="text-xs text-stone-500 truncate">{user.email}</p>
-            {userProfile?.role && (
-              <span className="inline-block mt-1 bg-stone-100 text-stone-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                {roleLabels[userProfile.role]}
-              </span>
-            )}
+              <div className="flex flex-wrap gap-1 mt-1">
+                <span className="inline-block bg-stone-100 text-stone-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {roleLabels[userProfile.role]}
+                </span>
+                {userProfile.role === 'equipe' && userProfile.teamCategory && (
+                  <span className="inline-block bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {categoryLabels[userProfile.teamCategory]}
+                  </span>
+                )}
+              </div>
           </div>
 
           <div className="py-2">
@@ -92,13 +102,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
               </button>
             )}
 
-            <button 
-              onClick={() => { onGoogleSync(); setIsOpen(false); }}
-              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
-            >
-              <CalendarIcon size={16} className="text-stone-400" />
-              Sincronizar Google Agenda
-            </button>
+
 
             <button 
               onClick={async () => {

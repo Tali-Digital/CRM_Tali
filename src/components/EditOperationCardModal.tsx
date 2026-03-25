@@ -264,33 +264,72 @@ export const EditOperationCardModal: React.FC<EditOperationCardModalProps> = ({ 
           </p>
         </div>
 
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-            <Users size={14} />
-            Responsáveis
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {users.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => toggleUser(u.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                  assignedUserIds.includes(u.id)
-                    ? 'bg-stone-900 border-stone-900 text-white'
-                    : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
-                }`}
-              >
-                {u.photoURL ? (
-                  <img src={u.photoURL} alt={u.name} className="w-4 h-4 rounded-full" />
-                ) : (
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] ${assignedUserIds.includes(u.id) ? 'bg-stone-700' : 'bg-stone-200'}`}>
-                    {u.name.charAt(0)}
+        <div className="space-y-6 pt-2 border-t border-stone-100">
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">
+              <User size={14} className="text-stone-300" />
+              Responsáveis (Administradores)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {users.filter(u => u.role === 'admin').map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleUser(u.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    assignedUserIds.includes(u.id)
+                      ? 'bg-stone-900 border-stone-900 text-white shadow-lg shadow-stone-900/10'
+                      : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-lg overflow-hidden border border-stone-200/50">
+                    {u.photoURL ? (
+                      <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-stone-200 text-[8px] font-black">
+                        {u.name.charAt(0)}
+                      </div>
+                    )}
                   </div>
-                )}
-                {u.name}
-              </button>
-            ))}
+                  {u.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">
+              <Briefcase size={14} className="text-stone-300" />
+              Delegado para (Equipe)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {users.filter(u => u.role === 'equipe').map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleUser(u.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    assignedUserIds.includes(u.id)
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/10'
+                      : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100 hover:border-stone-300'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-lg overflow-hidden border border-stone-200/50">
+                    {u.photoURL ? (
+                      <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-stone-200 text-[8px] font-black">
+                        {u.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  {u.name}
+                </button>
+              ))}
+              {users.filter(u => u.role === 'equipe').length === 0 && (
+                <p className="text-[10px] text-stone-400 italic">Nenhum membro da equipe disponível.</p>
+              )}
+            </div>
           </div>
         </div>
         

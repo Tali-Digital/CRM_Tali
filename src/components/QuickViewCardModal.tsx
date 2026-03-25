@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus, Briefcase } from 'lucide-react';
 import { playTickSound, playRemoveItemSound, playDeleteSound, playSuccessSound } from '../utils/audio';
 import { 
   deleteCommercialCard, 
@@ -483,34 +483,81 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   })()}
                 </div>
 
-                {/* Responsáveis */}
+                 {/* Responsáveis (Admins) */}
                 <div className="space-y-4 bg-stone-50 rounded-3xl p-6 border border-stone-200 shadow-sm lg:col-span-1">
-                  <div className="text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
+                  <div className="flex items-center gap-2 text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
+                    <User size={12} className="text-stone-400" />
                     Responsáveis
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {card.assignees && card.assignees.length > 0 ? (
-                      card.assignees.map(userId => {
-                        const u = users.find(user => user.id === userId);
-                        if (!u) return null;
-                        return (
-                          <div key={userId} className="flex items-center gap-2 bg-white border border-stone-200 p-1.5 pr-4 rounded-2xl shadow-sm hover:border-stone-400 transition-all group">
-                            <div className="w-8 h-8 rounded-xl border-2 border-stone-100 overflow-hidden bg-stone-100 group-hover:scale-105 transition-transform shadow-sm">
-                              {u.photoURL ? (
-                                <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-xs font-black text-stone-500 uppercase">
-                                  {u.name.charAt(0)}
-                                </div>
-                              )}
+                    {(() => {
+                      const adminAssignees = (card.assignees || []).filter(uid => {
+                        const u = users.find(user => user.id === uid);
+                        return u?.role === 'admin';
+                      });
+                      
+                      return adminAssignees.length > 0 ? (
+                        adminAssignees.map(userId => {
+                          const u = users.find(user => user.id === userId);
+                          if (!u) return null;
+                          return (
+                            <div key={userId} className="flex items-center gap-2 bg-white border border-stone-200 p-1.5 pr-4 rounded-2xl shadow-sm hover:border-stone-400 transition-all group">
+                              <div className="w-8 h-8 rounded-xl border-2 border-stone-100 overflow-hidden bg-stone-100 group-hover:scale-105 transition-transform shadow-sm">
+                                {u.photoURL ? (
+                                  <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-xs font-black text-stone-500 uppercase">
+                                    {u.name.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-black text-stone-700">{u.name}</span>
                             </div>
-                            <span className="text-xs font-black text-stone-700">{u.name}</span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-xs font-bold text-stone-400 italic px-1">Ninguém atribuído.</div>
-                    )}
+                          );
+                        })
+                      ) : (
+                        <div className="text-xs font-bold text-stone-400 italic px-1">Nenhum responsável administrativo.</div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Delegado para (Equipe) */}
+                <div className="space-y-4 bg-stone-50 rounded-3xl p-6 border border-stone-200 shadow-sm lg:col-span-1">
+                  <div className="flex items-center gap-2 text-stone-500 text-[11px] font-black uppercase tracking-[0.2em] px-1">
+                    <Briefcase size={12} className="text-stone-400" />
+                    Delegado para
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      const equipeAssignees = (card.assignees || []).filter(uid => {
+                        const u = users.find(user => user.id === uid);
+                        return u?.role === 'equipe';
+                      });
+                      
+                      return equipeAssignees.length > 0 ? (
+                        equipeAssignees.map(userId => {
+                          const u = users.find(user => user.id === userId);
+                          if (!u) return null;
+                          return (
+                            <div key={userId} className="flex items-center gap-2 bg-white border border-stone-200 p-1.5 pr-4 rounded-2xl shadow-sm hover:border-stone-400 transition-all group">
+                              <div className="w-8 h-8 rounded-xl border-2 border-stone-100 overflow-hidden bg-stone-100 group-hover:scale-105 transition-transform shadow-sm">
+                                {u.photoURL ? (
+                                  <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-xs font-black text-stone-500 uppercase">
+                                    {u.name.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-black text-stone-700">{u.name}</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-xs font-bold text-stone-400 italic px-1">Nenhum membro da equipe delegado.</div>
+                      );
+                    })()}
                   </div>
                 </div>
 
