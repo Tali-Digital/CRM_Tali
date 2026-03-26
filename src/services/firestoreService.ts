@@ -942,3 +942,173 @@ export const updateCardTimer = async (
     handleFirestoreError(error, OperationType.UPDATE, `timer/${sector}/${cardId}`);
   }
 };
+
+// --- DYNAMIC SECTORS ---
+
+export const subscribeToSectors = (companyId: CompanyType, callback: (sectors: any[]) => void) => {
+  const q = query(collection(db, 'sectors'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const sectors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(sectors);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'sectors');
+  });
+};
+
+export const addSector = async (data: any) => {
+  try {
+    const docRef = await addDoc(collection(db, 'sectors'), sanitizeData({
+      ...data,
+      deleted: false,
+      createdAt: Timestamp.now()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'sectors');
+  }
+};
+
+export const updateSector = async (id: string, data: any) => {
+  try {
+    const docRef = doc(db, 'sectors', id);
+    await updateDoc(docRef, sanitizeData(data));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `sectors/${id}`);
+  }
+};
+
+export const deleteSector = async (id: string) => {
+  try {
+    const docRef = doc(db, 'sectors', id);
+    await updateDoc(docRef, { deleted: true, deletedAt: Timestamp.now() });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `sectors/${id}`);
+  }
+};
+
+export const restoreSector = async (id: string) => {
+  try {
+    const docRef = doc(db, 'sectors', id);
+    await updateDoc(docRef, { deleted: false, restoredAt: Timestamp.now() });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `sectors/${id}/restore`);
+  }
+};
+
+export const subscribeToDynamicLists = (sectorId: string, callback: (lists: any[]) => void) => {
+  const q = query(collection(db, 'dynamic_lists'), where('sectorId', '==', sectorId));
+  return onSnapshot(q, (snapshot) => {
+    const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(lists);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, `dynamic_lists/${sectorId}`);
+  });
+};
+
+export const subscribeToDynamicCards = (sectorId: string, callback: (cards: any[]) => void) => {
+  const q = query(collection(db, 'dynamic_cards'), where('sectorId', '==', sectorId));
+  return onSnapshot(q, (snapshot) => {
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(cards);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, `dynamic_cards/${sectorId}`);
+  });
+};
+
+export const addDynamicList = async (data: any) => {
+  try {
+    const docRef = await addDoc(collection(db, 'dynamic_lists'), sanitizeData({
+      ...data,
+      createdAt: Timestamp.now()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'dynamic_lists');
+  }
+};
+
+export const updateDynamicList = async (id: string, data: any) => {
+  try {
+    const docRef = doc(db, 'dynamic_lists', id);
+    await updateDoc(docRef, sanitizeData(data));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `dynamic_lists/${id}`);
+  }
+};
+
+export const deleteDynamicList = async (id: string) => {
+  try {
+    const docRef = doc(db, 'dynamic_lists', id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `dynamic_lists/${id}`);
+  }
+};
+
+export const addDynamicCard = async (data: any) => {
+  try {
+    const docRef = await addDoc(collection(db, 'dynamic_cards'), sanitizeData({
+      ...data,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'dynamic_cards');
+  }
+};
+
+export const updateDynamicCard = async (id: string, data: any) => {
+  try {
+    const docRef = doc(db, 'dynamic_cards', id);
+    await updateDoc(docRef, sanitizeData({
+      ...data,
+      updatedAt: Timestamp.now()
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `dynamic_cards/${id}`);
+  }
+};
+
+export const deleteDynamicCard = async (id: string) => {
+  try {
+    const docRef = doc(db, 'dynamic_cards', id);
+    await updateDoc(docRef, { deleted: true, updatedAt: Timestamp.now() });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `dynamic_cards/${id}`);
+  }
+};
+
+export const completeDynamicCard = async (id: string) => {
+  try {
+    const docRef = doc(db, 'dynamic_cards', id);
+    await updateDoc(docRef, { completed: true, completedAt: Timestamp.now(), updatedAt: Timestamp.now() });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `dynamic_cards/${id}/complete`);
+  }
+};
+
+export const permanentDeleteDynamicCard = async (id: string) => {
+  try {
+    const docRef = doc(db, 'dynamic_cards', id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `dynamic_cards/${id}/permanent`);
+  }
+};
+
+export const duplicateDynamicCard = async (id: string) => {
+  try {
+    const cardRef = doc(db, 'dynamic_cards', id);
+    const cardSnap = await getDoc(cardRef);
+    if (!cardSnap.exists()) throw new Error('Card não encontrado');
+    const { id: _, createdAt: __, updatedAt: ___, ...data } = cardSnap.data() as any;
+    return await addDynamicCard({
+      ...data,
+      title: `${data.title || 'Novo Card'} (Cópia)`,
+      order: (data.order || 0) + 1
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `dynamic_cards/${id}/duplicate`);
+  }
+};

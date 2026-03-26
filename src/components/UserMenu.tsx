@@ -89,7 +89,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onOpenCar
               className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
             >
               <Layers size={16} className="text-stone-400" />
-              Gestor de Cards
+              Arquivo
             </button>
             
             {userProfile?.role === 'admin' && (

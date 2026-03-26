@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Tag, Client } from '../types';
-import { Clock, CheckSquare, DollarSign, User, Mail, Briefcase, GripVertical, Timer, AlertCircle, Calendar, RotateCcw } from 'lucide-react';
+import { Clock, CheckSquare, DollarSign, User, Mail, Briefcase, GripVertical, Timer, AlertCircle, Calendar, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { 
   DndContext, 
@@ -151,6 +151,29 @@ const SortableMemberCard = ({ card, sector, clients, users, onQuickView }: { car
           )}
         </div>
       </div>
+
+      {card.statusTags && card.statusTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {card.statusTags.includes('aguardando equipe') && (
+            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 border border-blue-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+              <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+              Aguardando Equipe
+            </span>
+          )}
+          {card.statusTags.includes('em aprovação') && (
+            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600 border border-green-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+              <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+              Em Aprovação
+            </span>
+          )}
+          {card.statusTags.includes('aguardando cliente') && (
+            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+              <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
+              Aguardando Cliente
+            </span>
+          )}
+        </div>
+      )}
       
       {total > 0 && (
         <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>

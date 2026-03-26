@@ -38,8 +38,10 @@ interface UnifiedCardManagerViewProps {
   clients: Client[];
   users: UserProfile[];
   tags: Tag[];
-  onRestoreCard: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal') => Promise<void>;
-  onPermanentDelete: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal', skipConfirm?: boolean) => Promise<void>;
+  onPermanentDelete: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal' | string, skipConfirm?: boolean) => Promise<void>;
+  sectors?: any[];
+  onRestoreSector?: (id: string) => Promise<void>;
+  dynamicCards?: Record<string, any[]>;
 }
 
 export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
@@ -50,7 +52,10 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
   clients,
   users,
   onRestoreCard,
-  onPermanentDelete
+  onPermanentDelete,
+  sectors = [],
+  onRestoreSector,
+  dynamicCards = {}
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'deleted'>('active');
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,11 +76,16 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const allDynamicCards = Object.entries(dynamicCards).flatMap(([sectorId, cards]) => 
+    (cards as any[]).map(c => ({ ...c, metaType: sectorId }))
+  );
+
   const allCards = [
     ...commercialCards.map(c => ({ ...c, metaType: 'commercial' as const })),
     ...financialCards.map(c => ({ ...c, metaType: 'financial' as const })),
     ...operationCards.map(c => ({ ...c, metaType: 'operation' as const })),
-    ...internalTaskCards.map(c => ({ ...c, metaType: 'internal' as const }))
+    ...internalTaskCards.map(c => ({ ...c, metaType: 'internal' as const })),
+    ...allDynamicCards
   ];
 
   const filteredCards = allCards.filter(card => {
@@ -110,13 +120,18 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
     return dateB - dateA;
   });
 
+  const deletedSectors = sectors.filter(s => s.deleted);
+
   const getSectorIcon = (type: string) => {
     switch (type) {
       case 'commercial': return <TrendingUp size={12} className="text-blue-500" />;
       case 'financial': return <Briefcase size={12} className="text-emerald-500" />;
       case 'operation': return <RefreshCw size={12} className="text-orange-500" />;
       case 'internal': return <CheckCircle2 size={12} className="text-purple-500" />;
-      default: return null;
+      default: 
+        const sector = sectors.find(s => s.id === type);
+        if (sector?.group === 'cliente') return <TrendingUp size={12} className="text-blue-500" />;
+        return <Layers size={12} className="text-purple-500" />;
     }
   };
 
@@ -126,7 +141,9 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
       case 'financial': return 'Integração';
       case 'operation': return 'Operação';
       case 'internal': return 'T. Internas';
-      default: return '';
+      default: 
+        const sector = sectors.find(s => s.id === type);
+        return sector ? sector.name : 'Outro';
     }
   };
 
@@ -231,7 +248,7 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Gestor de Cards</h1>
+          <h1 className="text-2xl font-bold text-stone-900">Arquivo</h1>
           <p className="text-stone-500 text-sm mt-1">Gerencie todos os cards ativos, concluídos e removidos em um só lugar.</p>
         </div>
       </div>
@@ -307,7 +324,22 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
               />
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={sectorFilter}
+                onChange={(e) => setSectorFilter(e.target.value as any)}
+                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[150px]"
+              >
+                <option value="all">Todos os Setores</option>
+                <option value="commercial">Comercial</option>
+                <option value="financial">Integração</option>
+                <option value="operation">Operação</option>
+                <option value="internal">Tarefas</option>
+                {sectors.filter(s => !s.deleted).map(sector => (
+                  <option key={sector.id} value={sector.id}>{sector.name}</option>
+                ))}
+              </select>
+
               <select
                 value={clientFilter}
                 onChange={(e) => setClientFilter(e.target.value)}
@@ -341,34 +373,6 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                 ))}
               </select>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2 bg-stone-50 p-1.5 rounded-2xl border border-stone-100">
-            <button 
-              onClick={() => setSectorFilter('all')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${sectorFilter === 'all' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Todos os Setores
-            </button>
-            <div className="w-px h-4 bg-stone-200 mx-1"></div>
-            <button 
-              onClick={() => setSectorFilter('commercial')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${sectorFilter === 'commercial' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Comercial
-            </button>
-            <button 
-              onClick={() => setSectorFilter('financial')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${sectorFilter === 'financial' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Integração
-            </button>
-            <button 
-              onClick={() => setSectorFilter('operation')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${sectorFilter === 'operation' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Operação
-            </button>
           </div>
         </div>
 
@@ -428,6 +432,29 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                       );
                     })()}
 
+                    {card.statusTags && card.statusTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {card.statusTags.includes('aguardando equipe') && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                            <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                            Aguardando Equipe
+                          </span>
+                        )}
+                        {card.statusTags.includes('em aprovação') && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100 text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                            Em Aprovação
+                          </span>
+                        )}
+                        {card.statusTags.includes('aguardando cliente') && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                            <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
+                            Aguardando Cliente
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="mt-auto flex items-center justify-between pt-4 border-t border-stone-200/50">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[9px] font-black uppercase tracking-widest text-stone-400">
@@ -471,12 +498,55 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-32 text-stone-300">
-                <div className="w-24 h-24 bg-stone-50 rounded-full flex items-center justify-center mb-6">
-                  <Archive size={40} className="opacity-20" />
+              activeTab === 'deleted' && deletedSectors.length > 0 ? null : (
+                <div className="flex flex-col items-center justify-center py-32 text-stone-300">
+                  <div className="w-24 h-24 bg-stone-50 rounded-full flex items-center justify-center mb-6">
+                    <Archive size={40} className="opacity-20" />
+                  </div>
+                  <h3 className="font-black text-lg tracking-tight text-stone-900 mb-1">Nada por aqui ainda</h3>
+                  <p className="text-sm font-bold text-stone-400">Nenhum card encontrado com esses filtros.</p>
                 </div>
-                <h3 className="font-black text-lg tracking-tight text-stone-900 mb-1">Nada por aqui ainda</h3>
-                <p className="text-sm font-bold text-stone-400">Nenhum card encontrado com esses filtros.</p>
+              )
+            )}
+
+            {activeTab === 'deleted' && deletedSectors.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-500">
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-stone-900">Setores na Lixeira</h2>
+                    <p className="text-sm text-stone-400 font-bold">Setores personalizados que foram removidos</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+                  {deletedSectors.map((sector) => (
+                    <div 
+                      key={sector.id}
+                      className="flex items-center justify-between bg-white border border-stone-200 rounded-3xl p-5 hover:border-blue-200 hover:shadow-lg transition-all group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                          {sector.group === 'cliente' ? <TrendingUp size={20} /> : <CheckCircle2 size={20} />}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-stone-900 leading-tight">{sector.name}</h4>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Grupo: {sector.group === 'cliente' ? 'Clientes' : 'Tarefas'}</span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => onRestoreSector?.(sector.id)}
+                        className="p-3 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white"
+                        title="Restaurar Setor"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </AnimatePresence>

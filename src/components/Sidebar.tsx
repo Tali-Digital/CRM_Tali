@@ -2,42 +2,95 @@ import React from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
-  BarChart3, 
   Settings, 
   LogOut,
   Users,
   TrendingUp,
   UserPlus,
   RefreshCw,
+  FileVideo,
+  Edit2,
   CheckCircle2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  MonitorPlay,
+  Layers
 } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface Props {
   onLogout: () => void;
-  activeTab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe';
-  onTabChange: (tab: 'dashboard' | 'projects' | 'reports' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe') => void;
+  activeTab: string;
+  onTabChange: (tab: any) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isMobileOpen?: boolean;
   onClose?: () => void;
   userRole?: string;
+  sectors?: any[];
+  onAddSector?: (group: 'cliente' | 'interno') => void;
+  onEditSector?: (sector: any) => void;
+  currentUserId?: string;
 }
 
-export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole }) => {
+export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole, sectors, onAddSector, onEditSector, currentUserId }) => {
+  const isUserVisible = (sectorId: string) => {
+    const sector = sectors?.find(s => s.id === sectorId);
+    if (!sector || !sector.visibility || sector.visibility.length === 0) return true;
+    return sector.visibility.includes(currentUserId);
+  };
+  const getIconForSector = (name: string, defaultIcon: any) => {
+    const lower = name.toLowerCase().trim();
+    if (lower.includes('tutorial') || lower.includes('tutoriais')) return MonitorPlay;
+    return defaultIcon;
+  };
+
   const menuItems: any[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
     ...(userRole !== 'equipe' ? [
-      { type: 'header', label: 'Blocos da Agência' },
-      { id: 'comercial', icon: TrendingUp, label: 'Comercial' },
-      { id: 'integracao', icon: UserPlus, label: 'Integração do Cliente' },
-      { id: 'operacao', icon: RefreshCw, label: 'Operação Contínua' },
+      { type: 'header', label: 'Cliente', onAdd: () => onAddSector?.('cliente') },
+      ...(isUserVisible('comercial') ? [{ 
+        id: 'comercial', 
+        icon: TrendingUp, 
+        label: sectors?.find(s => s.id === 'comercial')?.name || 'Comercial',
+        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'comercial') || { id: 'comercial', name: 'Comercial', group: 'cliente' })
+      }] : []),
+      ...(isUserVisible('integracao') ? [{ 
+        id: 'integracao', 
+        icon: UserPlus, 
+        label: sectors?.find(s => s.id === 'integracao')?.name || 'Integração do Cliente',
+        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'integracao') || { id: 'integracao', name: 'Integração do Cliente', group: 'cliente' })
+      }] : []),
+      ...(isUserVisible('operacao') ? [{ 
+        id: 'operacao', 
+        icon: RefreshCw, 
+        label: sectors?.find(s => s.id === 'operacao')?.name || 'Operação Contínua',
+        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'operacao') || { id: 'operacao', name: 'Operação Contínua', group: 'cliente' })
+      }] : []),
+      ...(sectors?.filter(s => s.group === 'cliente' && !['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
+        id: s.id,
+        icon: getIconForSector(s.name, TrendingUp),
+        label: s.name,
+        isDynamic: true,
+        onEdit: () => onEditSector?.(s)
+      })) || [])
     ] : []),
     ...(userRole !== 'equipe' ? [
-      { type: 'header', label: 'Tarefas Internas' },
-      { id: 'internal_tasks', icon: CheckCircle2, label: 'Tarefas Internas' },
+      { type: 'header', label: 'Tarefas', onAdd: () => onAddSector?.('interno') },
+      ...(isUserVisible('internal_tasks') ? [{ 
+        id: 'internal_tasks', 
+        icon: CheckCircle2, 
+        label: sectors?.find(s => s.id === 'internal_tasks')?.name || 'Tarefas',
+        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'internal_tasks') || { id: 'internal_tasks', name: 'Tarefas', group: 'interno' })
+      }] : []),
+      ...(sectors?.filter(s => s.group === 'interno' && !['internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
+        id: s.id,
+        icon: getIconForSector(s.name, CheckCircle2),
+        label: s.name,
+        isDynamic: true,
+        onEdit: () => onEditSector?.(s)
+      })) || [])
     ] : []),
   ];
 
@@ -99,10 +152,19 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
             if (item.type === 'header') {
               if (isCollapsed && !isMobileOpen) return <div key={`header-${index}`} className="h-px bg-white/10 my-4 mx-4" />;
               return (
-                <div key={`header-${index}`} className="px-4 pt-4 pb-2">
+                <div key={`header-${index}`} className="group flex items-center justify-between px-4 pt-4 pb-2">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
                     {item.label}
                   </span>
+                  {item.onAdd && (
+                    <button 
+                      onClick={item.onAdd}
+                      className="p-1 rounded-md hover:bg-white/10 text-white/20 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                      title={`Adicionar Novo sob ${item.label}`}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -113,6 +175,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
             return (
               <button
                 key={item.id}
+                data-sidebar-tab={item.id}
                 onClick={() => onTabChange(item.id as any)}
                 className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
                   isActive 
@@ -122,7 +185,24 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
                 title={isCollapsed ? item.label : ''}
               >
                 <Icon size={20} className="shrink-0" />
-                {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">{item.label}</span>}
+                {(!isCollapsed || isMobileOpen) && (
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span className="text-sm font-bold truncate">{item.label}</span>
+                    {item.onEdit && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          item.onEdit();
+                        }}
+                        className="p-1 rounded-md bg-white/0 hover:bg-white/20 text-white/0 group-hover:text-white/40 hover:text-white transition-all ml-2"
+                        title="Editar Setor"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}

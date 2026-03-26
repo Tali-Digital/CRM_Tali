@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile } from '../types';
+import { CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, UserProfile, Sector } from '../types';
 import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar as CalendarIcon, Clock, Search, Briefcase, Tag as TagIcon, X, LayoutGrid, Layers, AlignLeft, MousePointer2, RotateCcw, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
@@ -11,6 +11,7 @@ import {
 } from '../services/firestoreService';
 import { CardOptionsMenu } from './CardOptionsMenu';
 import { QuickViewCardModal } from './QuickViewCardModal';
+import { UnifiedCardModal } from './UnifiedCardModal';
 import { CalendarDashboardView } from './CalendarDashboardView';
 
 // Reusable helpers
@@ -77,11 +78,18 @@ const formatDate = (date: any) => {
 
 // Stateless list filter helper
 const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboardView: string, currentUserUid: string, users: UserProfile[], clients: Client[], searchTerm: string, selectedSector: string, selectedClient: string, selectedUser: string, selectedTag: string, hasDateOnly: boolean) => {
-  const existingListIds = lists.map(l => l.id);
-  let validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
-
   const currentUser = users.find(u => u.id === currentUserUid);
   const isAdmin = currentUser?.role === 'admin';
+
+  const visibleLists = lists.filter(l => {
+    if (isAdmin) return true;
+    if (!l.isRestricted) return true;
+    if (!currentUserUid) return false;
+    return l.visibleTo && l.visibleTo.includes(currentUserUid);
+  });
+
+  const existingListIds = visibleLists.map(l => l.id);
+  let validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
 
   if (dashboardView === 'minhas') {
     const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
@@ -151,7 +159,8 @@ const DashboardCard = ({
   users, 
   onQuickView,
   handleOpenMenu,
-  onJumpToCard 
+  onJumpToCard,
+  userRole
 }: { 
   key?: any,
   card: any, 
@@ -161,7 +170,8 @@ const DashboardCard = ({
   users: UserProfile[],
   onQuickView: (card: any, tab: any) => void,
   handleOpenMenu: (e: React.MouseEvent, card: any, tab: any) => void,
-  onJumpToCard?: (cardId: string, sector: string) => void
+  onJumpToCard?: (cardId: string, sector: string) => void,
+  userRole?: string
 }) => {
   const [isFinishing, setIsFinishing] = useState(false);
   
@@ -192,15 +202,31 @@ const DashboardCard = ({
   const isCardDueToday = dateStatus === 'today';
   const isCardNearDue = dateStatus === 'near';
   
-  const bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (isCardDueToday ? '#FEF2F2' : (isCardNearDue ? '#FFFBF5' : (card.color || '#ffffff'))));
-  const isDarkBg = isFinishing || (isCardOverdue && !isFinishing);
+  const selectedStatus = card.statusTags && card.statusTags.length > 0 ? card.statusTags[0] : null;
+
+  let bgColor = isFinishing ? '#22c55e' : (isCardOverdue ? '#991b1b' : (isCardDueToday ? '#FEF2F2' : (isCardNearDue ? '#FFFBF5' : (card.color || '#ffffff'))));
+  let borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isCardDueToday ? '#FECACA' : (isCardNearDue ? '#FFEDD5' : (card.color ? 'transparent' : '#e5e7eb'))));
+
+  if (!isFinishing && selectedStatus) {
+    if (selectedStatus === 'aguardando equipe') {
+      bgColor = '#eff6ff'; // blue-50
+      borderColor = '#dbeafe'; // blue-100
+    } else if (selectedStatus === 'em aprovação') {
+      bgColor = '#f0fdf4'; // green-50
+      borderColor = '#dcfce7'; // green-100
+    } else if (selectedStatus === 'aguardando cliente') {
+      bgColor = '#fff7ed'; // orange-50
+      borderColor = '#ffedd5'; // orange-100
+    }
+  }
+
+  const isDarkBg = isFinishing || (isCardOverdue && !isFinishing && !selectedStatus);
   const textColorClass = isDarkBg ? 'text-white' : 'text-stone-900';
   const subTextColorClass = isDarkBg ? 'text-white/80' : 'text-stone-500';
-  const borderColor = isFinishing ? '#16a34a' : (isCardOverdue ? '#7f1d1d' : (isCardDueToday ? '#FECACA' : (isCardNearDue ? '#FFEDD5' : (isDarkBg ? 'transparent' : '#e5e7eb'))));
 
   return (
     <div 
-      onClick={() => !isFinishing && onJumpToCard?.(card.id, targetTab === 'internal_tasks' ? 'internal_tasks' : targetTab)}
+      onClick={() => !isFinishing && onQuickView(card, targetTab)}
       style={{ 
         backgroundColor: bgColor, 
         borderColor: borderColor,
@@ -209,13 +235,39 @@ const DashboardCard = ({
       }}
       className={`p-3.5 rounded-2xl shadow-sm border-2 mb-2 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
     >
-      {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+      {(isCardOverdue || isCardDueToday || isCardNearDue || (card.statusTags && card.statusTags.length > 0)) && (
         <div className="flex items-center justify-between mb-2 px-1">
-          <div 
-            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
-            style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
-          >
-            {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
+          <div className="flex items-center gap-2">
+            {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+              <div 
+                className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
+                style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
+              >
+                {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
+              </div>
+            )}
+            {card.statusTags && card.statusTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {card.statusTags.includes('aguardando equipe') && (userRole !== 'equipe') && (
+                  <span className={`px-2 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 border border-blue-200'} text-[7px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                    <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                    Aguardando Equipe
+                  </span>
+                )}
+                {card.statusTags.includes('em aprovação') && (userRole !== 'equipe') && (
+                  <span className={`px-2 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600 border border-green-200'} text-[7px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                    <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                    Em Aprovação
+                  </span>
+                )}
+                {card.statusTags.includes('aguardando cliente') && (
+                  <span className={`px-2 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[7px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                    <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
+                    Aguardando Cliente
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <span className={`text-[9px] font-black ${isDarkBg ? 'text-white/80' : isCardNearDue ? 'text-orange-500' : 'text-red-500'}`}>
             {formatDate(card.deliveryDate)}
@@ -315,7 +367,7 @@ interface Props {
   dashboardView: 'minhas' | 'global';
   currentUserUid: string;
   onNavigate: (tab: 'comercial' | 'integracao' | 'operacao' | 'internal_tasks') => void;
-  onJumpToCard?: (cardId: string, sector: string) => void;
+  onJumpToCard?: (cardId: string, sector: string, mode?: 'view' | 'edit') => void;
   onUpdateCommercialCard: (id: string, data: any) => Promise<void>;
   onUpdateFinancialCard: (id: string, data: any) => Promise<void>;
   onUpdateOperationCard: (id: string, data: any) => Promise<void>;
@@ -324,6 +376,8 @@ interface Props {
   userRole: string;
   viewMode: 'board' | 'calendar';
   setViewMode: (mode: 'board' | 'calendar') => void;
+  allSectors: Sector[];
+  onMoveToSector: (card: any, sourceSector: string, targetSector: string) => void;
 }
 
 export const UnifiedDashboardBoard: React.FC<Props> = ({
@@ -350,6 +404,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   userRole,
   viewMode,
   setViewMode,
+  allSectors = [],
+  onMoveToSector
 }) => {
   const [quickViewCard, setQuickViewCard] = useState<any>(null);
   const [quickViewTab, setQuickViewTab] = useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
@@ -357,6 +413,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   const [menuCard, setMenuCard] = React.useState<any>(null);
   const [menuTab, setMenuTab] = React.useState<'comercial' | 'integracao' | 'operacao' | 'internal_tasks' | null>(null);
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
+  const [editingCard, setEditingCard] = useState<any>(null);
+  const [editingSector, setEditingSector] = useState<any>(null);
 
   // Sector Colors
   const [sectorColors, setSectorColors] = useState(() => {
@@ -421,7 +479,8 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         setQuickViewTab(menuTab);
         break;
       case 'edit':
-        onNavigate(menuTab);
+        setEditingCard(menuCard);
+        setEditingSector(menuTab === 'integracao' ? 'financial' : menuTab === 'comercial' ? 'commercial' : menuTab === 'operacao' ? 'operation' : 'internal_tasks');
         break;
       case 'copy':
       case 'duplicate':
@@ -630,7 +689,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
               { id: 'comercial', name: 'Comercial', cards: sortCardsByDeadline(filteredCommercialCards), lists: commercialLists, tab: 'comercial' },
               { id: 'integracao', name: 'Integração', cards: sortCardsByDeadline(filteredFinancialCards), lists: financialLists, tab: 'integracao' },
               { id: 'operacao', name: 'Operação', cards: sortCardsByDeadline(filteredOperationCards), lists: operationLists, tab: 'operacao' },
-              { id: 'internal_tasks', name: 'Tarefas Internas', cards: sortCardsByDeadline(filteredInternalCards), lists: internalTaskLists, tab: 'internal_tasks' }
+              { id: 'internal_tasks', name: 'Tarefas', cards: sortCardsByDeadline(filteredInternalCards), lists: internalTaskLists, tab: 'internal_tasks' }
             ].filter(s => {
               const isAgencySector = ['comercial', 'integracao', 'operacao'].includes(s.id);
               if (userRole === 'equipe' && isAgencySector) return false;
@@ -677,6 +736,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                         onQuickView={(c, tab) => { setQuickViewCard(c); setQuickViewTab(tab); }}
                         handleOpenMenu={handleOpenMenu}
                         onJumpToCard={onJumpToCard}
+                        userRole={userRole}
                       />
                     ))}
                   </div>
@@ -705,7 +765,14 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         client={clients.find(c => c.id === quickViewCard?.clientId)}
         users={users}
         tags={tags}
-        onEdit={() => { if (quickViewTab) onNavigate(quickViewTab); }}
+        onEdit={() => { 
+          if (quickViewTab && quickViewCard) {
+            setEditingCard(quickViewCard);
+            setEditingSector(quickViewTab === 'integracao' ? 'financial' : quickViewTab === 'comercial' ? 'commercial' : quickViewTab === 'operacao' ? 'operation' : 'internal_tasks');
+            setQuickViewCard(null);
+            setQuickViewTab(null);
+          }
+        }}
         sector={
           quickViewTab === 'comercial' ? 'commercial' :
           quickViewTab === 'integracao' ? 'financial' :
@@ -720,6 +787,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
           setQuickViewCard(targetCard);
           setQuickViewTab(targetSector as any);
         }}
+        userRole={userRole}
       />
 
       <CardOptionsMenu 
@@ -728,6 +796,23 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
         anchorRect={anchorRect}
         onAction={handleMenuAction}
       />
+
+      {editingCard && (
+        <UnifiedCardModal 
+          isOpen={!!editingCard}
+          onClose={() => setEditingCard(null)}
+          card={editingCard}
+          sector={editingSector}
+          clients={clients}
+          users={users}
+          client={clients.find(c => c.id === editingCard.clientId)}
+          allSectors={allSectors}
+          onMoveToSector={(target) => {
+            onMoveToSector(editingCard, editingSector, target);
+            setEditingCard(null);
+          }}
+        />
+      )}
     </div>
   );
 };

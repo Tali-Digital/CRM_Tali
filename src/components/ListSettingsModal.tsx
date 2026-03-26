@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CommercialList, FinancialList, OperationList, UserProfile } from '../types';
 import { Modal } from './Modal';
-import { Trash2, Plus, X, AlertTriangle, Users } from 'lucide-react';
+import { Trash2, Plus, X, AlertTriangle, Users, Eye, EyeOff } from 'lucide-react';
 import { subscribeToUsers, createNotification } from '../services/firestoreService';
 import { auth } from '../firebase';
 
@@ -22,6 +22,8 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
   const [color, setColor] = useState(list.color || '#1c222d');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [isRestricted, setIsRestricted] = useState(list.isRestricted || false);
+  const [visibleTo, setVisibleTo] = useState<string[]>(list.visibleTo || []);
 
   const colorPresets = [
     '#1c222d', // Dark Blue (Original)
@@ -47,7 +49,9 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
       name,
       defaultChecklist: checklist,
       assignees,
-      color
+      color,
+      isRestricted,
+      visibleTo
     });
 
     const newAssignees = assignees.filter(id => !(list.assignees || []).includes(id));
@@ -164,6 +168,66 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-3 p-4 bg-stone-50 border border-stone-200 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-stone-700">
+              {isRestricted ? <EyeOff size={16} /> : <Eye size={16} />}
+              Visibilidade
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsRestricted(!isRestricted)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:ring-offset-2 ${isRestricted ? 'bg-blue-600' : 'bg-stone-200'}`}
+            >
+              <span className="sr-only">Toggle visibility status</span>
+              <span aria-hidden="true" className={`pointer-events-none inline-block h-4 w-4 transform bg-white rounded-full shadow ring-0 transition duration-200 ease-in-out ${isRestricted ? 'translate-x-2' : '-translate-x-2'}`} />
+            </button>
+          </div>
+          
+          <p className="text-[10px] text-stone-500 font-medium">
+            {isRestricted 
+              ? 'Apenas usuários selecionados poderão ver os cards deste setor.'
+              : 'Todos os usuários têm acesso para ver este setor e seus cards.'}
+          </p>
+
+          {isRestricted && (
+            <div className="pt-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2 block">
+                Quem pode visualizar?
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {users.map(user => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => {
+                      if (visibleTo.includes(user.id)) {
+                        setVisibleTo(visibleTo.filter(id => id !== user.id));
+                      } else {
+                        setVisibleTo([...visibleTo, user.id]);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+                      visibleTo.includes(user.id)
+                        ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm'
+                        : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-50'
+                    }`}
+                  >
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.name} className="w-3.5 h-3.5 rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full bg-stone-200 flex items-center justify-center text-[7px]">
+                        {user.name.charAt(0)}
+                      </div>
+                    )}
+                    {user.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">

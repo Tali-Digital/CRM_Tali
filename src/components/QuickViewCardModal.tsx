@@ -4,14 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus, Briefcase } from 'lucide-react';
 import { playTickSound, playRemoveItemSound, playDeleteSound, playSuccessSound } from '../utils/audio';
 import { 
-  deleteCommercialCard, 
-  deleteFinancialCard, 
-  deleteOperationCard, 
-  deleteInternalTaskCard,
-  permanentDeleteCommercialCard,
-  permanentDeleteFinancialCard,
-  permanentDeleteOperationCard,
-  permanentDeleteInternalTaskCard,
   updateCommercialCard,
   updateFinancialCard,
   updateOperationCard,
@@ -20,7 +12,19 @@ import {
   completeCommercialCard,
   completeFinancialCard,
   completeOperationCard,
-  completeInternalTaskCard
+  completeInternalTaskCard,
+  completeDynamicCard,
+  deleteCommercialCard,
+  deleteFinancialCard,
+  deleteOperationCard,
+  deleteInternalTaskCard,
+  deleteDynamicCard,
+  permanentDeleteCommercialCard,
+  permanentDeleteFinancialCard,
+  permanentDeleteOperationCard,
+  permanentDeleteInternalTaskCard,
+  permanentDeleteDynamicCard,
+  updateDynamicCard
 } from '../services/firestoreService';
 import { Timestamp } from 'firebase/firestore';
 import { CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Client, UserProfile, Tag, ChecklistItem } from '../types';
@@ -40,18 +44,19 @@ const isLightColor = (color: string) => {
 interface QuickViewCardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  card: CommercialCard | FinancialCard | OperationCard | InternalTaskCard | null;
+  card: any | null;
   client?: Client;
   users: UserProfile[];
   tags: Tag[];
   onEdit: () => void;
-  sector: 'commercial' | 'financial' | 'operation' | 'internal';
+  sector: string;
   // All cards for related tasks
   allCommercialCards?: CommercialCard[];
   allFinancialCards?: FinancialCard[];
   allOperationCards?: OperationCard[];
   allInternalTaskCards?: InternalTaskCard[];
   onJumpToCard?: (card: any, sector: string) => void;
+  userRole?: string;
 }
 
 const getNextRecurrenceDate = (recurrence: any) => {
@@ -130,7 +135,8 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   allFinancialCards = [],
   allOperationCards = [],
   allInternalTaskCards = [],
-  onJumpToCard
+  onJumpToCard,
+  userRole
 }) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -316,6 +322,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
       else if (sector === 'financial') await completeFinancialCard(card.id);
       else if (sector === 'operation') await completeOperationCard(card.id);
       else if (sector === 'internal') await completeInternalTaskCard(card.id);
+      else await completeDynamicCard(card.id);
       onClose();
     } catch (err) {
       console.error('Erro ao concluir card:', err);
@@ -328,7 +335,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
       case 'financial': return 'Integração';
       case 'operation': return 'Operação';
       case 'internal': return 'Tarefas Internas';
-      default: return '';
+      default: return 'Geral';
     }
   };
 
@@ -391,6 +398,24 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                     Notificação Recorrente
                   </div>
                 )}
+                {card.statusTags?.includes('aguardando equipe') && (userRole !== 'equipe') && (
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100 border border-blue-200 text-blue-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    Aguardando Equipe
+                  </div>
+                )}
+                {card.statusTags?.includes('em aprovação') && (userRole !== 'equipe') && (
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-100 border border-green-200 text-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    Em Aprovação
+                  </div>
+                )}
+                {card.statusTags?.includes('aguardando cliente') && (
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    Aguardando Cliente
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button 
@@ -421,6 +446,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                         else if (sector === 'financial') await permanentDeleteFinancialCard(card.id);
                         else if (sector === 'operation') await permanentDeleteOperationCard(card.id);
                         else if (sector === 'internal') await permanentDeleteInternalTaskCard(card.id);
+                        else await permanentDeleteDynamicCard(card.id);
                         onClose();
                       }
                     }}
@@ -439,6 +465,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                         else if (sector === 'financial') await deleteFinancialCard(card.id);
                         else if (sector === 'operation') await deleteOperationCard(card.id);
                         else if (sector === 'internal') await deleteInternalTaskCard(card.id);
+                        else await deleteDynamicCard(card.id);
                         onClose();
                       }
                     }}
@@ -888,15 +915,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                 ID: {card.id.substring(0, 8)}
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                {!card.completed && !isClientCard && (
-                  <button 
-                    onClick={handleCompleteCard}
-                    className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-green-700 transition-all shadow-lg hover:shadow-green-900/20 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 size={16} strokeWidth={3} />
-                    Concluir Card
-                  </button>
-                )}
                 <button 
                   onClick={onClose}
                   className="w-full sm:w-auto px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-stone-800 transition-all shadow-lg hover:shadow-stone-900/20 active:scale-95 flex items-center justify-center gap-2"

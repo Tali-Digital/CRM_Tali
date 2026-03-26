@@ -76,6 +76,8 @@ export interface CommercialList {
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
   color?: string;
+  isRestricted?: boolean;
+  visibleTo?: string[];
   createdAt?: any;
 }
 
@@ -116,6 +118,8 @@ export interface FinancialList {
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
   color?: string;
+  isRestricted?: boolean;
+  visibleTo?: string[];
   createdAt?: any;
 }
 
@@ -154,6 +158,8 @@ export interface OperationList {
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
   color?: string;
+  isRestricted?: boolean;
+  visibleTo?: string[];
   createdAt?: any;
 }
 
@@ -192,6 +198,8 @@ export interface InternalTaskList {
   defaultChecklist: string[];
   assignees?: string[]; // Array of UserProfile ids
   color?: string;
+  isRestricted?: boolean;
+  visibleTo?: string[];
   createdAt?: any;
 }
 
@@ -227,4 +235,14 @@ export interface Company {
   id: CompanyType;
   name: string;
   description: string;
+}
+
+export interface Sector {
+  id: string;
+  name: string;
+  group: 'cliente' | 'interno';
+  order: number;
+  companyId: string;
+  icon?: string;
+  createdAt: any;
 }
