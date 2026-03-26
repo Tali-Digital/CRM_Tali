@@ -1334,8 +1334,8 @@ export function App() {
                   {/* Card Filter Toggle */}
                   <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
                     <button 
-                      onClick={() => setSectorCardFilter('cards')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'cards' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                      onClick={() => setSectorCardFilter('activities')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'activities' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
                     >
                       Atividades
                     </button>
