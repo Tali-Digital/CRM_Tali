@@ -36,7 +36,7 @@ interface Props {
 
 export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole, sectors, onAddSector, onEditSector, currentUserId }) => {
   const isUserVisible = (sectorId: string) => {
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'equipe') return true;
     const sector = sectors?.find(s => s.id === sectorId);
     if (!sector || !sector.visibility || sector.visibility.length === 0) return true;
     return sector.visibility.includes(currentUserId);
@@ -218,7 +218,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
             <Briefcase size={20} className="shrink-0" />
             {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Equipe</span>}
           </button>
-          {userRole !== 'equipe' && (
+          {userRole !== 'client' && (
             <button
               onClick={() => onTabChange('clientes')}
               className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${

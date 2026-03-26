@@ -912,7 +912,7 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
     return () => window.removeEventListener('pointermove', handleGlobalPointerMove);
   }, []);
 
-  const isSystemAdmin = userRole === 'admin';
+  const isSystemAdmin = userRole === 'admin' || userRole === 'equipe';
   const visibleLists = lists.filter(list => {
     if (isSystemAdmin) return true;
     if (!list.isRestricted) return true;

@@ -1011,7 +1011,6 @@ export function App() {
           />
         );
       case 'comercial':
-        if (userProfile?.role === 'equipe') return null;
         return (
           <CommercialView 
             viewMode={sectorViewMode} 
@@ -1039,7 +1038,6 @@ export function App() {
           />
         );
       case 'integracao':
-        if (userProfile?.role === 'equipe') return null;
         return (
           <FinancialView 
             viewMode={sectorViewMode} 
@@ -1067,7 +1065,6 @@ export function App() {
           />
         );
       case 'operacao':
-        if (userProfile?.role === 'equipe') return null;
         return (
           <OperationView 
             viewMode={sectorViewMode} 
@@ -1095,7 +1092,6 @@ export function App() {
           />
         );
       case 'internal_tasks':
-        if (userProfile?.role === 'equipe') return null;
         return (
           <InternalTasksView 
             viewMode={sectorViewMode} 
