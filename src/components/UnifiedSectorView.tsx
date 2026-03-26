@@ -619,6 +619,34 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
   const badgeBg = isLight ? 'bg-black/10' : 'bg-white/20';
   const badgeText = isLight ? 'text-stone-900' : 'text-white';
 
+  const activities = cards
+    .filter((c: any) => c.type !== 'client')
+    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+
+  const clientIdsInList = [...new Set(cards.map((c: any) => c.clientId).filter(Boolean))];
+  const virtualClientCards = clientIdsInList.map(clientId => {
+    const existingCard = cards.find((c: any) => c.clientId === clientId && c.type === 'client');
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return null;
+
+    return existingCard || {
+      id: `virtual-${clientId}`,
+      clientId,
+      type: 'client',
+      listId: list.id,
+      order: 0,
+      companyId: list.companyId,
+      createdAt: client.createdAt,
+      updatedAt: client.createdAt,
+      title: client.name,
+    };
+  }).filter(Boolean);
+
+  const allRenderedCardIds = [
+    ...activities.map((c: any) => c.id),
+    ...virtualClientCards.map((c: any) => c.id)
+  ];
+
   return (
     <div 
       id={`list-${list.id}`}
@@ -668,7 +696,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
 
       <SortableContext
         id={list.id}
-        items={cards.map((c: any) => c.id)}
+        items={allRenderedCardIds}
         strategy={verticalListSortingStrategy}
       >
         <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} min-h-[100px]`}>
@@ -676,17 +704,49 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
             <div className="flex-1 flex flex-col min-w-0">
               <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
                 <span>Atividades</span>
-                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{cards.filter((c: any) => c.type !== 'client').length}</span>
+                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{activities.length}</span>
               </div>
               <div className="flex-1 space-y-3 pr-1 overflow-y-auto custom-scrollbar">
-                {cards
-                  .filter((c: any) => c.type !== 'client')
-                  .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-                  .map((card: any) => (
+                {activities.map((card: any) => (
+                  <SortableCard 
+                    key={card.id} 
+                    card={card} 
+                    client={clients.find(c => c.id === card.clientId)}
+                    tags={tags}
+                    users={users}
+                    onEdit={onEditCard} 
+                    onQuickView={onQuickView}
+                    onUpdateCard={onUpdateCard}
+                    onDuplicate={onDuplicate}
+                    onArchive={onArchive}
+                    onComplete={onComplete}
+                    viewMode={viewMode}
+                    isHighlighted={highlightedCardId === card.id}
+                    sector={sector}
+                    userRole={userRole}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {showClients && (
+            <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
+              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
+                <span>Clientes</span>
+                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
+                  {virtualClientCards.length}
+                </span>
+              </div>
+              <div className="flex-1 space-y-2 pr-1 overflow-y-auto custom-scrollbar">
+                {virtualClientCards.map((cardToRender: any) => {
+                  const client = clients.find(c => c.id === cardToRender.clientId);
+                  if (!client) return null;
+
+                  return (
                     <SortableCard 
-                      key={card.id} 
-                      card={card} 
-                      client={clients.find(c => c.id === card.clientId)}
+                      key={cardToRender.id} 
+                      card={cardToRender} 
+                      client={client}
                       tags={tags}
                       users={users}
                       onEdit={onEditCard} 
@@ -696,64 +756,12 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
                       onArchive={onArchive}
                       onComplete={onComplete}
                       viewMode={viewMode}
-                      isHighlighted={highlightedCardId === card.id}
+                      isHighlighted={highlightedCardId === cardToRender.id}
                       sector={sector}
                       userRole={userRole}
                     />
-                  ))}
-              </div>
-            </div>
-          )}
-          {showClients && (
-            <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
-              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
-                <span>Clientes</span>
-                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
-                  {[...new Set(cards.map((c: any) => c.clientId).filter(Boolean))].length}
-                </span>
-              </div>
-              <div className="flex-1 space-y-2 pr-1 overflow-y-auto custom-scrollbar">
-                {(() => {
-                  const clientIdsInList = [...new Set(cards.map((c: any) => c.clientId).filter(Boolean))];
-                  
-                  return clientIdsInList.map(clientId => {
-                    const existingCard = cards.find((c: any) => c.clientId === clientId && c.type === 'client');
-                    const client = clients.find(c => c.id === clientId);
-                    if (!client) return null;
-
-                    const cardToRender = existingCard || {
-                      id: `virtual-${clientId}`,
-                      clientId,
-                      type: 'client',
-                      listId: list.id,
-                      order: 0,
-                      companyId: list.companyId,
-                      createdAt: client.createdAt,
-                      updatedAt: client.createdAt,
-                      title: client.name,
-                    };
-
-                    return (
-                      <SortableCard 
-                        key={cardToRender.id} 
-                        card={cardToRender} 
-                        client={client}
-                        tags={tags}
-                        users={users}
-                        onEdit={onEditCard} 
-                        onQuickView={onQuickView}
-                        onUpdateCard={onUpdateCard}
-                        onDuplicate={onDuplicate}
-                        onArchive={onArchive}
-                        onComplete={onComplete}
-                        viewMode={viewMode}
-                        isHighlighted={highlightedCardId === cardToRender.id}
-                        sector={sector}
-                        userRole={userRole}
-                      />
-                    );
-                  });
-                })()}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -920,7 +928,7 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
     return list.visibleTo && list.visibleTo.includes(auth.currentUser.uid);
   });
 
-  const visibleListIds = visibleLists.map(l => l.id);
+  const visibleListIds = visibleLists.sort((a, b) => (a.order || 0) - (b.order || 0)).map(l => l.id);
   const activeCards = cards.filter(c => !c.completed && !c.deleted && visibleListIds.includes(c.listId));
 
   const handleAddList = async (e: React.FormEvent) => {

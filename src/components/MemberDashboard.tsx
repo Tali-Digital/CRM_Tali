@@ -17,8 +17,9 @@ import {
 import { 
   SortableContext, 
   sortableKeyboardCoordinates, 
-  verticalListSortingStrategy, 
-  useSortable 
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { updateCardTimer } from '../services/firestoreService';
@@ -422,7 +423,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     ...financialCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed).map(c => ({ ...c, sector: 'integracao' })),
     ...operationCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed).map(c => ({ ...c, sector: 'operacao' })),
     ...internalTaskCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed).map(c => ({ ...c, sector: 'internal_tasks' }))
-  ];
+  ].sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const columns = {
     pendente: allActiveTasks.filter(t => !t.workerFinished && (t.timerStatus === 'idle' || !t.timerStatus)),
@@ -477,7 +478,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
 
     const card = active.data.current?.card;
     const sector = active.data.current?.sector;
-    const targetColumn = over.id as string;
+    const overId = over.id as string;
+
+    // Handle same card drop
+    if (active.id === overId) return;
+
+    // Is it a column drop or a card drop?
+    const isOverColumn = ['pendente', 'andamento', 'concluido'].includes(overId);
+    const targetColumn = isOverColumn ? overId : (over.data.current?.sortable?.containerId || 'pendente');
 
     if (targetColumn === 'andamento') {
       const updates: any = { workerFinished: false };
@@ -495,6 +503,18 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
         await handlePauseTimer(card, sector);
       }
       await onUpdateCard(card.id, sector, { workerFinished: false, timerStatus: 'idle' });
+    }
+
+    // Handle reordering within the same column or across
+    const currentColumnCards = columns[targetColumn as keyof typeof columns];
+    const oldIndex = currentColumnCards.findIndex(c => c.id === active.id);
+    const newIndex = isOverColumn ? currentColumnCards.length : currentColumnCards.findIndex(c => c.id === overId);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+       const reordered = arrayMove(currentColumnCards, oldIndex, newIndex);
+       reordered.forEach((c, index) => {
+         if (c.order !== index) onUpdateCard(c.id, c.sector, { order: index });
+       });
     }
   };
 
