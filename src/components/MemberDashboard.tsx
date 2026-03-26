@@ -425,8 +425,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   ];
 
   const columns = {
-    pendente: allActiveTasks.filter(t => t.timerStatus !== 'running' && !t.workerFinished),
-    andamento: allActiveTasks.filter(t => t.timerStatus === 'running'),
+    pendente: allActiveTasks.filter(t => !t.workerFinished && (t.timerStatus === 'idle' || !t.timerStatus)),
+    andamento: allActiveTasks.filter(t => !t.workerFinished && (t.timerStatus === 'running' || t.timerStatus === 'paused')),
     concluido: allActiveTasks.filter(t => t.workerFinished)
   };
 
@@ -480,24 +480,21 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     const targetColumn = over.id as string;
 
     if (targetColumn === 'andamento') {
-      await handleStartTimer(card, sector);
-      await onUpdateCard(card.id, sector, { workerFinished: false });
+      const updates: any = { workerFinished: false };
+      if (card.timerStatus === 'idle' || !card.timerStatus) {
+        updates.timerStatus = 'paused';
+      }
+      await onUpdateCard(card.id, sector, updates);
     } else if (targetColumn === 'concluido') {
       if (card.timerStatus === 'running') {
         await handlePauseTimer(card, sector);
       }
-      await onUpdateCard(card.id, sector, { workerFinished: true, timerStatus: 'idle' });
+      await onUpdateCard(card.id, sector, { workerFinished: true });
     } else if (targetColumn === 'pendente') {
       if (card.timerStatus === 'running') {
         await handlePauseTimer(card, sector);
-      } else {
-        await updateCardTimer(card.id, sector, {
-          timeSpent: card.timeSpent || 0,
-          timerStartedAt: null,
-          timerStatus: 'idle'
-        });
       }
-      await onUpdateCard(card.id, sector, { workerFinished: false });
+      await onUpdateCard(card.id, sector, { workerFinished: false, timerStatus: 'idle' });
     }
   };
 
