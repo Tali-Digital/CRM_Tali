@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, CommercialCard, FinancialCard, OperationCard, InternalTaskCard, Tag, Client } from '../types';
-import { Clock, CheckSquare, DollarSign, User, Mail, Briefcase, GripVertical, Timer, AlertCircle, Calendar, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Clock, CheckSquare, DollarSign, User, Mail, Briefcase, GripVertical, Timer, AlertCircle, Calendar, RotateCcw, CheckCircle2, Play, Pause, ExternalLink } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { 
   DndContext, 
@@ -32,10 +32,11 @@ interface MemberDashboardProps {
   internalTaskCards: InternalTaskCard[];
   tags: Tag[];
   clients: Client[];
+  users: UserProfile[];
   onUpdateCard: (cardId: string, sector: string, data: any) => Promise<void>;
 }
 
-const SortableMemberCard = ({ card, sector, clients, users, onQuickView }: { card: any, sector: string, clients: Client[], users: UserProfile[], onQuickView: (card: any, sector: string) => void, key?: string | number }) => {
+const SortableMemberCard = ({ card, sector, clients, users, onQuickView, elapsedTime, onStartTimer, onPauseTimer, formatTime }: { card: any, sector: string, clients: Client[], users: UserProfile[], onQuickView: (card: any, sector: string) => void, elapsedTime: number, onStartTimer: (card: any, sector: string) => Promise<void>, onPauseTimer: (card: any, sector: string) => Promise<void>, formatTime: (s: number) => string, key?: string | number }) => {
   const {
     attributes,
     listeners,
@@ -106,147 +107,190 @@ const SortableMemberCard = ({ card, sector, clients, users, onQuickView }: { car
         backgroundColor: bgColor, 
         borderColor: borderColor,
       }}
-      onClick={() => onQuickView(card, sector)}
-      className={`p-4 rounded-2xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ring-2 ring-white ring-inset ${isDragging ? 'opacity-0' : ''}`}
+      className={`p-4 rounded-[2rem] shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ring-2 ring-white ring-inset ${isDragging ? 'opacity-0' : ''}`}
     >
-      {(isCardOverdue || isCardDueToday || isCardNearDue) && (
-        <div className="flex items-center justify-between mb-3 px-1">
-          <div 
-            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
-            style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
-          >
-            {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
-          </div>
-          <span className={`text-[9px] font-black transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/80' : isCardNearDue ? 'text-orange-500' : 'text-red-500'}`}>
-            {formatDate(card.deliveryDate)}
-          </span>
-        </div>
-      )}
+      <div 
+        className="absolute inset-0 z-0" 
+        onClick={() => onQuickView(card, sector)}
+      />
 
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-2">
-          <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass}`}>
-              <GripVertical size={14} />
-          </div>
-          <div className="flex flex-col">
-            <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
-              {card.title || card.clientName || 'Card sem título'}
-              {card.recurrence?.enabled && (
-                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100 font-black'}`}>
-                  <RotateCcw size={10} />
-                  <span className="text-[8px] font-black uppercase tracking-widest">Recorrente</span>
-                </div>
-              )}
-            </h4>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {isRunning && (
-            <div className="flex items-center gap-1 text-blue-600 animate-pulse">
-              <Timer size={14} />
-            </div>
-          )}
-          {isFinished && !isRunning && (
-             <CheckCircle2 size={16} className="text-green-600" />
-          )}
-        </div>
-      </div>
-
-      {card.statusTags && card.statusTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {card.statusTags.includes('aguardando equipe') && (
-            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 border border-blue-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-              <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-              Aguardando Equipe
-            </span>
-          )}
-          {card.statusTags.includes('em aprovação') && (
-            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600 border border-green-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-              <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-              Em Aprovação
-            </span>
-          )}
-          {card.statusTags.includes('aguardando cliente') && (
-            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-              <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-              Aguardando Cliente
-            </span>
-          )}
-        </div>
-      )}
-      
-      {total > 0 && (
-        <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
-          <CheckSquare size={12} />
-          <span>{completed}/{total}</span>
-        </div>
-      )}
-
-      {(card.startDate || card.deliveryDate) && !isCardOverdue && !isCardDueToday && !isCardNearDue && (
-        <div className="flex items-center gap-3 ml-6 mt-2 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
-          {card.startDate && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
-              <Calendar size={10} />
-              <span>{formatDate(card.startDate)}</span>
-            </div>
-          )}
-          {card.deliveryDate && (
-            <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white' : 'text-stone-500'}`}>
-              <Calendar size={10} />
-              <span>{formatDate(card.deliveryDate)}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mt-3 ml-6">
-        <div className="flex -space-x-2">
-          {card.assignees?.map((userId: string) => {
-            const user = users.find(u => u.id === userId);
-            if (!user) return null;
-            return (
-              <div 
-                key={user.id} 
-                title={user.name}
-                className={`w-5 h-5 rounded-full border overflow-hidden flex items-center justify-center shadow-sm ${isDarkBg ? 'border-white/20 bg-white/10' : 'border-white bg-stone-200'}`}
-              >
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className={`text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-600'}`}>{user.name.charAt(0)}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${
-            sector === 'comercial' ? 'bg-amber-100/50 text-amber-700' :
-            sector === 'integracao' ? 'bg-blue-100/50 text-blue-700' :
-            sector === 'operacao' ? 'bg-green-100/50 text-green-700' :
-            'bg-stone-100/50 text-stone-700'
-          }`}>
-            {sector === 'internal_tasks' ? 'Interno' : sector}
-          </span>
-          {client && (
+      <div className="relative z-10 pointer-events-none">
+        {(isCardOverdue || isCardDueToday || isCardNearDue) && (
+          <div className="flex items-center justify-between mb-3 px-1">
             <div 
-              title={`Cliente: ${client.name}`}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
+              className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-sm shadow-black/5 ${isCardNearDue ? 'bg-orange-500' : isCardOverdue ? 'bg-red-600' : ''}`}
+              style={isCardDueToday ? { backgroundColor: '#ff3f42' } : undefined}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${client.themeColor === 'yellow' ? 'bg-yellow-400' : 'bg-blue-400'}`} />
-              <span className="text-[9px] font-bold truncate max-w-[80px] uppercase tracking-tight">
-                {client.name}
-              </span>
+              {isCardOverdue ? 'EM ATRASO' : isCardDueToday ? 'VENCE HOJE' : 'PERTO DE VENCER'}
             </div>
+            <span className={`text-[9px] font-black transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/80' : isCardNearDue ? 'text-orange-500' : 'text-red-500'}`}>
+              {formatDate(card.deliveryDate)}
+            </span>
+          </div>
+        )}
+
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors pointer-events-auto ${iconColorClass}`}>
+                <GripVertical size={14} />
+            </div>
+            <div className="flex flex-col">
+              <h4 className={`font-extrabold text-sm ${textColorClass} flex items-center gap-2`}>
+                {card.title || card.clientName || 'Card sem título'}
+                {card.recurrence?.enabled && (
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${isDarkBg ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' : 'bg-blue-50 text-blue-600 border-blue-100 font-black'}`}>
+                    <RotateCcw size={10} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">Recorrente</span>
+                  </div>
+                )}
+              </h4>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isRunning && (
+              <div className="flex items-center gap-1 text-blue-600 animate-pulse">
+                <Timer size={14} />
+              </div>
+            )}
+            {isFinished && !isRunning && (
+               <CheckCircle2 size={16} className="text-green-600" />
+            )}
+          </div>
+        </div>
+
+        {card.statusTags && card.statusTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {card.statusTags.includes('aguardando equipe') && (
+              <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 border border-blue-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                Aguardando Equipe
+              </span>
+            )}
+            {card.statusTags.includes('em aprovação') && (
+              <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600 border border-green-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                Em Aprovação
+              </span>
+            )}
+            {card.statusTags.includes('aguardando cliente') && (
+              <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
+                <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
+                Aguardando Cliente
+              </span>
+            )}
+          </div>
+        )}
+        
+        {total > 0 && (
+          <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
+            <CheckSquare size={12} />
+            <span>{completed}/{total}</span>
+          </div>
+        )}
+
+        {(card.startDate || card.deliveryDate) && !isCardOverdue && !isCardDueToday && !isCardNearDue && (
+          <div className="flex items-center gap-3 ml-6 mt-2 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
+            {card.startDate && (
+              <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white/80' : 'text-stone-500'}`}>
+                <Calendar size={10} />
+                <span>{formatDate(card.startDate)}</span>
+              </div>
+            )}
+            {card.deliveryDate && (
+              <div className={`flex items-center gap-1 text-[10px] font-bold ${isDarkBg ? 'text-white' : 'text-stone-500'}`}>
+                <Calendar size={10} />
+                <span>{formatDate(card.deliveryDate)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-3 ml-6 flex-wrap gap-y-2">
+          <div className="flex -space-x-2">
+            {card.assignees?.map((userId: string) => {
+              const user = users.find(u => u.id === userId);
+              if (!user) return null;
+              return (
+                <div 
+                  key={user.id} 
+                  title={user.name}
+                  className={`w-5 h-5 rounded-full border overflow-hidden flex items-center justify-center shadow-sm ${isDarkBg ? 'border-white/20 bg-white/10' : 'border-white bg-stone-200'}`}
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className={`text-[8px] font-bold ${isDarkBg ? 'text-white/60' : 'text-stone-600'}`}>{user.name.charAt(0)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${
+              sector === 'comercial' ? 'bg-amber-100/50 text-amber-700' :
+              sector === 'integracao' ? 'bg-blue-100/50 text-blue-700' :
+              sector === 'operacao' ? 'bg-green-100/50 text-green-700' :
+              'bg-stone-100/50 text-stone-700'
+            }`}>
+              {sector === 'internal_tasks' ? 'Interno' : sector}
+            </span>
+            {client && (
+              <div 
+                title={`Cliente: ${client.name}`}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${client.themeColor === 'yellow' ? 'bg-yellow-400' : 'bg-blue-400'}`} />
+                <span className="text-[9px] font-bold truncate max-w-[80px] uppercase tracking-tight">
+                  {client.name}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Row - PREMIUM - Only visible on hover */}
+        <div className="mt-4 pt-4 border-t border-stone-100/30 flex items-center justify-center gap-2 transition-all duration-300 pointer-events-auto opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
+          {/* Action: Start/Pause */}
+          {isRunning ? (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onPauseTimer(card, sector); }}
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all shadow-sm border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-600 hover:text-white'}`}
+            >
+              <Pause size={14} fill="currentColor" />
+            </button>
+          ) : (
+            !isFinished && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onStartTimer(card, sector); }}
+                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all shadow-sm border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'bg-stone-50 text-stone-300 border-stone-100 hover:bg-green-600 hover:text-white'}`}
+              >
+                <Play size={14} fill="currentColor" className="ml-0.5" />
+              </button>
+            )
           )}
+
+          {/* Timer Display */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-stone-100 shadow-inner min-w-[90px] justify-center">
+            <Clock size={12} className={isRunning ? 'text-blue-500 animate-pulse' : 'text-stone-300'} />
+            <span className="text-[10px] font-black font-mono tracking-wider text-stone-900">
+              {formatTime(elapsedTime)}
+            </span>
+          </div>
+
+          <button 
+            onClick={() => onQuickView(card, sector)}
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all shadow-sm border ${isDarkBg ? 'bg-white/10 text-white border-white/20' : 'bg-stone-50 text-stone-400 border-stone-100 hover:bg-blue-600 hover:text-white'}`}
+          >
+            <ExternalLink size={14} />
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const DroppableColumn = ({ id, title, cards, clients, users, onQuickView }: { id: string, title: string, cards: any[], clients: Client[], users: UserProfile[], onQuickView: (card: any, sector: string) => void }) => {
+const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapsedTimes, onStartTimer, onPauseTimer, formatTime }: { id: string, title: string, cards: any[], clients: Client[], users: UserProfile[], onQuickView: (card: any, sector: string) => void, elapsedTimes: Record<string, number>, onStartTimer: (card: any, sector: string) => Promise<void>, onPauseTimer: (card: any, sector: string) => Promise<void>, formatTime: (s: number) => string }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   const getColColor = () => {
@@ -280,7 +324,18 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView }: { id
       <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
         <div className="flex-1 space-y-3">
           {cards.map(card => (
-            <SortableMemberCard key={card.id} card={card} sector={card.sector} clients={clients} users={users} onQuickView={onQuickView} />
+            <SortableMemberCard 
+              key={card.id} 
+              card={card} 
+              sector={card.sector} 
+              clients={clients} 
+              users={users} 
+              onQuickView={onQuickView} 
+              elapsedTime={elapsedTimes[card.id] || card.timeSpent || 0}
+              onStartTimer={onStartTimer}
+              onPauseTimer={onPauseTimer}
+              formatTime={formatTime}
+            />
           ))}
           {cards.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center opacity-30 py-12 text-stone-400">
@@ -302,11 +357,39 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   internalTaskCards,
   tags,
   clients,
+  users,
   onUpdateCard
 }) => {
   const [activeDragCard, setActiveDragCard] = useState<any>(null);
   const [quickViewCard, setQuickViewCard] = useState<any>(null);
   const [quickViewSector, setQuickViewSector] = useState<'commercial' | 'financial' | 'operation' | 'internal'>('internal');
+  const [elapsedTimes, setElapsedTimes] = useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const newElapsed: Record<string, number> = {};
+      const allTasks = [
+        ...commercialCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed),
+        ...financialCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed),
+        ...operationCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed),
+        ...internalTaskCards.filter(c => c.assignees?.includes(userProfile.id) && !c.deleted && !c.completed)
+      ];
+      
+      allTasks.forEach(task => {
+        if (task.timerStatus === 'running' && task.timerStartedAt) {
+          const startedAt = task.timerStartedAt instanceof Timestamp 
+            ? task.timerStartedAt.toDate() 
+            : new Date(task.timerStartedAt);
+          const diffInSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+          newElapsed[task.id] = (task.timeSpent || 0) + diffInSeconds;
+        }
+      });
+      
+      setElapsedTimes(newElapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [userProfile.id, commercialCards, financialCards, operationCards, internalTaskCards]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -357,6 +440,36 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     setActiveDragCard(active.data.current?.card);
   };
 
+  const handleStartTimer = async (card: any, sector: string) => {
+    // Check if another task is running
+    const runningTask = allActiveTasks.find(t => t.timerStatus === 'running');
+    if (runningTask && runningTask.id !== card.id) {
+      alert(`Você já tem uma tarefa em andamento: "${runningTask.title || (runningTask as any).clientName}". Pause-a primeiro.`);
+      return;
+    }
+
+    await updateCardTimer(card.id, sector, {
+      timeSpent: card.timeSpent || 0,
+      timerStartedAt: new Date(),
+      timerStatus: 'running'
+    });
+  };
+
+  const handlePauseTimer = async (card: any, sector: string) => {
+    if (!card.timerStartedAt) return;
+    const startedAt = card.timerStartedAt instanceof Timestamp 
+      ? card.timerStartedAt.toDate() 
+      : new Date(card.timerStartedAt);
+    const diffInSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+    const totalTime = (card.timeSpent || 0) + diffInSeconds;
+
+    await updateCardTimer(card.id, sector, {
+      timeSpent: totalTime,
+      timerStartedAt: null,
+      timerStatus: 'paused'
+    });
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragCard(null);
@@ -367,12 +480,23 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     const targetColumn = over.id as string;
 
     if (targetColumn === 'andamento') {
-      await updateCardTimer(card.id, 'running', sector);
+      await handleStartTimer(card, sector);
       await onUpdateCard(card.id, sector, { workerFinished: false });
     } else if (targetColumn === 'concluido') {
+      if (card.timerStatus === 'running') {
+        await handlePauseTimer(card, sector);
+      }
       await onUpdateCard(card.id, sector, { workerFinished: true, timerStatus: 'idle' });
     } else if (targetColumn === 'pendente') {
-      await updateCardTimer(card.id, 'idle', sector);
+      if (card.timerStatus === 'running') {
+        await handlePauseTimer(card, sector);
+      } else {
+        await updateCardTimer(card.id, sector, {
+          timeSpent: card.timeSpent || 0,
+          timerStartedAt: null,
+          timerStatus: 'idle'
+        });
+      }
       await onUpdateCard(card.id, sector, { workerFinished: false });
     }
   };
@@ -395,132 +519,163 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const totalHours = totalSeconds / 3600;
   const totalPayout = totalHours * (userProfile.hourlyRate || 0);
 
-  const allUsers = [userProfile]; // For simplicity in the dashboard, just show current user and we could pass others if needed
-
   return (
     <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
       <div className="flex-1 overflow-y-auto custom-scrollbar h-full pr-2 space-y-8 pb-10">
-      {/* Top Section - Member Quickview in Large Scale */}
-      <div className="bg-white rounded-[2.5rem] p-8 border-2 border-stone-100 shadow-sm space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="flex flex-col md:flex-row items-center gap-8">
-           <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-stone-50 shrink-0">
-             {userProfile.photoURL ? (
-               <img src={userProfile.photoURL} alt={userProfile.name} className="w-full h-full object-cover" />
-             ) : (
-               <div className="w-full h-full flex items-center justify-center bg-stone-100 text-stone-400">
-                 <User size={60} />
+        {/* Top Section - Member Quickview in Large Scale */}
+        <div className="bg-white rounded-[2.5rem] p-8 border-2 border-stone-100 shadow-sm space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col md:flex-row items-center gap-8">
+             <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-stone-50 shrink-0">
+               {userProfile.photoURL ? (
+                 <img src={userProfile.photoURL} alt={userProfile.name} className="w-full h-full object-cover" />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center bg-stone-100 text-stone-400">
+                   <User size={60} />
+                 </div>
+               )}
+             </div>
+             
+             <div className="flex-1 text-center md:text-left">
+               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
+                 <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
+                   {userProfile.teamCategory || 'Membro da Equipe'}
+                 </span>
+                 <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Status Ativo</span>
+                 </div>
                </div>
-             )}
-           </div>
-           
-           <div className="flex-1 text-center md:text-left">
-             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
-               <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
-                 {userProfile.teamCategory || 'Membro da Equipe'}
-               </span>
-               <div className="flex items-center gap-2">
-                 <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Status Ativo</span>
+               <h1 className="text-3xl md:text-5xl font-black text-stone-900 leading-tight tracking-tight mb-3 uppercase">{userProfile.name}</h1>
+               <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2 text-stone-500">
+                 <div className="flex items-center gap-2">
+                   <Mail size={16} className="text-stone-300" />
+                   <span className="text-sm font-bold">{userProfile.email}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <Briefcase size={16} className="text-stone-300" />
+                   <span className="text-sm font-bold uppercase tracking-widest text-stone-400">{userProfile.role}</span>
+                 </div>
                </div>
              </div>
-             <h1 className="text-3xl md:text-5xl font-black text-stone-900 leading-tight tracking-tight mb-3 uppercase">{userProfile.name}</h1>
-             <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2 text-stone-500">
-               <div className="flex items-center gap-2">
-                 <Mail size={16} className="text-stone-300" />
-                 <span className="text-sm font-bold">{userProfile.email}</span>
-               </div>
-               <div className="flex items-center gap-2">
-                 <Briefcase size={16} className="text-stone-300" />
-                 <span className="text-sm font-bold uppercase tracking-widest text-stone-400">{userProfile.role}</span>
-               </div>
-             </div>
-           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Hours Card */}
-          <div className="bg-stone-50 rounded-[2rem] p-8 border border-stone-100 flex flex-col justify-between group hover:bg-stone-100 transition-all duration-300">
-            <div className="flex items-center gap-4 text-stone-400 mb-8">
-              <div className="p-3 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                <Clock size={24} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Tempo Trabalhado</span>
-            </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-black text-stone-900 leading-none">{formatTime(totalSeconds)}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Mês Atual</span>
-            </div>
           </div>
 
-          {/* Tasks Card */}
-          <div className="bg-stone-50 rounded-[2rem] p-8 border border-stone-100 flex flex-col justify-between group hover:bg-stone-100 transition-all duration-300">
-            <div className="flex items-center gap-4 text-stone-400 mb-8">
-              <div className="p-3 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                <CheckSquare size={24} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Hours Card */}
+            <div className="bg-stone-50 rounded-[2rem] p-8 border border-stone-100 flex flex-col justify-between group hover:bg-stone-100 transition-all duration-300">
+              <div className="flex items-center gap-4 text-stone-400 mb-8">
+                <div className="p-3 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                  <Clock size={24} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Tempo Trabalhado</span>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Tarefas Pendentes</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-black text-stone-900 leading-none">{formatTime(totalSeconds)}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Mês Atual</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-black text-stone-900 leading-none">{getUserTasksCount(userProfile.id).toString().padStart(2, '0')}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Em Aberto</span>
-            </div>
-          </div>
 
-          {/* Earnings Card */}
-          <div className="bg-stone-900 rounded-[2rem] p-8 shadow-xl shadow-stone-900/20 flex flex-col justify-between group hover:-translate-y-1 transition-all duration-300">
-            <div className="flex items-center gap-4 text-stone-400 mb-8">
-              <div className="p-3 bg-white/10 rounded-2xl group-hover:bg-white/20 transition-colors">
-                <DollarSign size={24} className="text-white" />
+            {/* Tasks Card */}
+            <div className="bg-stone-50 rounded-[2rem] p-8 border border-stone-100 flex flex-col justify-between group hover:bg-stone-100 transition-all duration-300">
+              <div className="flex items-center gap-4 text-stone-400 mb-8">
+                <div className="p-3 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                  <CheckSquare size={24} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Tarefas Pendentes</span>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Previsão de Ganhos</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-black text-stone-900 leading-none">{getUserTasksCount(userProfile.id).toString().padStart(2, '0')}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Em Aberto</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-black text-white leading-none">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPayout)}
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">Mês Atual</span>
+
+            {/* Earnings Card */}
+            <div className="bg-stone-900 rounded-[2rem] p-8 shadow-xl shadow-stone-900/20 flex flex-col justify-between group hover:-translate-y-1 transition-all duration-300">
+              <div className="flex items-center gap-4 text-stone-400 mb-8">
+                <div className="p-3 bg-white/10 rounded-2xl group-hover:bg-white/20 transition-colors">
+                  <DollarSign size={24} className="text-white" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Previsão de Ganhos</span>
+              </div>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-black text-white leading-none">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPayout)}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">Mês Atual</span>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Kanban Section */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex flex-col md:flex-row gap-6 h-full px-1">
+            <DroppableColumn 
+              id="pendente" 
+              title="Pendente" 
+              cards={columns.pendente} 
+              clients={clients} 
+              users={users} 
+              onQuickView={handleOpenQuickView}
+              elapsedTimes={elapsedTimes}
+              onStartTimer={handleStartTimer}
+              onPauseTimer={handlePauseTimer}
+              formatTime={formatTime}
+            />
+            <DroppableColumn 
+              id="andamento" 
+              title="Em Andamento" 
+              cards={columns.andamento} 
+              clients={clients} 
+              users={users} 
+              onQuickView={handleOpenQuickView}
+              elapsedTimes={elapsedTimes}
+              onStartTimer={handleStartTimer}
+              onPauseTimer={handlePauseTimer}
+              formatTime={formatTime}
+            />
+            <DroppableColumn 
+              id="concluido" 
+              title="Concluído" 
+              cards={columns.concluido} 
+              clients={clients} 
+              users={users} 
+              onQuickView={handleOpenQuickView}
+              elapsedTimes={elapsedTimes}
+              onStartTimer={handleStartTimer}
+              onPauseTimer={handlePauseTimer}
+              formatTime={formatTime}
+            />
+          </div>
+
+          <DragOverlay>
+            {activeDragCard ? (
+              <div className="bg-white p-4 rounded-2xl border-2 border-blue-500 shadow-2xl opacity-80 scale-105">
+                <h4 className="font-bold text-xs text-stone-900 uppercase tracking-tight">{activeDragCard.title || activeDragCard.clientName || 'Tarefa'}</h4>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        <QuickViewCardModal 
+          isOpen={!!quickViewCard}
+          onClose={() => setQuickViewCard(null)}
+          card={quickViewCard}
+          client={clients.find(c => c.id === quickViewCard?.clientId)}
+          users={[userProfile]}
+          tags={tags}
+          onEdit={() => {}} // Team members cannot edit full card details from dashboard
+          sector={quickViewSector}
+          allCommercialCards={commercialCards}
+          allFinancialCards={financialCards}
+          allOperationCards={operationCards}
+          allInternalTaskCards={internalTaskCards}
+        />
       </div>
-
-      {/* Kanban Section */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex flex-col md:flex-row gap-6 h-full px-1">
-          <DroppableColumn id="pendente" title="Pendente" cards={columns.pendente} clients={clients} users={[userProfile]} onQuickView={handleOpenQuickView} />
-          <DroppableColumn id="andamento" title="Em Andamento" cards={columns.andamento} clients={clients} users={[userProfile]} onQuickView={handleOpenQuickView} />
-          <DroppableColumn id="concluido" title="Concluído" cards={columns.concluido} clients={clients} users={[userProfile]} onQuickView={handleOpenQuickView} />
-        </div>
-
-        <DragOverlay>
-          {activeDragCard ? (
-            <div className="bg-white p-4 rounded-2xl border-2 border-blue-500 shadow-2xl opacity-80 scale-105">
-              <h4 className="font-bold text-xs text-stone-900 uppercase tracking-tight">{activeDragCard.title || activeDragCard.clientName || 'Tarefa'}</h4>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-
-      <QuickViewCardModal 
-        isOpen={!!quickViewCard}
-        onClose={() => setQuickViewCard(null)}
-        card={quickViewCard}
-        client={clients.find(c => c.id === quickViewCard?.clientId)}
-        users={[userProfile]}
-        tags={tags}
-        onEdit={() => {}} // Team members cannot edit full card details from dashboard
-        sector={quickViewSector}
-        allCommercialCards={commercialCards}
-        allFinancialCards={financialCards}
-        allOperationCards={operationCards}
-        allInternalTaskCards={internalTaskCards}
-      />
-    </div>
     </div>
   );
 };

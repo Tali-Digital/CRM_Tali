@@ -899,6 +899,7 @@ export function App() {
               internalTaskCards={internalTaskCards}
               tags={tags}
               clients={clients}
+              users={users}
               onUpdateCard={handleUpdateCard}
             />
           );
