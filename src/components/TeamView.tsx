@@ -765,10 +765,10 @@ export const TeamView: React.FC<TeamViewProps> = ({
                       <div className="flex items-center gap-2 relative z-10 transition-opacity">
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleUnassignTask(task); }}
-                          className="p-2 bg-stone-50 text-stone-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                          className="w-10 h-10 flex items-center justify-center bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all shadow-sm border border-stone-100/50"
                           title="Remover Atribuição"
                         >
-                          <UserMinus size={14} />
+                          <UserMinus size={16} />
                         </button>
                         {!task.completed && !task.workerFinished && (
                           <>
@@ -782,10 +782,10 @@ export const TeamView: React.FC<TeamViewProps> = ({
                                   }
                                   handlePauseTimer(task); 
                                 }}
-                                className={`p-2 rounded-xl transition-all ${currentUser?.id === selectedMember.id ? 'bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white' : 'bg-stone-50 text-stone-300 cursor-not-allowed'}`}
-                                title={currentUser?.id === selectedMember.id ? "Pausar Timer" : "Apenas o profissional pode pausar"}
+                                className="w-10 h-10 flex items-center justify-center bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white rounded-full transition-all shadow-sm border border-orange-100/50"
+                                title="Pausar Timer"
                               >
-                                <Pause size={14} />
+                                <Pause size={16} fill="currentColor" />
                               </button>
                             ) : (
                               <button 
@@ -797,10 +797,10 @@ export const TeamView: React.FC<TeamViewProps> = ({
                                   }
                                   handleStartTimer(task); 
                                 }}
-                                className={`p-2 rounded-xl transition-all ${currentUser?.id === selectedMember.id ? 'bg-green-100 text-green-600 hover:bg-green-600 hover:text-white' : 'bg-stone-50 text-stone-300 cursor-not-allowed'}`}
-                                title={currentUser?.id === selectedMember.id ? "Iniciar Timer" : "Apenas o profissional pode iniciar"}
+                                className="w-10 h-10 flex items-center justify-center bg-stone-50 text-stone-300 hover:bg-green-600 hover:text-white rounded-full transition-all shadow-sm border border-stone-100/50"
+                                title="Iniciar Timer"
                               >
-                                <Play size={14} />
+                                <Play size={16} fill="currentColor" className="ml-0.5" />
                               </button>
                             )}
                             <button 
@@ -812,13 +812,29 @@ export const TeamView: React.FC<TeamViewProps> = ({
                                 }
                                 handleFinishTimer(task); 
                               }}
-                              className={`p-2 rounded-xl transition-all ${currentUser?.id === selectedMember.id ? 'bg-stone-100 text-stone-600 hover:bg-stone-900 hover:text-white' : 'bg-stone-50 text-stone-300 cursor-not-allowed'}`}
-                              title={currentUser?.id === selectedMember.id ? "Finalizar Tarefa" : "Apenas o profissional pode finalizar"}
+                              className="w-10 h-10 flex items-center justify-center bg-stone-50 text-stone-300 hover:bg-stone-900 hover:text-white rounded-full transition-all shadow-sm border border-stone-100/50"
+                              title="Finalizar Tarefa"
                             >
-                              <CheckSquare size={14} />
+                              <CheckSquare size={16} />
                             </button>
                           </>
                         )}
+
+                        <div className="flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-2xl border border-stone-100/50 shadow-inner min-w-[100px] justify-center">
+                          <Clock size={14} className={task.timerStatus === 'running' ? 'text-blue-500 animate-pulse' : 'text-stone-300'} />
+                          <span className={`text-xs font-black font-mono tracking-wider ${task.timerStatus === 'running' ? 'text-stone-900' : 'text-stone-400'}`}>
+                            {formatTime(elapsedTimes[task.id] || task.timeSpent || 0)}
+                          </span>
+                        </div>
+
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleJumpToTask(task); }}
+                          className="w-10 h-10 flex items-center justify-center bg-stone-50 text-stone-400 hover:bg-blue-600 hover:text-white rounded-full transition-all shadow-sm border border-stone-100/50"
+                          title="Ir para o Card"
+                        >
+                          <ExternalLink size={16} />
+                        </button>
+
                         {task.workerFinished && !task.completed && (
                           <div className="flex items-center gap-1 group/approve relative">
                             {currentUser?.role === 'admin' ? (
@@ -848,8 +864,6 @@ export const TeamView: React.FC<TeamViewProps> = ({
                               >
                                 <CheckSquare size={14} className="group-hover/revoke:hidden" />
                                 <X size={14} className="hidden group-hover/revoke:block" />
-                                <span className="text-[9px] font-black uppercase tracking-widest group-hover/revoke:hidden">Aguardando Aprovação</span>
-                                <span className="text-[9px] font-black uppercase tracking-widest hidden group-hover/revoke:block">Desconcluir</span>
                               </button>
                             ) : (
                               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-xl border border-green-200">
