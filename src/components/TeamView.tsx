@@ -340,12 +340,13 @@ export const TeamView: React.FC<TeamViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#fdfdfd] p-6 lg:p-8 overflow-hidden font-nunito">
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-stone-900 leading-tight">Gestão de Equipe</h1>
-        <p className="text-stone-500 text-sm font-medium mt-1">
-          Organize e visualize todos os membros da sua equipe por categorias.
-        </p>
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8 font-nunito">
+      {/* Search Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Gestão de Equipe</h1>
+          <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Organize e visualize todos os membros da sua equipe por categorias.</p>
+        </div>
       </div>
 
       {/* Category Tabs */}

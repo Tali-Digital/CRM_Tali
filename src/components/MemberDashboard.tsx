@@ -398,7 +398,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const allUsers = [userProfile]; // For simplicity in the dashboard, just show current user and we could pass others if needed
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar h-full pr-2 space-y-8 pb-10">
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
+      <div className="flex-1 overflow-y-auto custom-scrollbar h-full pr-2 space-y-8 pb-10">
       {/* Top Section - Member Quickview in Large Scale */}
       <div className="bg-white rounded-[2.5rem] p-8 border-2 border-stone-100 shadow-sm space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="flex flex-col md:flex-row items-center gap-8">
@@ -519,6 +520,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
         allOperationCards={operationCards}
         allInternalTaskCards={internalTaskCards}
       />
+    </div>
     </div>
   );
 };

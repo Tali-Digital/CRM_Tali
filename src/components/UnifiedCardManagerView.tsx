@@ -245,11 +245,12 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex justify-between items-center mb-8">
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Arquivo</h1>
-          <p className="text-stone-500 text-sm mt-1">Gerencie todos os cards ativos, concluídos e removidos em um só lugar.</p>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Gestão de Cards</h1>
+          <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Relatórios, restauração e exclusão permanente.</p>
         </div>
       </div>
 

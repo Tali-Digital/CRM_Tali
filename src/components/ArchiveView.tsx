@@ -72,55 +72,58 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-stone-50 overflow-hidden">
-      <div className="p-8 pb-4">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-black text-stone-900 tracking-tight">Cards Concluídos</h2>
-            <p className="text-stone-500 text-sm mt-1">Histórico de todas as atividades finalizadas.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-stone-100 px-4 py-2 rounded-2xl border border-stone-200 flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-stone-400" />
-              <span className="text-sm font-bold text-stone-600">{allCompletedCards.length} Cards</span>
-            </div>
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
+      {/* Search Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Arquivo</h1>
+          <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">
+            Gerencie todos os cards ativos, concluídos e removidos em um só lugar.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="bg-stone-50 px-4 py-2.5 rounded-2xl border border-stone-100 flex items-center gap-2 shadow-sm">
+            <CheckCircle2 size={16} className="text-stone-400" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-stone-600">{allCompletedCards.length} Concluídos</span>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+      <div className="flex flex-col gap-6 mb-8 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-stone-900 transition-colors" size={18} />
             <input 
               type="text" 
               placeholder="Buscar por título ou cliente..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-stone-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all"
+              className="w-full bg-stone-50 border-2 border-transparent focus:border-stone-900/10 focus:bg-white rounded-2xl pl-12 pr-4 py-3.5 text-sm transition-all shadow-sm outline-none"
             />
           </div>
           
-          <div className="flex bg-stone-200 p-1 rounded-xl">
+          <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-100 shadow-inner">
             <button 
               onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'all' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'all' ? 'bg-white shadow-md text-stone-900' : 'text-stone-400 hover:text-stone-600'}`}
             >
               Todos
             </button>
             <button 
               onClick={() => setFilterType('commercial')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'commercial' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'commercial' ? 'bg-white shadow-md text-stone-900' : 'text-stone-400 hover:text-stone-600'}`}
             >
               Comercial
             </button>
             <button 
               onClick={() => setFilterType('integracao' as any)}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterType === ('integracao' as any) ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterType === ('integracao' as any) ? 'bg-white shadow-md text-stone-900' : 'text-stone-400 hover:text-stone-600'}`}
             >
               Integração
             </button>
             <button 
               onClick={() => setFilterType('operation')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'operation' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterType === 'operation' ? 'bg-white shadow-md text-stone-900' : 'text-stone-400 hover:text-stone-600'}`}
             >
               Operação
             </button>
@@ -128,7 +131,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {filteredCards.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>

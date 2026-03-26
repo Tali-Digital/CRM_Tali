@@ -173,11 +173,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
+      {/* Search Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Clientes</h1>
-          <p className="text-stone-500 text-xs md:text-sm mt-1">Base central de clientes e serviços.</p>
+          <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Base central de clientes e serviços.</p>
         </div>
         <div className="flex w-full md:w-auto gap-2">
           <button 
