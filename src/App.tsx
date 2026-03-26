@@ -1205,7 +1205,8 @@ export function App() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-h-screen bg-stone-50 flex">
+      <>
+        <div className="min-h-screen bg-stone-50 flex">
         <Sidebar 
           onLogout={handleLogout} 
           activeTab={activeTab}
@@ -1240,11 +1241,78 @@ export function App() {
               >
                 <Menu size={24} />
               </button>
-              <div className="shrink-0">
+              <div className="shrink-0 flex flex-col pt-1">
                 <h1 className="text-base md:text-lg font-black text-stone-900 tracking-tight leading-none">
                   Talí<span className="hidden sm:inline"> Agência Digital</span>
                 </h1>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]" />
+                  <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest leading-none">
+                    Olá, {userProfile?.name?.toUpperCase() || 'USUÁRIO'}
+                  </span>
+                </div>
               </div>
+              
+              {/* Filtros de Visualização de Setor */}
+              {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && (
+                <div className="hidden lg:flex items-center gap-4 ml-4">
+                  <div className="h-8 w-px bg-stone-100" />
+                  
+                  {/* View Mode Toggle */}
+                  <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
+                    <button 
+                      onClick={() => setSectorViewMode('kanban')}
+                      className={`p-2 rounded-xl transition-all ${sectorViewMode === 'kanban' ? 'bg-white shadow-md text-stone-900' : 'text-stone-300 hover:text-stone-500'}`}
+                      title="Kanban"
+                    >
+                      <LayoutGrid size={18} />
+                    </button>
+                    <button 
+                      onClick={() => setSectorViewMode('vertical')}
+                      className={`p-2 rounded-xl transition-all ${sectorViewMode === 'vertical' ? 'bg-white shadow-md text-stone-900' : 'text-stone-300 hover:text-stone-500'}`}
+                      title="Vertical"
+                    >
+                      <Layers size={18} />
+                    </button>
+                    <button 
+                      onClick={() => setSectorViewMode('list')}
+                      className={`p-2 rounded-xl transition-all ${sectorViewMode === 'list' ? 'bg-white shadow-md text-stone-900' : 'text-stone-300 hover:text-stone-500'}`}
+                      title="Lista"
+                    >
+                      <AlignLeft size={18} />
+                    </button>
+                    <button 
+                      onClick={() => setSectorViewMode('calendar')}
+                      className={`p-2 rounded-xl transition-all ${sectorViewMode === 'calendar' ? 'bg-white shadow-md text-stone-900' : 'text-stone-300 hover:text-stone-500'}`}
+                      title="Calendário"
+                    >
+                      <CalendarIcon size={18} />
+                    </button>
+                  </div>
+
+                  {/* Card Filter Toggle */}
+                  <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
+                    <button 
+                      onClick={() => setSectorCardFilter('cards')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'cards' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      Atividades
+                    </button>
+                    <button 
+                      onClick={() => setSectorCardFilter('clients')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'clients' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      Clientes
+                    </button>
+                    <button 
+                      onClick={() => setSectorCardFilter('both')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      Duo
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-2 md:gap-4 shrink-0">
@@ -1255,8 +1323,23 @@ export function App() {
                   setAudioMuted(!newState);
                   if (newState) initAudio();
                 }}
-                className={`p-2 md:p-3 rounded-2xl bg-stone-50 text-stone-600 hover:bg-stone-100 transition-all flex items-center justify-center border border-stone-100 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
+                className={`hidden md:flex items-center gap-2.5 px-4 py-2.5 rounded-2xl transition-all border font-nunito ${isAudioEnabled ? 'bg-green-50/50 text-green-600 border-green-200/50 hover:bg-green-50 shadow-sm' : 'bg-stone-50 text-stone-400 border-stone-200/60 hover:bg-stone-100'}`}
                 title={isAudioEnabled ? "Mutar sons" : "Ativar sons"}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${isAudioEnabled ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-stone-300'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {isAudioEnabled ? 'Sons Ativos' : 'Sons Mudos'}
+                </span>
+              </button>
+              
+              <button 
+                onClick={() => {
+                  const newState = !isAudioEnabled;
+                  setIsAudioEnabled(newState);
+                  setAudioMuted(!newState);
+                  if (newState) initAudio();
+                }}
+                className={`p-2.5 rounded-2xl md:hidden bg-stone-50 text-stone-600 border border-stone-100 ${isAudioEnabled ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
               >
                 {isAudioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
               </button>
@@ -1402,6 +1485,7 @@ export function App() {
           )}
         </div>
       </Modal>
+    </>
     </DndContext>
   );
 }
