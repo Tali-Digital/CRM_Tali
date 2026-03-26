@@ -887,6 +887,15 @@ export function App() {
   };
 
   const renderContent = () => {
+    const isTabAllowed = (tabId: string) => {
+      if (userProfile?.role === 'admin') return true;
+      if (['dashboard', 'equipe'].includes(tabId)) return true;
+      if (tabId === 'clientes') return userProfile?.role !== 'equipe';
+      const sector = allSectors.find(s => s.id === tabId);
+      if (!sector || !sector.visibility || sector.visibility.length === 0) return false;
+      return sector.visibility.includes(userProfile?.id);
+    };
+
     switch (activeTab) {
       case 'dashboard':
         if (userProfile?.role === 'equipe') {
@@ -1011,6 +1020,7 @@ export function App() {
           />
         );
       case 'comercial':
+        if (!isTabAllowed('comercial')) return null;
         return (
           <CommercialView 
             viewMode={sectorViewMode} 
@@ -1038,6 +1048,7 @@ export function App() {
           />
         );
       case 'integracao':
+        if (!isTabAllowed('integracao')) return null;
         return (
           <FinancialView 
             viewMode={sectorViewMode} 
@@ -1065,6 +1076,7 @@ export function App() {
           />
         );
       case 'operacao':
+        if (!isTabAllowed('operacao')) return null;
         return (
           <OperationView 
             viewMode={sectorViewMode} 
@@ -1092,6 +1104,7 @@ export function App() {
           />
         );
       case 'internal_tasks':
+        if (!isTabAllowed('internal_tasks')) return null;
         return (
           <InternalTasksView 
             viewMode={sectorViewMode} 
@@ -1156,7 +1169,8 @@ export function App() {
       default:
         const dynamicSector = allSectors.find(s => s.id === activeTab);
         if (dynamicSector) {
-           return (
+          if (!isTabAllowed(dynamicSector.id)) return null;
+          return (
             <UnifiedSectorView 
               sector={dynamicSector.id as any}
               viewMode={sectorViewMode} 
@@ -1476,8 +1490,8 @@ export function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-black text-stone-900 uppercase tracking-widest text-stone-400">Visibilidade por Usuário</label>
-              <p className="text-[10px] text-stone-500 mb-2">Se nenhum for selecionado, todos verão a aba. Se selecionar algum, apenas os selecionados verão.</p>
+              <label className="block text-xs font-black text-stone-900 uppercase tracking-widest text-stone-400">Liberar Acesso (Equipe)</label>
+              <p className="text-[10px] text-stone-500 mb-2">Por padrão, a aba fica invisível para Membros da Equipe. Selecione os membros que devem ter acesso abaixo.</p>
               <div className="max-h-48 overflow-y-auto custom-scrollbar border border-stone-100 rounded-xl p-2 space-y-1">
                 {users.sort((a,b) => a.name.localeCompare(b.name)).map(u => (
                   <label key={u.id} className="flex items-center gap-3 p-2 hover:bg-stone-50 rounded-lg cursor-pointer transition-colors">
