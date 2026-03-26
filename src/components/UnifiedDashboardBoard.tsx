@@ -629,7 +629,7 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
   );
 
   return (
-    <div className="flex flex-col h-full bg-[#fdfdfd] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
       {/* Search Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 py-1 px-2 gap-4">
         <div>

@@ -1000,8 +1000,35 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
     );
   }
 
+  const getSectorInfo = () => {
+    switch (sector) {
+      case 'commercial': return { title: 'Comercial', subtitle: 'Gerencie as oportunidades de negócio da sua empresa.' };
+      case 'financial': case 'integracao': return { title: 'Integração do Cliente', subtitle: 'Acompanhe e gerencie a integração dos novos clientes.' };
+      case 'operation': case 'operacao': return { title: 'Operação Contínua', subtitle: 'Gerencie as atividades recorrentes e entregas contínuas.' };
+      case 'internal': case 'internal_tasks': return { title: 'Tarefas Internas', subtitle: 'Organize as demandas internas da equipe.' };
+      default: 
+        const info = (allSectors as any[])?.find(s => s.id === sector);
+        return { title: info?.name || 'Setor', subtitle: '' };
+    }
+  };
+
+  const { title, subtitle } = getSectorInfo();
+
   return (
-    <div className={`flex-1 flex flex-col min-h-0 bg-[#F5F5F7] rounded-[2.5rem] overflow-hidden border border-stone-200 shadow-inner p-1`}>
+    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
+      {/* Search Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">{title}</h1>
+          {subtitle && (
+            <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className={`flex-1 flex flex-col min-h-0 bg-[#F5F5F7] rounded-[2.5rem] overflow-hidden border border-stone-200 shadow-inner p-1`}>
       
         <div 
           ref={boardRef}
@@ -1056,6 +1083,7 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
             <span className="font-black uppercase tracking-[0.2em] text-sm">Novo Setor</span>
           </button>
         </div>
+      </div>
       
 
       {/* Modais de Criar Lista/Card */}
