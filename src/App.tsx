@@ -1253,6 +1253,47 @@ export function App() {
                 </div>
               </div>
               
+              {/* Filtros de Dashboard */}
+              {activeTab === 'dashboard' && (
+                <div className="hidden md:flex items-center gap-4 ml-4">
+                  <div className="h-8 w-px bg-stone-100" />
+                  
+                  {/* Dashboard View Mode Toggle */}
+                  <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
+                    <button 
+                      onClick={() => setDashboardView('minhas')}
+                      className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dashboardView === 'minhas' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      Meus Cards
+                    </button>
+                    <button 
+                      onClick={() => setDashboardView('global')}
+                      className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dashboardView === 'global' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      Visão Global
+                    </button>
+                  </div>
+
+                  {/* Dashboard Layout Toggle */}
+                  <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
+                    <button 
+                      onClick={() => setSectorViewMode('kanban')}
+                      className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sectorViewMode === 'kanban' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      <LayoutGrid size={14} />
+                      Blocos
+                    </button>
+                    <button 
+                      onClick={() => setSectorViewMode('calendar')}
+                      className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sectorViewMode === 'calendar' ? 'bg-white shadow-md text-stone-900 border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
+                    >
+                      <CalendarIcon size={14} />
+                      Calendário
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Filtros de Visualização de Setor */}
               {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && (
                 <div className="hidden lg:flex items-center gap-4 ml-4">
