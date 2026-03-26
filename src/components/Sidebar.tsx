@@ -36,6 +36,7 @@ interface Props {
 
 export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole, sectors, onAddSector, onEditSector, currentUserId }) => {
   const isUserVisible = (sectorId: string) => {
+    if (userRole === 'admin') return true;
     const sector = sectors?.find(s => s.id === sectorId);
     if (!sector || !sector.visibility || sector.visibility.length === 0) return true;
     return sector.visibility.includes(currentUserId);
