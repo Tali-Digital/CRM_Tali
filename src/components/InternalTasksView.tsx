@@ -22,6 +22,7 @@ interface InternalTasksViewProps {
   allSectors?: any[];
   activeId?: string | null;
   activeCard?: any | null;
+  userRole?: string;
 }
 
 export const InternalTasksView: React.FC<InternalTasksViewProps> = (props) => {

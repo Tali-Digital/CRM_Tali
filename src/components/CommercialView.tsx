@@ -22,6 +22,7 @@ interface CommercialViewProps {
   allSectors?: any[];
   activeId?: string | null;
   activeCard?: any | null;
+  userRole?: string;
 }
 
 export const CommercialView: React.FC<CommercialViewProps> = (props) => {

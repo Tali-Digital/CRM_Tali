@@ -22,6 +22,7 @@ interface OperationViewProps {
   allSectors?: any[];
   activeId?: string | null;
   activeCard?: any | null;
+  userRole?: string;
 }
 
 export const OperationView: React.FC<OperationViewProps> = (props) => {

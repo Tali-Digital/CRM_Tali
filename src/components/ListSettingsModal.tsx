@@ -176,24 +176,16 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
               {isRestricted ? <EyeOff size={16} /> : <Eye size={16} />}
               Visibilidade
             </label>
-            <button
-              type="button"
-              onClick={() => setIsRestricted(!isRestricted)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:ring-offset-2 ${isRestricted ? 'bg-blue-600' : 'bg-stone-200'}`}
-            >
-              <span className="sr-only">Toggle visibility status</span>
-              <span aria-hidden="true" className={`pointer-events-none inline-block h-4 w-4 transform bg-white rounded-full shadow ring-0 transition duration-200 ease-in-out ${isRestricted ? 'translate-x-2' : '-translate-x-2'}`} />
-            </button>
+            <div className="flex items-center gap-2 text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md">
+               <span className="text-[10px] font-black uppercase">Privado</span>
+            </div>
           </div>
           
           <p className="text-[10px] text-stone-500 font-medium">
-            {isRestricted 
-              ? 'Apenas usuários selecionados poderão ver os cards deste setor.'
-              : 'Todos os usuários têm acesso para ver este setor e seus cards.'}
+            Por padrão, apenas administradores vêem este setor (coluna). Selecione abaixo os membros da equipe que devem ter acesso.
           </p>
 
-          {isRestricted && (
-            <div className="pt-2">
+          <div className="pt-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2 block">
                 Quem pode visualizar?
               </label>
@@ -227,7 +219,6 @@ export const ListSettingsModal: React.FC<ListSettingsModalProps> = ({ isOpen, on
                 ))}
               </div>
             </div>
-          )}
         </div>
 
         <div className="space-y-3">

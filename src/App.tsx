@@ -1045,6 +1045,7 @@ export function App() {
             allSectors={allSectors}
             activeId={activeId}
             activeCard={activeCard}
+            userRole={userProfile?.role}
           />
         );
       case 'integracao':
@@ -1073,6 +1074,7 @@ export function App() {
             allSectors={allSectors}
             activeId={activeId}
             activeCard={activeCard}
+            userRole={userProfile?.role}
           />
         );
       case 'operacao':
@@ -1101,6 +1103,7 @@ export function App() {
             allSectors={allSectors}
             activeId={activeId}
             activeCard={activeCard}
+            userRole={userProfile?.role}
           />
         );
       case 'internal_tasks':
@@ -1129,6 +1132,7 @@ export function App() {
             allSectors={allSectors}
             activeId={activeId}
             activeCard={activeCard}
+            userRole={userProfile?.role}
           />
         );
       case 'gestao':
@@ -1180,7 +1184,7 @@ export function App() {
               cards={(dynamicCards[dynamicSector.id] || []).filter(c => !c.deleted && !c.completed)} 
               clients={clients} 
               tags={tags} 
-              users={users} 
+              users={users}
               onJumpToCard={(cardId, sector) => {
                 setActiveTab(sector as any);
                 setJumpToCard({ id: cardId, sector });

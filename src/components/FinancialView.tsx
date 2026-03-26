@@ -22,6 +22,7 @@ interface FinancialViewProps {
   allSectors?: any[];
   activeId?: string | null;
   activeCard?: any | null;
+  userRole?: string;
 }
 
 export const FinancialView: React.FC<FinancialViewProps> = (props) => {

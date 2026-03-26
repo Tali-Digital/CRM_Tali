@@ -922,10 +922,10 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
 
   const isSystemAdmin = userRole === 'admin';
   const visibleLists = lists.filter(list => {
-    if (isSystemAdmin) return true;
-    if (!list.isRestricted) return true;
+    if (userRole === 'admin') return true;
+    if (!list.visibleTo || list.visibleTo.length === 0) return false;
     if (!auth.currentUser?.uid) return false;
-    return list.visibleTo && list.visibleTo.includes(auth.currentUser.uid);
+    return list.visibleTo.includes(auth.currentUser.uid);
   });
 
   const visibleListIds = visibleLists.sort((a, b) => (a.order || 0) - (b.order || 0)).map(l => l.id);
