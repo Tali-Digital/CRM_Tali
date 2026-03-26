@@ -34,13 +34,12 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
 
 
 
+  // Carga inicial e reset ao trocar de card
   useEffect(() => {
     if (card) {
+      setNotes(card.notes || '');
+      setSaveStatus('idle');
       setClientName(card.title || card.clientName || '');
-      // Somente atualiza notes se não estivermos com o status 'saving' ou 'saved' recente para evitar sobrescrita durante digitação
-      if (saveStatus === 'idle') {
-        setNotes(card.notes || '');
-      }
       setChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
@@ -49,16 +48,29 @@ export const EditCommercialCardModal: React.FC<EditCommercialCardModalProps> = (
       setRecurrence(card.recurrence);
       setCardColor(card.color || '#ffffff');
     }
-  }, [card, client]);
+  }, [card?.id]);
+
+  // Sincronização em segundo plano (evita sobrescrever o que o usuário está digitando)
+  useEffect(() => {
+    if (card && saveStatus === 'idle' && card.notes !== undefined && card.notes !== notes) {
+      setNotes(card.notes);
+    }
+  }, [card?.notes]);
 
   // Autosave for notes
   useEffect(() => {
-    if (!card || notes === (card.notes || '')) return;
+    if (!card || notes === (card.notes || '')) {
+      if (saveStatus !== 'saving' && saveStatus !== 'saved') setSaveStatus('idle');
+      return;
+    }
+
+    // Captura o ID atual para garantir que o save vá para o card correto
+    const currentCardId = card.id;
 
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await updateCommercialCard(card.id, { notes, updatedAt: new Date() });
+        await updateCommercialCard(currentCardId, { notes, updatedAt: new Date() });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 3000);
       } catch (err) {

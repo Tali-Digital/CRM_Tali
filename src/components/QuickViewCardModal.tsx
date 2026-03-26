@@ -143,41 +143,59 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
 
+  // Carga inicial e reset ao trocar de card
   useEffect(() => {
     if (card) {
-      // Somente atualiza localNotes se não estivermos editando ativamente
-      if (!isEditingNotes) {
-        setLocalNotes(card.notes || '');
-      }
+      setLocalNotes(card.notes || '');
+      setIsEditingNotes(false);
       setLocalTitle(card.type === 'client' && client ? client.name : (card.title || (card as any).clientName || ''));
       setLocalChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
+      setSaveStatus('idle');
     }
-  }, [card, client, isEditingNotes]);
+  }, [card?.id]);
 
-  // Debounced auto-save for notes
+  // Sincronização em segundo plano (se alguém mudar as notas via outro dispositivo)
   useEffect(() => {
-    if (!isEditingNotes) return;
-
-    // Se o conteúdo for igual ao do card, manter como 'idle'
-    if (localNotes === (card?.notes || '')) {
-      return;
+    if (card && !isEditingNotes && card.notes !== undefined && card.notes !== localNotes) {
+      setLocalNotes(card.notes);
     }
+  }, [card?.notes, isEditingNotes]);
+
+  // Autosave debounced
+  useEffect(() => {
+    if (!isEditingNotes || !card) return;
+    if (localNotes === (card.notes || '')) return;
+
+    // Capturar valores atuais para garantir que o salvamento vá para o card correto
+    const currentCardId = card.id;
+    const currentSector = sector;
 
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await syncUpdate({ notes: localNotes });
+        await syncUpdate(currentCardId, { notes: localNotes }, currentSector);
         setSaveStatus('saved');
-        // Volta para 'idle' após 3 segundos do salvamento
         setTimeout(() => setSaveStatus('idle'), 3000);
       } catch (err) {
-        console.error('Falha no auto-salve:', err);
+        console.error('Erro no auto-salve:', err);
         setSaveStatus('idle');
       }
-    }, 1000); // 1 segundo de intervalo após parar de digitar
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [localNotes, isEditingNotes, card?.id]);
+
+  // Função centralizada de salvamento com parâmetros explícitos
+  const syncUpdate = async (id: string, data: any, targetSector: string) => {
+    try {
+      if (targetSector === 'commercial') await updateCommercialCard(id, data);
+      else if (targetSector === 'financial') await updateFinancialCard(id, data);
+      else if (targetSector === 'operation') await updateOperationCard(id, data);
+      else if (targetSector === 'internal') await updateInternalTaskCard(id, data);
+    } catch (err) {
+      console.error('Erro ao sincronizar update:', err);
+    }
+  };
   if (!card) return null;
 
   const isClientCard = card.type === 'client';
@@ -213,17 +231,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const syncUpdate = async (data: any) => {
-    try {
-      if (sector === 'commercial') await updateCommercialCard(card.id, data);
-      else if (sector === 'financial') await updateFinancialCard(card.id, data);
-      else if (sector === 'operation') await updateOperationCard(card.id, data);
-      else if (sector === 'internal') await updateInternalTaskCard(card.id, data);
-    } catch (err) {
-      console.error('Erro ao atualizar card:', err);
-    }
-  };
-
   const toggleCheckItem = async (itemId: string) => {
     const item = localChecklist.find(i => i.id === itemId);
     if (item && !item.completed) {
@@ -233,7 +240,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
       item.id === itemId ? { ...item, completed: !item.completed } : item
     );
     setLocalChecklist(updated);
-    await syncUpdate({ checklist: updated });
+    await syncUpdate(card.id, { checklist: updated }, sector);
     if (isClientCard && client) {
       await updateClient(client.id, { checklist: updated });
     }
@@ -249,7 +256,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     const updated = [...localChecklist, newItem];
     setLocalChecklist(updated);
     setNewItemText('');
-    await syncUpdate({ checklist: updated });
+    await syncUpdate(card.id, { checklist: updated }, sector);
     if (isClientCard && client) {
       await updateClient(client.id, { checklist: updated });
     }
@@ -259,7 +266,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     playRemoveItemSound();
     const updated = localChecklist.filter(i => i.id !== itemId);
     setLocalChecklist(updated);
-    await syncUpdate({ checklist: updated });
+    await syncUpdate(card.id, { checklist: updated }, sector);
     if (isClientCard && client) {
       await updateClient(client.id, { checklist: updated });
     }
@@ -272,7 +279,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     );
     setLocalChecklist(updated);
     setEditingItemId(null);
-    await syncUpdate({ checklist: updated });
+    await syncUpdate(card.id, { checklist: updated }, sector);
     if (isClientCard && client) {
       await updateClient(client.id, { checklist: updated });
     }
@@ -289,14 +296,14 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const handleNotesBlur = async () => {
     setIsEditingNotes(false);
     if (localNotes !== card.notes) {
-      await syncUpdate({ notes: localNotes });
+      await syncUpdate(card.id, { notes: localNotes }, sector);
     }
   };
 
   const handleTitleBlur = async () => {
     setIsEditingTitle(false);
     if (card.type !== 'client' && localTitle !== (card.title || '')) {
-      await syncUpdate({ title: localTitle });
+      await syncUpdate(card.id, { title: localTitle }, sector);
     }
   };
   const handleCompleteCard = async () => {
@@ -845,7 +852,17 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                         />
                         <div className="flex justify-end gap-2">
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setIsEditingNotes(false); }}
+                            onClick={async (e) => { 
+                              e.stopPropagation(); 
+                              // Salva uma última vez ao fechar para garantir
+                              if (localNotes !== (card?.notes || '')) {
+                                setSaveStatus('saving');
+                                await syncUpdate(card.id, { notes: localNotes }, sector);
+                                setSaveStatus('saved');
+                                setTimeout(() => setSaveStatus('idle'), 2000);
+                              }
+                              setIsEditingNotes(false); 
+                            }}
                             className="px-8 py-2.5 bg-stone-900 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-stone-800 transition-all shadow-lg active:scale-95"
                           >
                             Fechar Editor

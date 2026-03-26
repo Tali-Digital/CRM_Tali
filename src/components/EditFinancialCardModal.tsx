@@ -34,13 +34,12 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
 
 
 
+  // Carga inicial e reset ao trocar de card
   useEffect(() => {
     if (card) {
+      setNotes(card.notes || '');
+      setSaveStatus('idle');
       setClientName(card.title || card.clientName || '');
-      // Somente atualiza notes se não estivermos salvando/salvo recentemente para evitar bugs na digitação
-      if (saveStatus === 'idle') {
-        setNotes(card.notes || '');
-      }
       setChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
@@ -49,16 +48,29 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
       setRecurrence(card.recurrence);
       setCardColor(card.color || '#ffffff');
     }
-  }, [card, client]);
+  }, [card?.id]);
 
-  // Debounced auto-save for notes
+  // Sincronização em segundo plano (evita sobrescrever o que o usuário está digitando)
   useEffect(() => {
-    if (!card || notes === (card.notes || '')) return;
+    if (card && saveStatus === 'idle' && card.notes !== undefined && card.notes !== notes) {
+      setNotes(card.notes);
+    }
+  }, [card?.notes]);
+
+  // Autosave for notes
+  useEffect(() => {
+    if (!card || notes === (card.notes || '')) {
+      if (saveStatus !== 'saving' && saveStatus !== 'saved') setSaveStatus('idle');
+      return;
+    }
+
+    // Captura o ID atual para garantir que o save vá para o card correto
+    const currentCardId = card.id;
 
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await updateFinancialCard(card.id, { notes, updatedAt: new Date() });
+        await updateFinancialCard(currentCardId, { notes, updatedAt: new Date() });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 3000);
       } catch (err) {
