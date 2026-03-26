@@ -240,13 +240,40 @@ export function App() {
       currentCards = internalTaskCards;
       updateCardFn = updateInternalTaskCard;
       updateListFn = updateInternalTaskList;
+    } else if (activeTab === 'dashboard') {
+      const activeSector = active.data.current?.sector;
+      const overSector = over.data.current?.sector || (['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(overId) ? overId : null);
+      
+      if (activeSector && overSector && activeSector !== overSector) {
+        await moveCardBetweenSectors(finalActiveCard, activeSector, overSector);
+        return;
+      }
+      
+      if (activeSector) {
+        if (activeSector === 'comercial') {
+          currentLists = commercialLists;
+          currentCards = commercialCards;
+          updateCardFn = updateCommercialCard;
+        } else if (activeSector === 'integracao') {
+          currentLists = financialLists;
+          currentCards = financialCards;
+          updateCardFn = updateFinancialCard;
+        } else if (activeSector === 'operacao') {
+          currentLists = operationLists;
+          currentCards = operationCards;
+          updateCardFn = updateOperationCard;
+        } else if (activeSector === 'internal_tasks') {
+          currentLists = internalTaskLists;
+          currentCards = internalTaskCards;
+          updateCardFn = updateInternalTaskCard;
+        }
+      }
     } else {
       const dynamicS = allSectors.find(s => s.id === activeTab);
       if (dynamicS) {
         currentLists = dynamicLists[dynamicS.id] || [];
         currentCards = dynamicCards[dynamicS.id] || [];
         updateCardFn = updateDynamicCard;
-        // List sorting for dynamic sectors can be added later if needed
       }
     }
 

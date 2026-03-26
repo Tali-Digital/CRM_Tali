@@ -5,9 +5,18 @@ import { Timestamp } from 'firebase/firestore';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
 import { playSuccessSound, playDeleteSound } from '../utils/audio';
 import { 
+  SortableContext, 
+  sortableKeyboardCoordinates, 
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { 
   completeCommercialCard, completeFinancialCard, completeOperationCard, completeInternalTaskCard,
   deleteCommercialCard, deleteFinancialCard, deleteOperationCard, deleteInternalTaskCard,
-  duplicateCommercialCard, duplicateFinancialCard, duplicateOperationCard, duplicateInternalTaskCard
+  duplicateCommercialCard, duplicateFinancialCard, duplicateOperationCard, duplicateInternalTaskCard,
+  updateCommercialCard, updateFinancialCard, updateOperationCard, updateInternalTaskCard
 } from '../services/firestoreService';
 import { CardOptionsMenu } from './CardOptionsMenu';
 import { QuickViewCardModal } from './QuickViewCardModal';
@@ -173,6 +182,30 @@ const DashboardCard = ({
   onJumpToCard?: (cardId: string, sector: string) => void,
   userRole?: string
 }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    active,
+    isDragging
+  } = useSortable({ 
+    id: card.id,
+    data: { 
+      type: 'Card', 
+      card, 
+      sector: targetTab 
+    }
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 50 : undefined
+  };
+
   const [isFinishing, setIsFinishing] = useState(false);
   
   const handleComplete = async (e: React.MouseEvent) => {
@@ -226,15 +259,25 @@ const DashboardCard = ({
 
   return (
     <div 
+      ref={setNodeRef}
       onClick={() => !isFinishing && onQuickView(card, targetTab)}
       style={{ 
+        ...style,
         backgroundColor: bgColor, 
         borderColor: borderColor,
-        transform: isFinishing ? 'scale(1.02)' : 'none',
-        zIndex: isFinishing ? 50 : undefined
+        transform: isFinishing ? 'scale(1.02)' : style.transform,
       }}
-      className={`p-3.5 rounded-2xl shadow-sm border-2 mb-2 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
+      className={`p-3.5 rounded-2xl shadow-sm border-2 mb-2 cursor-pointer hover:shadow-md transition-all group relative card-draggable ${isDarkBg ? 'shadow-black/20' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''} ${isDragging ? 'opacity-0' : ''}`}
     >
+      {/* Handle for dragging */}
+      <div 
+        {...attributes} 
+        {...listeners}
+        className="absolute top-2 right-2 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-stone-300 hover:text-stone-600 z-40"
+      >
+        <GripVertical size={16} />
+      </div>
+
       {(isCardOverdue || isCardDueToday || isCardNearDue || (card.statusTags && card.statusTags.length > 0)) && (
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
@@ -725,20 +768,28 @@ export const UnifiedDashboardBoard: React.FC<Props> = ({
                   
                   {/* Individual Scroll Area */}
                   <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 pb-4">
-                    {sector.cards.map(card => (
-                      <DashboardCard 
-                        key={card.id}
-                        card={card}
-                        lists={sector.lists}
-                        targetTab={sector.tab as any}
-                        clients={clients}
-                        users={users}
-                        onQuickView={(c, tab) => { setQuickViewCard(c); setQuickViewTab(tab); }}
-                        handleOpenMenu={handleOpenMenu}
-                        onJumpToCard={onJumpToCard}
-                        userRole={userRole}
-                      />
-                    ))}
+                    <SortableContext items={sector.cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                      {sector.cards.map(card => (
+                        <DashboardCard 
+                          key={card.id}
+                          card={card}
+                          lists={sector.lists}
+                          targetTab={sector.tab as any}
+                          clients={clients}
+                          users={users}
+                          onQuickView={(c, tab) => { setQuickViewCard(c); setQuickViewTab(tab); }}
+                          handleOpenMenu={handleOpenMenu}
+                          onJumpToCard={onJumpToCard}
+                          userRole={userRole}
+                        />
+                      ))}
+                    </SortableContext>
+                    {sector.cards.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 text-stone-400 opacity-50">
+                        <CheckSquare size={32} className="mb-2" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma Atividade</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

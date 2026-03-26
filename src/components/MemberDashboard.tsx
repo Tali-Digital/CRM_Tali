@@ -505,15 +505,33 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
       await onUpdateCard(card.id, sector, { workerFinished: false, timerStatus: 'idle' });
     }
 
-    // Handle reordering within the same column or across
-    const currentColumnCards = columns[targetColumn as keyof typeof columns];
-    const oldIndex = currentColumnCards.findIndex(c => c.id === active.id);
-    const newIndex = isOverColumn ? currentColumnCards.length : currentColumnCards.findIndex(c => c.id === overId);
+    // Handle reordering
+    // To calculate new order properly, we need to know the cards in the TARGET column
+    const targetColumnCards = columns[targetColumn as keyof typeof columns];
+    
+    // Find the source column to get the old index
+    const sourceColumn = active.data.current?.sortable?.containerId || (columns.pendente.some(c => c.id === active.id) ? 'pendente' : columns.andamento.some(c => c.id === active.id) ? 'andamento' : 'concluido');
+    const sourceCards = columns[sourceColumn as keyof typeof columns];
+    const oldIndex = sourceCards.findIndex(c => c.id === active.id);
+    
+    // Calculate new position in target column
+    const overIndex = targetColumnCards.findIndex(c => c.id === overId);
+    const newIndex = isOverColumn ? targetColumnCards.length : (overIndex >= 0 ? overIndex : targetColumnCards.length);
 
-    if (oldIndex !== -1 && newIndex !== -1) {
-       const reordered = arrayMove(currentColumnCards, oldIndex, newIndex);
-       reordered.forEach((c, index) => {
-         if (c.order !== index) onUpdateCard(c.id, c.sector, { order: index });
+    // If it's the same column, use arrayMove logic
+    if (sourceColumn === targetColumn) {
+       if (oldIndex !== newIndex) {
+         const reordered = arrayMove(targetColumnCards, oldIndex, newIndex);
+         reordered.forEach((c, index) => {
+           if (c.order !== index) onUpdateCard(c.id, c.sector, { order: index });
+         });
+       }
+    } else {
+       // Across columns: insert at newIndex and update all orders in target
+       const newCards = [...targetColumnCards];
+       newCards.splice(newIndex, 0, card);
+       newCards.forEach((c, index) => {
+          onUpdateCard(c.id, c.sector, { order: index });
        });
     }
   };
