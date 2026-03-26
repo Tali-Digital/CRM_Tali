@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, UserProfile } from '../types';
 import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
@@ -68,8 +68,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Client Form State
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [clientName, setClientName] = useState('');
   const [clientTheme, setClientTheme] = useState<'blue' | 'yellow'>('blue');
   const [clientTags, setClientTags] = useState<string[]>([]);
@@ -99,6 +98,28 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setClientDriveLink(client.driveLink || '');
     setIsClientModalOpen(true);
   };
+
+  // Autosave for client notes
+  useEffect(() => {
+    if (!editingClient || clientNotes === (editingClient.notes || '')) {
+      setSaveStatus('idle');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await updateClient(editingClient.id, { notes: clientNotes });
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (err) {
+        console.error('Falha no auto-salve:', err);
+        setSaveStatus('idle');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [clientNotes, editingClient?.id]);
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -487,6 +508,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               onChange={setClientNotes}
               placeholder="Informações adicionais do cliente..."
               minHeight="120px"
+              status={saveStatus}
             />
           </div>
 

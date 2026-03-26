@@ -30,12 +30,17 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
   const [selectedClientId, setSelectedClientId] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceSettings | undefined>(undefined);
   const [cardColor, setCardColor] = useState('#ffffff');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
 
 
   useEffect(() => {
     if (card) {
       setClientName(card.title || card.clientName || '');
-      setNotes(card.notes || '');
+      // Somente atualiza notes se não estivermos salvando/salvo recentemente para evitar bugs na digitação
+      if (saveStatus === 'idle') {
+        setNotes(card.notes || '');
+      }
       setChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
       setAssignedUserIds(card.assignees || []);
       setStartDate(card.startDate ? (card.startDate instanceof Timestamp ? card.startDate.toDate() : new Date(card.startDate)).toISOString().split('T')[0] : '');
@@ -45,6 +50,25 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
       setCardColor(card.color || '#ffffff');
     }
   }, [card, client]);
+
+  // Debounced auto-save for notes
+  useEffect(() => {
+    if (!card || notes === (card.notes || '')) return;
+
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await updateFinancialCard(card.id, { notes, updatedAt: new Date() });
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (err) {
+        console.error('Falha no auto-salve:', err);
+        setSaveStatus('idle');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [notes, card?.id]);
 
 
   if (!card) return null;
@@ -382,6 +406,7 @@ export const EditFinancialCardModal: React.FC<EditFinancialCardModalProps> = ({ 
             value={notes}
             onChange={setNotes}
             placeholder="Adicione informações importantes sobre o cliente..."
+            status={saveStatus}
           />
         </div>
 

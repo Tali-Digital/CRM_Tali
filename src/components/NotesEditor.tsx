@@ -1,14 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Bold, Italic, Type, Palette, List, ListOrdered } from 'lucide-react';
+import { Bold, Italic, Link, List, ListOrdered, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface NotesEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   minHeight?: string;
+  status?: 'idle' | 'saving' | 'saved';
 }
 
-export const NotesEditor: React.FC<NotesEditorProps> = ({ value, onChange, placeholder, minHeight = '150px' }) => {
+export const NotesEditor: React.FC<NotesEditorProps> = ({ value, onChange, placeholder, minHeight = '150px', status = 'idle' }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -107,6 +109,63 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ value, onChange, place
         >
           <List size={16} strokeWidth={2.5} />
         </button>
+        
+        <button 
+          type="button"
+          onMouseDown={(e) => { 
+            e.preventDefault(); 
+            const url = prompt('URL do Link:');
+            if (url) execCommand('createLink', url);
+          }}
+          className="p-2 hover:bg-stone-100 rounded-xl transition-colors text-stone-600"
+          title="Inserir Link"
+        >
+          <Link size={16} strokeWidth={2.5} />
+        </button>
+
+        <div className="flex-1" />
+
+        {/* Status Indicator */}
+        <div className="px-3 shrink-0">
+          <AnimatePresence mode="wait">
+            {status === 'saving' && (
+              <motion.div
+                key="saving"
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                className="flex items-center gap-2 text-stone-400 text-[10px] font-black uppercase tracking-widest bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200"
+              >
+                <Loader2 size={12} className="animate-spin" />
+                Salvando
+              </motion.div>
+            )}
+            {status === 'saved' && (
+              <motion.div
+                key="saved"
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.1 }}
+                className="flex items-center gap-2 text-green-600 text-[10px] font-black uppercase tracking-widest bg-green-50 px-3 py-1.5 rounded-full border border-green-200 shadow-sm"
+              >
+                <CheckCircle2 size={12} />
+                Salvo
+              </motion.div>
+            )}
+            {status === 'idle' && (
+              <motion.div
+                key="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-2 text-stone-300 text-[10px] font-black uppercase tracking-widest px-3 py-1.5"
+                title="Sincronizado com o servidor"
+              >
+                <Save size={12} className="opacity-50" />
+                Sincronizado
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Editable Area */}
@@ -117,7 +176,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ value, onChange, place
           onInput={handleInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="p-6 text-sm text-stone-800 focus:outline-none custom-scrollbar overflow-y-auto whitespace-pre-wrap leading-relaxed rich-text-content"
+          className="p-4 text-sm text-stone-900 focus:outline-none custom-scrollbar overflow-y-auto whitespace-pre-wrap leading-relaxed rich-text-content"
           style={{ minHeight }}
           spellCheck={false}
         />

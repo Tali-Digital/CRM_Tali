@@ -140,14 +140,44 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   const [newItemText, setNewItemText] = useState('');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
 
   useEffect(() => {
     if (card) {
-      setLocalNotes(card.notes || '');
+      // Somente atualiza localNotes se não estivermos editando ativamente
+      if (!isEditingNotes) {
+        setLocalNotes(card.notes || '');
+      }
       setLocalTitle(card.type === 'client' && client ? client.name : (card.title || (card as any).clientName || ''));
       setLocalChecklist(card.type === 'client' ? (card.checklist || client?.checklist || []) : (card.checklist || []));
     }
-  }, [card, client]);
+  }, [card, client, isEditingNotes]);
+
+  // Debounced auto-save for notes
+  useEffect(() => {
+    if (!isEditingNotes) return;
+
+    // Se o conteúdo for igual ao do card, manter como 'idle'
+    if (localNotes === (card?.notes || '')) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await syncUpdate({ notes: localNotes });
+        setSaveStatus('saved');
+        // Volta para 'idle' após 3 segundos do salvamento
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (err) {
+        console.error('Falha no auto-salve:', err);
+        setSaveStatus('idle');
+      }
+    }, 1000); // 1 segundo de intervalo após parar de digitar
+
+    return () => clearTimeout(timer);
+  }, [localNotes, isEditingNotes, card?.id]);
   if (!card) return null;
 
   const isClientCard = card.type === 'client';
@@ -801,7 +831,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                     Anotações Gerais
                   </div>
                   <div 
-                    className={`transition-all min-h-[160px] shadow-sm rounded-3xl overflow-hidden ${isEditingNotes ? '' : 'bg-stone-50 border-2 border-stone-200 hover:border-stone-300 cursor-text p-8'}`}
+                    className={`transition-all min-h-[160px] max-h-[500px] overflow-y-auto custom-scrollbar shadow-sm rounded-3xl ${isEditingNotes ? '' : 'bg-stone-50 border-2 border-stone-200 hover:border-stone-300 cursor-text p-8'}`}
                     onClick={() => !isEditingNotes && setIsEditingNotes(true)}
                   >
                     {isEditingNotes ? (
@@ -811,19 +841,20 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                           onChange={setLocalNotes}
                           placeholder="Adicione informações importantes..."
                           minHeight="250px"
+                          status={saveStatus}
                         />
                         <div className="flex justify-end gap-2">
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handleNotesBlur(); }}
+                            onClick={(e) => { e.stopPropagation(); setIsEditingNotes(false); }}
                             className="px-8 py-2.5 bg-stone-900 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-stone-800 transition-all shadow-lg active:scale-95"
                           >
-                            Salvar Alterações
+                            Fechar Editor
                           </button>
                         </div>
                       </div>
                     ) : localNotes ? (
                       <div 
-                        className="text-stone-700 text-sm leading-relaxed rich-text-content"
+                        className="text-stone-900 text-sm leading-relaxed rich-text-content"
                         dangerouslySetInnerHTML={{ __html: localNotes }}
                       />
                     ) : (
