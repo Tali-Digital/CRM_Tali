@@ -49,50 +49,46 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
 
   const menuItems: any[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
-    ...(userRole !== 'equipe' ? [
-      { type: 'header', label: 'Cliente', onAdd: () => onAddSector?.('cliente') },
-      ...(isUserVisible('comercial') ? [{ 
-        id: 'comercial', 
-        icon: TrendingUp, 
-        label: sectors?.find(s => s.id === 'comercial')?.name || 'Comercial',
-        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'comercial') || { id: 'comercial', name: 'Comercial', group: 'cliente' })
-      }] : []),
-      ...(isUserVisible('integracao') ? [{ 
-        id: 'integracao', 
-        icon: UserPlus, 
-        label: sectors?.find(s => s.id === 'integracao')?.name || 'Integração do Cliente',
-        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'integracao') || { id: 'integracao', name: 'Integração do Cliente', group: 'cliente' })
-      }] : []),
-      ...(isUserVisible('operacao') ? [{ 
-        id: 'operacao', 
-        icon: RefreshCw, 
-        label: sectors?.find(s => s.id === 'operacao')?.name || 'Operação Contínua',
-        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'operacao') || { id: 'operacao', name: 'Operação Contínua', group: 'cliente' })
-      }] : []),
-      ...(sectors?.filter(s => s.group === 'cliente' && !['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
-        id: s.id,
-        icon: getIconForSector(s.name, TrendingUp),
-        label: s.name,
-        isDynamic: true,
-        onEdit: () => onEditSector?.(s)
-      })) || [])
-    ] : []),
-    ...(userRole !== 'equipe' ? [
-      { type: 'header', label: 'Tarefas', onAdd: () => onAddSector?.('interno') },
-      ...(isUserVisible('internal_tasks') ? [{ 
-        id: 'internal_tasks', 
-        icon: CheckCircle2, 
-        label: sectors?.find(s => s.id === 'internal_tasks')?.name || 'Tarefas',
-        onEdit: () => onEditSector?.(sectors?.find(s => s.id === 'internal_tasks') || { id: 'internal_tasks', name: 'Tarefas', group: 'interno' })
-      }] : []),
-      ...(sectors?.filter(s => s.group === 'interno' && !['internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
-        id: s.id,
-        icon: getIconForSector(s.name, CheckCircle2),
-        label: s.name,
-        isDynamic: true,
-        onEdit: () => onEditSector?.(s)
-      })) || [])
-    ] : []),
+    { type: 'header', label: 'Cliente', onAdd: userRole === 'admin' ? () => onAddSector?.('cliente') : undefined },
+    ...(isUserVisible('comercial') ? [{ 
+      id: 'comercial', 
+      icon: TrendingUp, 
+      label: sectors?.find(s => s.id === 'comercial')?.name || 'Comercial',
+      onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'comercial') || { id: 'comercial', name: 'Comercial', group: 'cliente' }) : undefined
+    }] : []),
+    ...(isUserVisible('integracao') ? [{ 
+      id: 'integracao', 
+      icon: UserPlus, 
+      label: sectors?.find(s => s.id === 'integracao')?.name || 'Integração do Cliente',
+      onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'integracao') || { id: 'integracao', name: 'Integração do Cliente', group: 'cliente' }) : undefined
+    }] : []),
+    ...(isUserVisible('operacao') ? [{ 
+      id: 'operacao', 
+      icon: RefreshCw, 
+      label: sectors?.find(s => s.id === 'operacao')?.name || 'Operação Contínua',
+      onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'operacao') || { id: 'operacao', name: 'Operação Contínua', group: 'cliente' }) : undefined
+    }] : []),
+    ...(sectors?.filter(s => s.group === 'cliente' && !['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
+      id: s.id,
+      icon: getIconForSector(s.name, TrendingUp),
+      label: s.name,
+      isDynamic: true,
+      onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
+    })) || []),
+    { type: 'header', label: 'Tarefas', onAdd: userRole === 'admin' ? () => onAddSector?.('interno') : undefined },
+    ...(isUserVisible('internal_tasks') ? [{ 
+      id: 'internal_tasks', 
+      icon: CheckCircle2, 
+      label: sectors?.find(s => s.id === 'internal_tasks')?.name || 'Tarefas',
+      onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'internal_tasks') || { id: 'internal_tasks', name: 'Tarefas', group: 'interno' }) : undefined
+    }] : []),
+    ...(sectors?.filter(s => s.group === 'interno' && !['internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
+      id: s.id,
+      icon: getIconForSector(s.name, CheckCircle2),
+      label: s.name,
+      isDynamic: true,
+      onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
+    })) || []),
   ];
 
   const themeClasses = 'bg-[#0C1122] text-white border-[#0C1122] shadow-2xl';
