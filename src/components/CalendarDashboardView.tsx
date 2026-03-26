@@ -97,28 +97,32 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
         // Step forward from the day after the start date
         const nextOccurrence = (d: Date) => {
           const res = new Date(d);
-          if (period === 'daily') res.setDate(res.getDate() + interval);
-          else if (period === 'weekly') res.setDate(res.getDate() + (7 * interval));
-          else if (period === 'monthly') res.setMonth(res.getMonth() + interval);
-          else if (period === 'yearly') res.setFullYear(res.getFullYear() + interval);
+          if (period === 'daily') res.setDate(res.getDate() + (interval || 1));
+          else if (period === 'weekly') res.setDate(res.getDate() + (7 * (interval || 1)));
+          else if (period === 'monthly') res.setMonth(res.getMonth() + (interval || 1));
+          else if (period === 'yearly') res.setFullYear(res.getFullYear() + (interval || 1));
+          else return null;
           return res;
         };
 
-        nextDate = nextOccurrence(nextDate);
-        
-        while (nextDate <= finalDate) {
-          // If we are about to hit/pass final date and it's capped, mark with warning
-          const isLastCappedDay = isCapped && (nextOccurrence(nextDate) > finalDate);
+        let currentNext = nextOccurrence(nextDate);
+        while (currentNext && currentNext <= finalDate) {
+          // Safety check: if date doesn't advance, break
+          if (currentNext.getTime() <= nextDate.getTime()) break;
+          
+          const isLastCappedDay = isCapped && (!nextOccurrence(currentNext) || nextOccurrence(currentNext)! > finalDate);
           
           events.push({
             ...card,
-            eventDate: new Date(nextDate),
+            eventDate: new Date(currentNext),
             isRecurrence: true,
             title: isLastCappedDay ? `[FIM RECORRÊNCIA] ${card.title || 'Tarefa'}` : card.title
           });
           
-          nextDate = nextOccurrence(nextDate);
-          // Safety break to prevent infinite loops
+          nextDate = new Date(currentNext);
+          currentNext = nextOccurrence(nextDate);
+          
+          // Safety break to prevent infinite loops or excessive events
           if (events.length > 5000) break; 
         }
       }
@@ -139,7 +143,7 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
   const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   return (
-    <div className="flex flex-col bg-white rounded-3xl border border-stone-200 shadow-sm">
+    <div className="flex-1 min-h-0 flex flex-col bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
       <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-stone-900 text-white rounded-xl">
@@ -166,23 +170,23 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
         </div>
       </div>
 
-      <div>
-        <div className="grid grid-cols-7 border-b border-stone-100 bg-stone-50/30">
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 bg-stone-50/10">
+        <div className="grid grid-cols-7 border-b border-stone-100 bg-stone-50/30 sticky top-0 z-10 backdrop-blur-sm">
           {dayNames.map(day => (
             <div key={day} className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-stone-400 border-r border-stone-100 last:border-r-0">
               {day}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)] min-h-0">
+        <div className="grid grid-cols-7 auto-rows-[minmax(120px,1fr)] divide-x divide-y divide-stone-100 border-l border-t border-stone-100">
           {days.map((date, index) => {
-            if (!date) return <div key={`empty-${index}`} className="bg-stone-50/20 border-b border-r border-stone-100" />;
+            if (!date) return <div key={`empty-${index}`} className="bg-stone-50/20 border-stone-100" />;
             
             const cards = getCardsForDate(date);
             const isToday = new Date().toDateString() === date.toDateString();
 
             return (
-              <div key={date.toISOString()} className={`p-2 border-b border-r border-stone-100 min-h-[120px] transition-colors hover:bg-stone-50/50 ${isToday ? 'bg-stone-50/30' : ''}`}>
+              <div key={date.toISOString()} className={`p-2 min-h-[120px] transition-colors hover:bg-stone-50/50 ${isToday ? 'bg-stone-50/30' : ''}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className={`flex items-center justify-center w-7 h-7 text-xs font-black rounded-full ${isToday ? 'bg-stone-900 text-white shadow-md' : 'text-stone-400'}`}>
                     {date.getDate()}
