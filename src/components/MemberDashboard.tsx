@@ -315,7 +315,7 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapse
   return (
     <div 
       ref={setNodeRef}
-      className={`flex-1 flex flex-col rounded-[2.5rem] p-6 transition-all duration-300 min-h-[500px] border border-stone-200/50 ${getColColor()} ${isOver ? 'ring-4 ring-black/5 scale-[1.01]' : 'shadow-inner'}`}
+      className={`flex-1 flex flex-col rounded-[2.5rem] p-6 transition-all duration-300 min-h-[400px] border border-stone-200/50 ${getColColor()} ${isOver ? 'ring-4 ring-black/5 scale-[1.01]' : 'shadow-inner'}`}
     >
       <div className="flex items-center justify-between mb-6 px-2">
         <h3 className={`text-[11px] font-black uppercase tracking-[0.2em] ${getTitleColor()}`}>{title}</h3>
@@ -550,8 +550,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const totalPayout = totalHours * (userProfile.hourlyRate || 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
-      <div className="flex-1 overflow-y-auto custom-scrollbar h-full pr-2 space-y-8 pb-10">
+    <div className="flex-1 flex flex-col bg-[#fdfdfd] p-6 md:p-8">
+      <div className="flex-1 pr-2 space-y-8 pb-10">
         {/* Top Section - Member Quickview in Large Scale */}
         <div className="bg-white rounded-[2.5rem] p-8 border-2 border-stone-100 shadow-sm space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col md:flex-row items-center gap-8">
@@ -636,17 +636,16 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
           </div>
         </div>
 
-        {/* Kanban Section */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-col md:flex-row gap-6 px-1 content-stretch">
+          <div className="flex flex-col md:flex-row gap-6 px-1">
             <DroppableColumn 
               id="pendente" 
-              title="Pendente" 
+              title="Pendentes" 
               cards={columns.pendente} 
               clients={clients} 
               users={users} 
@@ -670,7 +669,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
             />
             <DroppableColumn 
               id="concluido" 
-              title="Concluído" 
+              title="Concluídos" 
               cards={columns.concluido} 
               clients={clients} 
               users={users} 
