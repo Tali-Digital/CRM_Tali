@@ -417,12 +417,6 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                     Em Aprovação
                   </div>
                 )}
-                {card.statusTags?.includes('aguardando cliente') && (
-                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                    Aguardando Cliente
-                  </div>
-                )}
               </div>
               <div className="flex items-center gap-2">
                 <button 

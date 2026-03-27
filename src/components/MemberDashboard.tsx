@@ -173,12 +173,6 @@ const SortableMemberCard = ({ card, sector, clients, users, onQuickView, elapsed
                 Em Aprovação
               </span>
             )}
-            {card.statusTags.includes('aguardando cliente') && (
-              <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-                <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-                Aguardando Cliente
-              </span>
-            )}
           </div>
         )}
         

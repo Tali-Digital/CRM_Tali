@@ -317,13 +317,6 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
                     >
                       Em Aprovação
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusTags(prev => prev.includes('aguardando cliente') ? [] : ['aguardando cliente'])}
-                      className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${statusTags.includes('aguardando cliente') ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20 scale-105' : 'bg-stone-50 border-stone-200 text-stone-400 hover:border-orange-300 hover:text-orange-500'}`}
-                    >
-                      Aguardando Cliente
-                    </button>
                   </div>
                 </div>
 

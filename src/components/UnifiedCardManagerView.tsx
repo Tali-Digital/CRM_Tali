@@ -447,12 +447,6 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                             Em Aprovação
                           </span>
                         )}
-                        {card.statusTags.includes('aguardando cliente') && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm">
-                            <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-                            Aguardando Cliente
-                          </span>
-                        )}
                       </div>
                     )}
 

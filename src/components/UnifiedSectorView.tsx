@@ -178,9 +178,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     } else if (selectedStatus === 'em aprovação') {
       bgColor = '#f0fdf4'; // green-50
       borderColor = '#dcfce7'; // green-100
-    } else if (selectedStatus === 'aguardando cliente') {
-      bgColor = '#fff7ed'; // orange-50
-      borderColor = '#ffedd5'; // orange-100
     }
   }
 
@@ -233,9 +230,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 )}
                 {card.statusTags.includes('em aprovação') && (userRole !== 'equipe') && (
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Em Aprovação" />
-                )}
-                {card.statusTags.includes('aguardando cliente') && (
-                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" title="Aguardando Cliente" />
                 )}
               </div>
             )}
@@ -296,12 +290,6 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                   <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600 border border-green-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
                     <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
                     Em Aprovação
-                  </span>
-                )}
-                {card.statusTags.includes('aguardando cliente') && (
-                  <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-                    <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-                    Aguardando Cliente
                   </span>
                 )}
               </div>
@@ -381,10 +369,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               {card.statusTags.includes('em aprovação') && (userRole !== 'equipe') && (
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Em Aprovação" />
               )}
-              {card.statusTags.includes('aguardando cliente') && (
-                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" title="Aguardando Cliente" />
-              )}
-            </div>
+              </div>
           )}
           {total > 0 && (
             <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
@@ -500,15 +485,8 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               Em Aprovação
             </span>
           )}
-          {card.statusTags.includes('aguardando cliente') && (
-            <span className={`px-1.5 py-0.5 rounded-full ${isDarkBg ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600 border border-orange-200'} text-[6.5px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm`}>
-              <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-              Aguardando Cliente
-            </span>
-          )}
-        </div>
+          </div>
       )}
-
       {total > 0 && (
         <div className={`flex items-center gap-1.5 text-[10px] font-bold ml-6 transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
           <CheckSquare size={12} />
