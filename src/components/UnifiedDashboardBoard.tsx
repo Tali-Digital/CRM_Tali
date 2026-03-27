@@ -101,16 +101,7 @@ const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboard
   let validCards = cards.filter(c => existingListIds.includes(c.listId) && !c.deleted && !c.completed);
 
   if (dashboardView === 'minhas') {
-    const assignedListIds = lists.filter(l => l.assignees?.includes(currentUserUid)).map(l => l.id);
-    validCards = validCards.filter(c => {
-      const isAssigned = assignedListIds.includes(c.listId) || c.assignees?.includes(currentUserUid);
-      if (isAssigned) return true;
-      if (isAdmin) {
-        if (['overdue', 'today', 'near'].includes(getDateStatus(c.deliveryDate))) return true;
-        if (['overdue', 'today', 'near'].includes(getDateStatus(getNextRecurrenceDate(c.recurrence)))) return true;
-      }
-      return false;
-    });
+    validCards = validCards.filter(c => c.assignees?.includes(currentUserUid));
   }
 
   return validCards.filter(c => {
