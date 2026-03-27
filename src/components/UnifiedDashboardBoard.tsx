@@ -121,19 +121,24 @@ const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboard
 
 const sortCardsByDeadline = (cards: any[]) => {
   const getWeight = (card: any) => {
-    // Cards com status de trabalho têm prioridade máxima
-    if (card.statusTags?.includes('aguardando equipe') || card.statusTags?.includes('em aprovação')) {
-      return -1;
+    const status = getDateStatus(card.deliveryDate || getNextRecurrenceDate(card.recurrence));
+    let deadlineWeight = 5;
+    switch (status) {
+      case 'overdue': deadlineWeight = 0; break;
+      case 'today': deadlineWeight = 1; break;
+      case 'near': deadlineWeight = 2; break;
+      case 'upcoming': deadlineWeight = 4; break; // Move upcoming to after tags
+      default: deadlineWeight = 5; break;
     }
 
-    const status = getDateStatus(card.deliveryDate || getNextRecurrenceDate(card.recurrence));
-    switch (status) {
-      case 'overdue': return 0;
-      case 'today': return 1;
-      case 'near': return 2;
-      case 'upcoming': return 3;
-      default: return 4;
+    // Se tiver tag de status, o peso é ajustado para ficar logo abaixo de 'Perto de Vencer' (2)
+    // Mas apenas se o status da data for 'upcoming' ou 'default' (4 ou 5)
+    // Se o card estiver em atraso ou vencer hoje, ele mantém a prioridade do prazo.
+    if (card.statusTags?.includes('aguardando equipe') || card.statusTags?.includes('em aprovação')) {
+      if (deadlineWeight > 2) return 3; // Fica entre 'Near' (2) e 'Upcoming' (4)
     }
+
+    return deadlineWeight;
   };
 
   return [...cards].sort((a, b) => {
