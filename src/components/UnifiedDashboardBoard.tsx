@@ -120,7 +120,13 @@ const filterCardsHelper = (cards: any[], lists: any[], sector: string, dashboard
 };
 
 const sortCardsByDeadline = (cards: any[]) => {
-  const getWeight = (status: string) => {
+  const getWeight = (card: any) => {
+    // Cards com status de trabalho têm prioridade máxima
+    if (card.statusTags?.includes('aguardando equipe') || card.statusTags?.includes('em aprovação')) {
+      return -1;
+    }
+
+    const status = getDateStatus(card.deliveryDate || getNextRecurrenceDate(card.recurrence));
     switch (status) {
       case 'overdue': return 0;
       case 'today': return 1;
@@ -131,11 +137,8 @@ const sortCardsByDeadline = (cards: any[]) => {
   };
 
   return [...cards].sort((a, b) => {
-    const statusA = getDateStatus(a.deliveryDate || getNextRecurrenceDate(a.recurrence));
-    const statusB = getDateStatus(b.deliveryDate || getNextRecurrenceDate(b.recurrence));
-    
-    const weightA = getWeight(statusA);
-    const weightB = getWeight(statusB);
+    const weightA = getWeight(a);
+    const weightB = getWeight(b);
 
     if (weightA !== weightB) return weightA - weightB;
 
