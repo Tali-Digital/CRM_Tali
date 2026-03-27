@@ -323,7 +323,7 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapse
       </div>
       
       <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-3 min-h-[200px]">
           {cards.map(card => (
             <SortableMemberCard 
               key={card.id} 
@@ -339,7 +339,7 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapse
             />
           ))}
           {cards.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-30 py-12 text-stone-400">
+            <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 text-stone-400">
               <AlertCircle size={32} className="mb-2" />
               <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed text-center">Nenhum card<br />nesta coluna</p>
             </div>
@@ -486,39 +486,49 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     // Is it a column drop or a card drop?
     const isOverColumn = ['pendente', 'andamento', 'concluido'].includes(overId);
     const targetColumn = isOverColumn ? overId : (over.data.current?.sortable?.containerId || 'pendente');
-
-    // Update kanban status
-    await onUpdateCard(card.id, sector, { kanbanStatus: targetColumn });
-
-    // Handle reordering
-    // To calculate new order properly, we need to know the cards in the TARGET column
-    const targetColumnCards = columns[targetColumn as keyof typeof columns];
     
-    // Find the source column to get the old index
+    // Find the source column
     const sourceColumn = active.data.current?.sortable?.containerId || (columns.pendente.some(c => c.id === active.id) ? 'pendente' : columns.andamento.some(c => c.id === active.id) ? 'andamento' : 'concluido');
-    const sourceCards = columns[sourceColumn as keyof typeof columns];
-    const oldIndex = sourceCards.findIndex(c => c.id === active.id);
     
-    // Calculate new position in target column
-    const overIndex = targetColumnCards.findIndex(c => c.id === overId);
-    const newIndex = isOverColumn ? targetColumnCards.length : (overIndex >= 0 ? overIndex : targetColumnCards.length);
-
-    // If it's the same column, use arrayMove logic
-    if (sourceColumn === targetColumn) {
-       if (oldIndex !== newIndex) {
-         const reordered = arrayMove(targetColumnCards, oldIndex, newIndex);
-         reordered.forEach((c, index) => {
-           if (c.order !== index) onUpdateCard(c.id, c.sector, { order: index });
-         });
-       }
+    // 1. Calculate the moving card
+    const movingCard = card;
+    
+    // 2. Prepare target column cards (excluding the moving card if it was already there)
+    let targetCards = [...columns[targetColumn as keyof typeof columns].filter(c => c.id !== active.id)];
+    
+    // 3. Find insertion index
+    let newIndex = 0;
+    if (isOverColumn) {
+      newIndex = targetCards.length;
     } else {
-       // Across columns: insert at newIndex and update all orders in target
-       const newCards = [...targetColumnCards];
-       newCards.splice(newIndex, 0, card);
-       newCards.forEach((c, index) => {
-          onUpdateCard(c.id, c.sector, { order: index });
-       });
+      const overIndex = targetCards.findIndex(c => c.id === overId);
+      newIndex = overIndex >= 0 ? overIndex : targetCards.length;
     }
+    
+    // 4. Insert moving card at new position
+    targetCards.splice(newIndex, 0, { ...movingCard, kanbanStatus: targetColumn });
+    
+    // 5. Build list of updates
+    const updates: Promise<void>[] = [];
+    
+    // Update all cards in target column with new order and potentially new status
+    targetCards.forEach((c, index) => {
+      const data: any = { order: index };
+      if (c.id === movingCard.id) {
+        data.kanbanStatus = targetColumn;
+      }
+      updates.push(onUpdateCard(c.id, c.sector, data));
+    });
+    
+    // If moving across columns, also update order of source column to be clean
+    if (sourceColumn !== targetColumn) {
+      const remainingSourceCards = columns[sourceColumn as keyof typeof columns].filter(c => c.id !== active.id);
+      remainingSourceCards.forEach((c, index) => {
+        updates.push(onUpdateCard(c.id, c.sector, { order: index }));
+      });
+    }
+
+    await Promise.all(updates);
   };
 
   const handleOpenQuickView = (card: any, sector: string) => {
@@ -633,7 +643,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-col md:flex-row gap-6 h-full px-1">
+          <div className="flex flex-col md:flex-row gap-6 px-1 content-stretch">
             <DroppableColumn 
               id="pendente" 
               title="Pendente" 
