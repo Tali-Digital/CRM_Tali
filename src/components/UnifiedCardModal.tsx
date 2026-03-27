@@ -105,20 +105,28 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
 
   const updateCardService = async (id: string, data: any, targetSector: CardSector) => {
     switch (targetSector) {
+      case 'comercial':
       case 'commercial': return updateCommercialCard(id, data);
+      case 'integracao':
       case 'financial': return updateFinancialCard(id, data);
+      case 'operacao':
       case 'operation': return updateOperationCard(id, data);
-      case 'internal_tasks': return updateInternalTaskCard(id, data);
+      case 'internal_tasks':
+      case 'internal': return updateInternalTaskCard(id, data);
       default: return updateDynamicCard(id, data);
     }
   };
 
   const deleteCardService = async (id: string, targetSector: CardSector) => {
     switch (targetSector) {
+      case 'comercial':
       case 'commercial': return deleteCommercialCard(id);
+      case 'integracao':
       case 'financial': return deleteFinancialCard(id);
+      case 'operacao':
       case 'operation': return deleteOperationCard(id);
-      case 'internal_tasks': return deleteInternalTaskCard(id);
+      case 'internal_tasks':
+      case 'internal': return deleteInternalTaskCard(id);
       default: return deleteDynamicCard(id);
     }
   };

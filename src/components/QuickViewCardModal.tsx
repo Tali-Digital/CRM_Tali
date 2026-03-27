@@ -194,10 +194,11 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
   // Função centralizada de salvamento com parâmetros explícitos
   const syncUpdate = async (id: string, data: any, targetSector: string) => {
     try {
-      if (targetSector === 'commercial') await updateCommercialCard(id, data);
-      else if (targetSector === 'financial') await updateFinancialCard(id, data);
-      else if (targetSector === 'operation') await updateOperationCard(id, data);
-      else if (targetSector === 'internal') await updateInternalTaskCard(id, data);
+      if (['commercial', 'comercial'].includes(targetSector)) await updateCommercialCard(id, data);
+      else if (['financial', 'integracao'].includes(targetSector)) await updateFinancialCard(id, data);
+      else if (['operation', 'operacao'].includes(targetSector)) await updateOperationCard(id, data);
+      else if (['internal', 'internal_tasks'].includes(targetSector)) await updateInternalTaskCard(id, data);
+      else await updateDynamicCard(id, data);
     } catch (err) {
       console.error('Erro ao sincronizar update:', err);
     }
