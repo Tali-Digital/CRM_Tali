@@ -426,9 +426,9 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   ].sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const columns = {
-    pendente: allActiveTasks.filter(t => !t.workerFinished && (t.timerStatus === 'idle' || !t.timerStatus)),
-    andamento: allActiveTasks.filter(t => !t.workerFinished && (t.timerStatus === 'running' || t.timerStatus === 'paused')),
-    concluido: allActiveTasks.filter(t => t.workerFinished)
+    pendente: allActiveTasks.filter(t => (t as any).kanbanStatus === 'pendente' || !(t as any).kanbanStatus),
+    andamento: allActiveTasks.filter(t => (t as any).kanbanStatus === 'andamento'),
+    concluido: allActiveTasks.filter(t => (t as any).kanbanStatus === 'concluido')
   };
 
   const sensors = useSensors(
@@ -487,23 +487,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     const isOverColumn = ['pendente', 'andamento', 'concluido'].includes(overId);
     const targetColumn = isOverColumn ? overId : (over.data.current?.sortable?.containerId || 'pendente');
 
-    if (targetColumn === 'andamento') {
-      const updates: any = { workerFinished: false };
-      if (card.timerStatus === 'idle' || !card.timerStatus) {
-        updates.timerStatus = 'paused';
-      }
-      await onUpdateCard(card.id, sector, updates);
-    } else if (targetColumn === 'concluido') {
-      if (card.timerStatus === 'running') {
-        await handlePauseTimer(card, sector);
-      }
-      await onUpdateCard(card.id, sector, { workerFinished: true });
-    } else if (targetColumn === 'pendente') {
-      if (card.timerStatus === 'running') {
-        await handlePauseTimer(card, sector);
-      }
-      await onUpdateCard(card.id, sector, { workerFinished: false, timerStatus: 'idle' });
-    }
+    // Update kanban status
+    await onUpdateCard(card.id, sector, { kanbanStatus: targetColumn });
 
     // Handle reordering
     // To calculate new order properly, we need to know the cards in the TARGET column
