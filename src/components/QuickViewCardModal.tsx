@@ -160,12 +160,12 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
     }
   }, [card?.id]);
 
-  // Sincronização em segundo plano (se alguém mudar as notas via outro dispositivo)
+  // Sincronização em segundo plano (se alguém mudar as notas via outro dispositivo) - apenas se estivermos em idle
   useEffect(() => {
-    if (card && !isEditingNotes && card.notes !== undefined && card.notes !== localNotes) {
+    if (card && saveStatus === 'idle' && !isEditingNotes && card.notes !== undefined && card.notes !== localNotes) {
       setLocalNotes(card.notes);
     }
-  }, [card?.notes, isEditingNotes]);
+  }, [card?.notes, isEditingNotes, saveStatus]);
 
   // Autosave debounced
   useEffect(() => {
@@ -186,7 +186,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
         console.error('Erro no auto-salve:', err);
         setSaveStatus('idle');
       }
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [localNotes, isEditingNotes, card?.id]);
@@ -359,7 +359,13 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={async () => {
+              // Garantir salve final ao fechar no clique de fundo
+              if (localNotes !== (card?.notes || '')) {
+                await syncUpdate(card?.id, { notes: localNotes }, sector);
+              }
+              onClose();
+            }}
             className="absolute inset-0 bg-stone-900/60 backdrop-blur-md"
           />
           <motion.div
@@ -476,7 +482,13 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   </button>
                 )}
                 <button 
-                  onClick={onClose}
+                  onClick={async () => {
+                    // Garantir salve final se mudou algo nas notas
+                    if (localNotes !== (card?.notes || '')) {
+                      await syncUpdate(card?.id, { notes: localNotes }, sector);
+                    }
+                    onClose();
+                  }}
                   className="p-3 hover:bg-red-50 text-stone-400 hover:text-red-500 rounded-2xl transition-all duration-300 ml-2"
                 >
                   <X size={24} />

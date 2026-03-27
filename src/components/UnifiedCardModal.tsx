@@ -70,12 +70,12 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
     }
   }, [card?.id, sector]);
 
-  // Sincronização em segundo plano
+  // Sincronização em segundo plano - apenas se não houver alterações locais pendentes
   useEffect(() => {
     if (card && saveStatus === 'idle' && card.notes !== undefined && card.notes !== notes) {
       setNotes(card.notes);
     }
-  }, [card?.notes]);
+  }, [card?.notes, saveStatus]);
 
   // Autosave for notes
   useEffect(() => {
@@ -98,7 +98,7 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
         console.error('Falha no auto-salve:', err);
         setSaveStatus('idle');
       }
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [notes, card?.id, sector, isOpen]);
@@ -126,6 +126,18 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
   if (!card) return null;
 
   const isCustom = card.type === 'custom';
+
+  const handleInternalClose = async () => {
+    // Garantir que as notas sejam salvas se mudaram
+    if (card && notes !== (card.notes || '')) {
+      try {
+        await updateCardService(card.id, { notes, updatedAt: new Date() }, sector);
+      } catch (err) {
+        console.error('Erro ao salvar notas ao fechar:', err);
+      }
+    }
+    onClose();
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,7 +228,7 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
   return (
     <Modal 
       isOpen={isOpen} 
-      onClose={onClose} 
+      onClose={handleInternalClose} 
       title={isCustom ? (sector === 'internal_tasks' ? 'Editar Tarefa' : 'Editar Card') : 'Editar Cliente'}
       maxWidth="max-w-5xl"
     >
@@ -358,6 +370,7 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
                       value={notes} 
                       onChange={setNotes} 
                       placeholder="Comece a escrever suas notas aqui..."
+                      status={saveStatus}
                     />
                   </div>
                 </div>
@@ -512,7 +525,7 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
         <div className="flex gap-3 pt-6 border-t border-stone-100">
           <button 
             type="button" 
-            onClick={onClose}
+            onClick={handleInternalClose}
             className="flex-1 py-4 rounded-2xl border border-stone-200 font-bold text-stone-600 hover:bg-stone-50 transition-all"
           >
             Cancelar
