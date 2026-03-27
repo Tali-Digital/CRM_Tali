@@ -108,7 +108,7 @@ const SortableMemberCard = ({ card, sector, clients, users, onQuickView, elapsed
         backgroundColor: bgColor, 
         borderColor: borderColor,
       }}
-      className={`p-4 rounded-[2rem] shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-3 ring-2 ring-white ring-inset ${isDragging ? 'opacity-0' : ''}`}
+      className={`p-3 rounded-[1.5rem] shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer relative mb-2 ring-2 ring-white ring-inset ${isDragging ? 'opacity-0' : ''}`}
     >
       <div 
         className="absolute inset-0 z-0" 
@@ -323,7 +323,7 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapse
       </div>
       
       <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-3 min-h-[200px]">
+        <div className="flex-1 space-y-2 min-h-[100px] flex flex-col pt-1 pb-10">
           {cards.map(card => (
             <SortableMemberCard 
               key={card.id} 
@@ -339,9 +339,9 @@ const DroppableColumn = ({ id, title, cards, clients, users, onQuickView, elapse
             />
           ))}
           {cards.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 text-stone-400">
-              <AlertCircle size={32} className="mb-2" />
-              <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed text-center">Nenhum card<br />nesta coluna</p>
+            <div className="flex-1 flex flex-col items-center justify-center opacity-20 py-10 text-stone-400">
+              <AlertCircle size={24} className="mb-2" />
+              <p className="text-[8px] font-black uppercase tracking-widest text-center">Vazio</p>
             </div>
           )}
         </div>
@@ -480,50 +480,45 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     const sector = active.data.current?.sector;
     const overId = over.id as string;
 
-    // Handle same card drop
-    if (active.id === overId) return;
-
-    // Is it a column drop or a card drop?
+    // 1. Determine target column and position
     const isOverColumn = ['pendente', 'andamento', 'concluido'].includes(overId);
     const targetColumn = isOverColumn ? overId : (over.data.current?.sortable?.containerId || 'pendente');
-    
-    // Find the source column
     const sourceColumn = active.data.current?.sortable?.containerId || (columns.pendente.some(c => c.id === active.id) ? 'pendente' : columns.andamento.some(c => c.id === active.id) ? 'andamento' : 'concluido');
     
-    // 1. Calculate the moving card
+    // 2. Prepare the target list
+    const currentTargetCards = [...columns[targetColumn as keyof typeof columns]];
     const movingCard = card;
     
-    // 2. Prepare target column cards (excluding the moving card if it was already there)
-    let targetCards = [...columns[targetColumn as keyof typeof columns].filter(c => c.id !== active.id)];
-    
-    // 3. Find insertion index
-    let newIndex = 0;
-    if (isOverColumn) {
-      newIndex = targetCards.length;
+    let newCards = currentTargetCards;
+    if (sourceColumn === targetColumn) {
+      const oldIndex = newCards.findIndex(c => c.id === active.id);
+      const overIndex = newCards.findIndex(c => c.id === overId);
+      const newIndex = isOverColumn ? newCards.length - 1 : (overIndex >= 0 ? overIndex : newCards.length - 1);
+      if (oldIndex !== newIndex) {
+        newCards = arrayMove(newCards, oldIndex, newIndex);
+      } else {
+        return; // No change
+      }
     } else {
-      const overIndex = targetCards.findIndex(c => c.id === overId);
-      newIndex = overIndex >= 0 ? overIndex : targetCards.length;
+      const overIndex = newCards.findIndex(c => c.id === overId);
+      const newIndex = isOverColumn ? newCards.length : (overIndex >= 0 ? overIndex : newCards.length);
+      newCards.splice(newIndex, 0, { ...movingCard, kanbanStatus: targetColumn });
     }
     
-    // 4. Insert moving card at new position
-    targetCards.splice(newIndex, 0, { ...movingCard, kanbanStatus: targetColumn });
-    
-    // 5. Build list of updates
-    const updates: Promise<void>[] = [];
-    
-    // Update all cards in target column with new order and potentially new status
-    targetCards.forEach((c, index) => {
+    // 3. Update all orders in the target list
+    const updates = newCards.map((c, index) => {
       const data: any = { order: index };
       if (c.id === movingCard.id) {
         data.kanbanStatus = targetColumn;
+        data.updatedAt = new Date();
       }
-      updates.push(onUpdateCard(c.id, c.sector, data));
+      return onUpdateCard(c.id, c.sector, data);
     });
     
-    // If moving across columns, also update order of source column to be clean
+    // 4. If moved across columns, also refresh source column orders to be safe
     if (sourceColumn !== targetColumn) {
-      const remainingSourceCards = columns[sourceColumn as keyof typeof columns].filter(c => c.id !== active.id);
-      remainingSourceCards.forEach((c, index) => {
+      const sourceCards = columns[sourceColumn as keyof typeof columns].filter(c => c.id !== active.id);
+      sourceCards.forEach((c, index) => {
         updates.push(onUpdateCard(c.id, c.sector, { order: index }));
       });
     }
