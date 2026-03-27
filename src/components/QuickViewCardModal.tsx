@@ -911,7 +911,7 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                       </div>
                     ) : localNotes ? (
                       <div 
-                        className="text-stone-900 text-sm leading-relaxed rich-text-content"
+                        className="text-stone-900 text-sm leading-relaxed rich-text-content whitespace-pre-wrap"
                         dangerouslySetInnerHTML={{ __html: localNotes }}
                       />
                     ) : (
