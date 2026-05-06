@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification } from '../types';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification, QuickLink } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -1112,3 +1112,43 @@ export const duplicateDynamicCard = async (id: string) => {
     handleFirestoreError(error, OperationType.CREATE, `dynamic_cards/${id}/duplicate`);
   }
 };
+
+export const subscribeToQuickLinks = (companyId: CompanyType, callback: (links: QuickLink[]) => void) => {
+  const q = query(collection(db, 'quick_links'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const links = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuickLink));
+    callback(links.sort((a, b) => (a.order || 0) - (b.order || 0)));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'quick_links');
+  });
+};
+
+export const addQuickLink = async (link: Omit<QuickLink, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'quick_links'), sanitizeData({
+      ...link,
+      createdAt: Timestamp.now()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'quick_links');
+  }
+};
+
+export const updateQuickLink = async (linkId: string, data: Partial<QuickLink>) => {
+  try {
+    const linkRef = doc(db, 'quick_links', linkId);
+    await updateDoc(linkRef, sanitizeData(data));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `quick_links/${linkId}`);
+  }
+};
+
+export const deleteQuickLink = async (linkId: string) => {
+  try {
+    await deleteDoc(doc(db, 'quick_links', linkId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `quick_links/${linkId}`);
+  }
+};
+

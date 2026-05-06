@@ -13,6 +13,7 @@ import { FinancialView } from './components/FinancialView';
 import { InternalTasksView } from './components/InternalTasksView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
+import { QuickLinksView } from './components/QuickLinksView';
 import { UnifiedCardManagerView } from './components/UnifiedCardManagerView';
 import { UserMenu } from './components/UserMenu';
 import { UserProfileModal } from './components/UserProfileModal';
@@ -102,7 +103,8 @@ import {
   restoreSector,
   addDynamicCard,
   updateDynamicCard,
-  deleteDynamicCard
+  deleteDynamicCard,
+  subscribeToQuickLinks
 } from './services/firestoreService';
 import { MemberDashboard } from './components/MemberDashboard';
 
@@ -112,7 +114,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'links' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe'>('dashboard');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
@@ -343,6 +345,7 @@ export function App() {
   const [allSectors, setAllSectors] = useState<any[]>([]);
   const [dynamicLists, setDynamicLists] = useState<Record<string, any[]>>({});
   const [dynamicCards, setDynamicCards] = useState<Record<string, any[]>>({});
+  const [quickLinks, setQuickLinks] = useState<any[]>([]);
 
   const userProfile = users.find(u => u.id === user?.uid);
 
@@ -479,6 +482,7 @@ export function App() {
       const unsubInternalCards = subscribeToInternalTaskCards(selectedCompanyId, setInternalTaskCards);
       const unsubClients = subscribeToClients(selectedCompanyId, setClients);
       const unsubTags = subscribeToTags(selectedCompanyId, setTags);
+      const unsubLinks = subscribeToQuickLinks(selectedCompanyId, setQuickLinks);
       
       const unsubSectors = subscribeToSectors(selectedCompanyId, (sectors) => {
         setAllSectors(sectors);
@@ -497,6 +501,7 @@ export function App() {
         unsubClients();
         unsubTags();
         unsubSectors();
+        unsubLinks();
       };
     }
   }, [user, selectedCompanyId]);
@@ -1046,6 +1051,8 @@ export function App() {
             }}
           />
         );
+      case 'links':
+        return <QuickLinksView links={quickLinks} companyId={selectedCompanyId} />;
       case 'comercial':
         if (!isTabAllowed('comercial')) return null;
         return (

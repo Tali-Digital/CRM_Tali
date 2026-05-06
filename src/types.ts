@@ -246,3 +246,14 @@ export interface Sector {
   icon?: string;
   createdAt: any;
 }
+
+export interface QuickLink {
+  id: string;
+  name: string;
+  url: string;
+  companyId: string;
+  order: number;
+  category?: string;
+  createdAt: any;
+}
+
