@@ -16,7 +16,8 @@ import {
   Plus,
   MonitorPlay,
   Layers,
-  Link
+  Link,
+  Search
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -51,6 +52,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
   const menuItems: any[] = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
     { id: 'links', icon: Link, label: 'Links Rápidos' },
+    { id: 'prospeccao', icon: Search, label: 'Prospecção' },
     { type: 'header', label: 'Cliente', onAdd: userRole === 'admin' ? () => onAddSector?.('cliente') : undefined },
     ...(isUserVisible('comercial') ? [{ 
       id: 'comercial', 

@@ -257,3 +257,32 @@ export interface QuickLink {
   createdAt: any;
 }
 
+export interface Prospect {
+  id: string;
+  order: number;
+  responsible: string;
+  location: string;
+  clinicName: string;
+  clinicInstagram: string;
+  gmn: string;
+  site: string;
+  ownerName: string;
+  ownerInstagram: string;
+  followedOwner: 'Sim' | 'Solicitado' | 'Não' | '';
+  size: string;
+  age: string;
+  status: 'Mandar mensagem' | 'Mensagem Enviada' | '1º Follow up' | '2º Follow up' | 'Reunião Agendada' | 'Cliente Fechado' | 'Contato Encerrado' | '';
+  hasAnswered: boolean;
+  lastFollowUp: string;
+  observations: string;
+  firstContactDate: string;
+  week: string;
+  companyId: CompanyType;
+  createdAt?: any;
+  updatedAt?: any;
+  currentStep: number; // 1 to 4
+  step1Done?: boolean;
+  step2Done?: boolean;
+  step3Done?: boolean;
+  step4Done?: boolean;
+}

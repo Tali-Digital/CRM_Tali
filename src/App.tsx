@@ -14,6 +14,7 @@ import { InternalTasksView } from './components/InternalTasksView';
 import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
 import { QuickLinksView } from './components/QuickLinksView';
+import { ProspectingView } from './components/ProspectingView';
 import { UnifiedCardManagerView } from './components/UnifiedCardManagerView';
 import { UserMenu } from './components/UserMenu';
 import { UserProfileModal } from './components/UserProfileModal';
@@ -1053,6 +1054,8 @@ export function App() {
         );
       case 'links':
         return <QuickLinksView links={quickLinks} companyId={selectedCompanyId} />;
+      case 'prospeccao':
+        return <ProspectingView companyId={selectedCompanyId} />;
       case 'comercial':
         if (!isTabAllowed('comercial')) return null;
         return (

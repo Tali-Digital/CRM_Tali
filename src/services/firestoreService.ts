@@ -10,11 +10,13 @@ import {
   Timestamp,
   getDocs,
   getDoc,
-  setDoc
+  setDoc,
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification, QuickLink } from '../types';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification, QuickLink, Prospect } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -441,9 +443,6 @@ export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
       createdAt: Timestamp.now()
     }));
     
-    const cardWithId = { ...card, id: docRef.id } as CommercialCard;
-    return docRef.id;
-    
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'commercial_cards');
@@ -549,9 +548,6 @@ export const addFinancialCard = async (card: Omit<FinancialCard, 'id'>) => {
       createdAt: Timestamp.now()
     }));
 
-    const cardWithId = { ...card, id: docRef.id } as FinancialCard;
-    return docRef.id;
-
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'financial_cards');
@@ -656,9 +652,6 @@ export const addOperationCard = async (card: Omit<OperationCard, 'id'>) => {
       ...card,
       createdAt: Timestamp.now()
     }));
-
-    const cardWithId = { ...card, id: docRef.id } as OperationCard;
-    return docRef.id;
 
     return docRef.id;
   } catch (error) {
@@ -786,9 +779,6 @@ export const addInternalTaskCard = async (card: Omit<InternalTaskCard, 'id'>) =>
       ...card,
       createdAt: Timestamp.now()
     }));
-
-    const cardWithId = { ...card, id: docRef.id } as InternalTaskCard;
-    return docRef.id;
 
     return docRef.id;
   } catch (error) {
@@ -1144,11 +1134,37 @@ export const updateQuickLink = async (linkId: string, data: Partial<QuickLink>) 
   }
 };
 
-export const deleteQuickLink = async (linkId: string) => {
-  try {
-    await deleteDoc(doc(db, 'quick_links', linkId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `quick_links/${linkId}`);
-  }
+export const deleteQuickLink = async (id: string) => {
+  await deleteDoc(doc(db, 'quick_links', id));
 };
 
+// --- PROSPECTS ---
+export const subscribeToProspects = (companyId: string, callback: (prospects: Prospect[]) => void) => {
+  const q = query(
+    collection(db, 'prospects'),
+    where('companyId', '==', companyId),
+    orderBy('order', 'asc')
+  );
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Prospect)));
+  });
+};
+
+export const addProspect = async (prospect: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt'>) => {
+  return await addDoc(collection(db, 'prospects'), {
+    ...prospect,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+};
+
+export const updateProspect = async (id: string, data: Partial<Prospect>) => {
+  await updateDoc(doc(db, 'prospects', id), {
+    ...data,
+    updatedAt: serverTimestamp()
+  });
+};
+
+export const deleteProspect = async (id: string) => {
+  await deleteDoc(doc(db, 'prospects', id));
+};
