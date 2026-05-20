@@ -522,8 +522,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     setIsParsingFreeText(true);
     try {
       const result = await parseProspectFromBlockText(freeText, apiKeyInput);
-      if (result.success && result.data) {
-        const parsed = result.data;
+      if (result.success && result.prospect) {
+        const parsed = result.prospect;
         const filledFields: string[] = [];
         // Detecta quais campos foram preenchidos pela IA
         const checkFields = [

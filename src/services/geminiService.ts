@@ -372,7 +372,7 @@ O JSON deve ter exatamente esta estrutura e chaves:
   "observations": "Qualquer outra informação relevante extraída do texto"
 }
 
-Se alguma informação não estiver presente no texto de entrada, retorne a string vazia "" para aquela chave.
+IMPORTANTE: Se alguma informação não estiver explícita no texto, você DEVE usar sua base de conhecimento e pesquisar na internet (se possível) usando o nome da clínica, localização ou links fornecidos para encontrar os dados que faltam. Preencha o MÁXIMO de campos possíveis (como nota do GMN, número de avaliações, site, idade). Apenas retorne a string vazia "" se for absolutamente impossível encontrar ou deduzir a informação.
 `;
 
     const response = await fetch(
@@ -390,6 +390,11 @@ Se alguma informação não estiver presente no texto de entrada, retorne a stri
                   text: prompt
                 }
               ]
+            }
+          ],
+          tools: [
+            {
+              googleSearch: {}
             }
           ],
           generationConfig: {
