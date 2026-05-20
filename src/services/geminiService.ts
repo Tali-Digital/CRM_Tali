@@ -354,7 +354,7 @@ TEXTO DE ENTRADA:
 ${text}
 """
 
-Retorne estritamente um objeto JSON no formato abaixo, sem qualquer formatação de código markdown (como \`\`\`json), sem textos explicativos adicionais, apenas o JSON bruto válido.
+Retorne OBRIGATORIAMENTE o resultado dentro de um bloco de código markdown \`\`\`json.
 O JSON deve ter exatamente esta estrutura e chaves:
 {
   "clinicName": "Nome da clínica (ex: Atually Odontologia Especializada)",
@@ -373,6 +373,7 @@ O JSON deve ter exatamente esta estrutura e chaves:
 }
 
 IMPORTANTE: Se alguma informação não estiver explícita no texto, você DEVE usar sua base de conhecimento e pesquisar na internet (se possível) usando o nome da clínica, localização ou links fornecidos para encontrar os dados que faltam. Preencha o MÁXIMO de campos possíveis (como nota do GMN, número de avaliações, site, idade). Apenas retorne a string vazia "" se for absolutamente impossível encontrar ou deduzir a informação.
+Lembre-se de certificar que o JSON é válido e que as chaves e aspas estão fechadas.
 `;
 
     const response = await fetch(
@@ -399,7 +400,7 @@ IMPORTANTE: Se alguma informação não estiver explícita no texto, você DEVE 
           ],
           generationConfig: {
             temperature: 0.1, // temperatura baixa para maior determinismo na extração de dados
-            maxOutputTokens: 1000
+            maxOutputTokens: 1500
           }
         })
       }
@@ -419,8 +420,13 @@ IMPORTANTE: Se alguma informação não estiver explícita no texto, você DEVE 
 
     generatedText = generatedText.trim();
     // Remover blocos de marcação de markdown se a IA colocar
-    if (generatedText.startsWith('```')) {
-      generatedText = generatedText.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    const jsonMatch = generatedText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      generatedText = jsonMatch[1].trim();
+    } else {
+      if (generatedText.startsWith('```')) {
+        generatedText = generatedText.replace(/^```[a-z]*\s*/i, '').replace(/```$/, '').trim();
+      }
     }
 
     const parsedJson = JSON.parse(generatedText);
@@ -509,10 +515,15 @@ const parseProspectFromBlockTextMock = (text: string): Partial<Prospect> => {
       // Pega a primeira linha que não esteja vazia nem contenha rótulos comuns
       const validLine = lines.find(l => {
         const lower = l.toLowerCase();
-        return l.trim() !== '' && !lower.startsWith('local:') && !lower.startsWith('instagram:') && !lower.startsWith('google');
+        return l.trim() !== '' && !lower.startsWith('local:') && !lower.startsWith('instagram:') && !lower.startsWith('google') && !l.includes('http');
       });
       if (validLine) {
-        result.clinicName = validLine.trim();
+        // Se a linha for muito grande (ex: usuário colou tudo sem quebras de linha), pega só as primeiras palavras
+        if (validLine.length > 50) {
+          result.clinicName = validLine.substring(0, 50).split('http')[0].trim() + '...';
+        } else {
+          result.clinicName = validLine.trim();
+        }
       }
     }
   }
