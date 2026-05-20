@@ -259,6 +259,31 @@ export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 
   }
 };
 
+export const updateUserProfile = async (userId: string, data: Partial<UserProfile>) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, sanitizeData(data));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+  }
+};
+
+export const addGhostMember = async (data: { name: string, email: string, teamCategory: 'terceirizado' | 'internalizado' | 'intermediados', pixKey?: string, phone?: string, workDescription?: string }) => {
+  try {
+    const docRef = await addDoc(collection(db, 'users'), sanitizeData({
+      ...data,
+      role: 'equipe',
+      isGhost: true,
+      photoURL: '',
+      createdAt: serverTimestamp()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'users');
+  }
+};
+
+
 export const updateUserTags = async (userId: string, tags: string[]) => {
   try {
     const userRef = doc(db, 'users', userId);

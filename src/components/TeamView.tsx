@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Tag, CommercialCard, FinancialCard, OperationCard, InternalTaskCard, InternalTaskList, CompanyType } from '../types';
-import { User, Briefcase, Info, Clock, CheckSquare, Plus, X, Search, Hash, ExternalLink, Mail, ListTodo, Bookmark, Send, Loader2, Play, Pause, Square, UserMinus, Calendar, Check, DollarSign } from 'lucide-react';
-import { updateUserTags, addInternalTaskCard, updateCardTimer, completeInternalTaskCard, completeCommercialCard, completeFinancialCard, completeOperationCard, updateCommercialCard, updateFinancialCard, updateOperationCard, updateInternalTaskCard } from '../services/firestoreService';
+import { User, Briefcase, Info, Clock, CheckSquare, Plus, X, Search, Hash, ExternalLink, Mail, ListTodo, Bookmark, Send, Loader2, Play, Pause, Square, UserMinus, Calendar, Check, DollarSign, Phone, QrCode, FileText } from 'lucide-react';
+import { updateUserTags, addInternalTaskCard, updateCardTimer, completeInternalTaskCard, completeCommercialCard, completeFinancialCard, completeOperationCard, updateCommercialCard, updateFinancialCard, updateOperationCard, updateInternalTaskCard, updateUserProfile } from '../services/firestoreService';
 import { Modal } from './Modal';
 import { Timestamp } from 'firebase/firestore';
 import { updateUserHourlyRate } from '../services/firestoreService';
@@ -17,6 +17,7 @@ interface TeamViewProps {
   selectedCompanyId: CompanyType;
   currentUser?: UserProfile;
   onJumpToCard?: (cardId: string, sector: string) => void;
+  onAddMember?: () => void;
 }
 
 export const TeamView: React.FC<TeamViewProps> = ({ 
@@ -29,9 +30,11 @@ export const TeamView: React.FC<TeamViewProps> = ({
   internalTaskLists,
   selectedCompanyId,
   currentUser,
-  onJumpToCard
+  onJumpToCard,
+  onAddMember
 }) => {
   const [activeCategory, setActiveCategory] = useState<'terceirizado' | 'internalizado' | 'intermediados'>('terceirizado');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState<UserProfile | null>(null);
   const [tagSearch, setTagSearch] = useState('');
   const [isEditingTags, setIsEditingTags] = useState(false);
@@ -77,7 +80,11 @@ export const TeamView: React.FC<TeamViewProps> = ({
     { id: 'intermediados', name: 'Intermediados', description: 'Profissionais em regime de intermediação.' },
   ];
 
-  const filteredUsers = users.filter(u => u.role === 'equipe' && u.teamCategory === activeCategory);
+  const filteredUsers = users.filter(u => 
+    u.role === 'equipe' && 
+    u.teamCategory === activeCategory &&
+    (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleToggleTag = async (userId: string, tagId: string, currentTags: string[] = []) => {
     const newTags = currentTags.includes(tagId)
@@ -347,6 +354,31 @@ export const TeamView: React.FC<TeamViewProps> = ({
           <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Gestão de Equipe</h1>
           <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Organize e visualize todos os membros da sua equipe por categorias.</p>
         </div>
+
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="relative group flex-1 md:flex-none">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300">
+              <Search size={18} />
+            </div>
+            <input 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar na equipe..."
+              className="w-full md:w-64 bg-white border border-stone-100 rounded-2xl pl-12 pr-6 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-stone-900/5 transition-all font-bold text-stone-900"
+            />
+          </div>
+
+          {currentUser?.role === 'admin' && onAddMember && (
+            <button 
+              onClick={onAddMember}
+              className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10 shrink-0"
+            >
+              <Plus size={18} />
+              <span className="hidden md:inline">Novo Membro</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Category Tabs */}
@@ -413,8 +445,10 @@ export const TeamView: React.FC<TeamViewProps> = ({
 
                     <div className="flex flex-col items-end gap-1">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        <span className="text-[8px] font-black uppercase tracking-widest text-stone-400">Ativo</span>
+                        <div className={`w-1.5 h-1.5 rounded-full ${user.isGhost ? 'bg-blue-400' : 'bg-green-500'}`} />
+                        <span className="text-[8px] font-black uppercase tracking-widest text-stone-400">
+                          {user.isGhost ? 'Membro Externo' : 'Ativo'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -515,12 +549,18 @@ export const TeamView: React.FC<TeamViewProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                    {selectedMember.teamCategory || 'Membro'}
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
+                    selectedMember.isGhost 
+                      ? 'text-blue-600 bg-blue-50 border-blue-100' 
+                      : 'text-stone-600 bg-stone-50 border-stone-100'
+                  }`}>
+                    {selectedMember.isGhost ? 'Membro Externo (Sem Acesso)' : selectedMember.teamCategory || 'Membro'}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Online</span>
+                    <div className={`w-2 h-2 rounded-full animate-pulse ${selectedMember.isGhost ? 'bg-blue-400' : 'bg-green-500'}`} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                      {selectedMember.isGhost ? 'Offline/Externo' : 'Online'}
+                    </span>
                   </div>
                 </div>
                 <h2 className="text-2xl font-black text-stone-900 leading-tight">{selectedMember.name}</h2>
@@ -530,6 +570,92 @@ export const TeamView: React.FC<TeamViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Ghost Member Details - NEW SECTION */}
+            {(selectedMember.isGhost || currentUser?.role === 'admin') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-3xl p-6 border-2 border-stone-50 shadow-sm">
+                  <div className="flex items-center gap-3 text-stone-400 mb-4">
+                    <div className="p-2 bg-stone-50 rounded-xl">
+                      <Phone size={20} />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest">Contato e Pagamento</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Telefone / WhatsApp</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text"
+                          defaultValue={selectedMember.phone || ''}
+                          readOnly={currentUser?.role !== 'admin'}
+                          onBlur={async (e) => {
+                            if (currentUser?.role === 'admin') {
+                              await updateUserProfile(selectedMember.id, { phone: e.target.value });
+                            }
+                          }}
+                          className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-2 text-sm font-bold text-stone-900 focus:outline-none focus:border-blue-500"
+                          placeholder="Não informado"
+                        />
+                        {selectedMember.phone && (
+                          <a 
+                            href={`https://wa.me/${selectedMember.phone.replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all border border-green-100"
+                          >
+                            <Send size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Chave PIX</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
+                          <QrCode size={14} />
+                        </div>
+                        <input 
+                          type="text"
+                          defaultValue={selectedMember.pixKey || ''}
+                          readOnly={currentUser?.role !== 'admin'}
+                          onBlur={async (e) => {
+                            if (currentUser?.role === 'admin') {
+                              await updateUserProfile(selectedMember.id, { pixKey: e.target.value });
+                            }
+                          }}
+                          className="w-full bg-stone-50 border border-stone-100 rounded-xl pl-10 pr-4 py-2 text-sm font-bold text-stone-900 focus:outline-none focus:border-blue-500"
+                          placeholder="Chave PIX não informada"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-6 border-2 border-stone-50 shadow-sm">
+                  <div className="flex items-center gap-3 text-stone-400 mb-4">
+                    <div className="p-2 bg-stone-50 rounded-xl">
+                      <FileText size={20} />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest">Descrição do Trabalho</span>
+                  </div>
+                  
+                  <textarea 
+                    defaultValue={selectedMember.workDescription || ''}
+                    readOnly={currentUser?.role !== 'admin'}
+                    onBlur={async (e) => {
+                      if (currentUser?.role === 'admin') {
+                        await updateUserProfile(selectedMember.id, { workDescription: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-stone-50 border border-stone-100 rounded-2xl px-4 py-3 text-sm font-bold text-stone-900 focus:outline-none focus:border-blue-500 resize-none h-32"
+                    placeholder="Descrição dos serviços prestados..."
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

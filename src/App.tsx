@@ -431,6 +431,7 @@ export function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [managementInitialAddMode, setManagementInitialAddMode] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1205,6 +1206,10 @@ export function App() {
               setActiveTab(sector as any);
               setJumpToCard({ id: cardId, sector, mode });
             }}
+            onAddMember={() => {
+              setManagementInitialAddMode(true);
+              setIsManagementOpen(true);
+            }}
           />
         );
       default:
@@ -1347,7 +1352,7 @@ export function App() {
               )}
 
               {/* Filtros de Visualização de Setor */}
-              {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && (
+              {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && activeTab !== 'links' && activeTab !== 'prospeccao' && (
                 <div className="hidden lg:flex items-center gap-4 ml-4">
                   <div className="h-8 w-px bg-stone-100" />
                   
@@ -1482,7 +1487,11 @@ export function App() {
       {userProfile?.role === 'admin' && (
         <UserManagementModal 
           isOpen={isManagementOpen} 
-          onClose={() => setIsManagementOpen(false)} 
+          onClose={() => {
+            setIsManagementOpen(false);
+            setManagementInitialAddMode(false);
+          }} 
+          initialAddMode={managementInitialAddMode}
         />
       )}
 

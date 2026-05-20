@@ -41,6 +41,10 @@ export interface UserProfile {
   teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados';
   serviceTags?: string[]; // Array of Tag IDs
   hourlyRate?: number;
+  pixKey?: string;
+  phone?: string;
+  isGhost?: boolean;
+  workDescription?: string;
 }
 
 export interface Notification {
@@ -257,6 +261,21 @@ export interface QuickLink {
   createdAt: any;
 }
 
+export interface FollowUp {
+  date: string;
+  message: string;
+}
+
+export interface CalculatorData {
+  yearsOpen: number;
+  patientsPerDay: number;
+  workDaysPerWeek: number;
+  ticketMedio: number;
+  yearsWithData: number;
+  conversionRate: number;
+  showResults: boolean;
+}
+
 export interface Prospect {
   id: string;
   order: number;
@@ -285,4 +304,17 @@ export interface Prospect {
   step2Done?: boolean;
   step3Done?: boolean;
   step4Done?: boolean;
+  
+  // Novos campos adicionados
+  collaborators?: string;
+  gmnRating?: string;
+  gmnReviewsCount?: string;
+  approachUsed?: string;
+  lastContactDate?: string;
+  aiReport?: string;
+  instagramMessage?: string;
+  isRestartBase?: boolean;
+  followUps?: FollowUp[];
+  aiFilledFields?: string[];
+  calculatorData?: CalculatorData;
 }
