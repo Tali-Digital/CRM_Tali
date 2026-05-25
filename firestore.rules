@@ -227,6 +227,11 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    match /settings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) || isAdmin();

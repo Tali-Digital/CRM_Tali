@@ -34,7 +34,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
-import { subscribeToProspects, addProspect, updateProspect, deleteProspect } from '../services/firestoreService';
+import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
 
 interface ProspectingViewProps {
@@ -74,7 +74,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   // IA Gemini States
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingInsta, setIsGeneratingInsta] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState((import.meta.env.VITE_GEMINI_API_KEY as string) || localStorage.getItem('gemini_api_key') || '');
+  const [apiKeyInput, setApiKeyInput] = useState((import.meta.env.VITE_GEMINI_API_KEY as string) || '');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [activeTab, setActiveTab] = useState<'dados' | 'ia' | 'instagram' | 'calculadora'>('dados');
 
@@ -212,6 +212,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       setProspects(data);
       setLoading(false);
     });
+    
+    // Load global API Key if needed
+    getGlobalSettings('gemini').then((settings) => {
+      if (settings?.key && !apiKeyInput) {
+        setApiKeyInput(settings.key);
+      }
+    });
+
     return () => unsubscribe();
   }, [companyId]);
 
@@ -471,11 +479,16 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     }
   };
 
-  const handleSaveApiKey = (key: string) => {
-    localStorage.setItem('gemini_api_key', key);
-    setApiKeyInput(key);
-    setShowApiKeyInput(false);
-    alert('Chave de API do Gemini salva com sucesso localmente!');
+  const handleSaveApiKey = async (key: string) => {
+    try {
+      await updateGlobalSettings('gemini', { key });
+      setApiKeyInput(key);
+      setShowApiKeyInput(false);
+      alert('Chave de API do Gemini salva com sucesso globalmente!');
+    } catch (error) {
+      console.error('Erro ao salvar chave:', error);
+      alert('Erro ao salvar chave da API.');
+    }
   };
 
   const handleGenerateInstagramMessage = async (tempFormData?: typeof formData) => {

@@ -1,4 +1,5 @@
 import { Prospect } from '../types';
+import { getGlobalSettings } from './firestoreService';
 
 /**
  * Interface para representar o resultado da chamada do Gemini
@@ -17,9 +18,10 @@ export const generateProspectReport = async (
   prospect: Prospect,
   customApiKey?: string
 ): Promise<GeminiAnalysisResult> => {
-  // 1. Resolver a API Key (prioridade: chave manual -> .env)
+  // 1. Resolver a API Key (prioridade: chave manual -> banco de dados -> .env)
+  const settings = await getGlobalSettings('gemini');
   const apiKey = customApiKey || 
-                 localStorage.getItem('gemini_api_key') || 
+                 settings?.key || 
                  (import.meta.env?.VITE_GEMINI_API_KEY as string) || 
                  '';
 
@@ -175,8 +177,9 @@ export const generateInstagramMessage = async (
   prospect: Prospect,
   customApiKey?: string
 ): Promise<GeminiAnalysisResult> => {
+  const settings = await getGlobalSettings('gemini');
   const apiKey = customApiKey || 
-                 localStorage.getItem('gemini_api_key') || 
+                 settings?.key || 
                  (import.meta.env?.VITE_GEMINI_API_KEY as string) || 
                  '';
 
@@ -323,8 +326,9 @@ export const parseProspectFromBlockText = async (
   text: string,
   customApiKey?: string
 ): Promise<GeminiParseResult> => {
+  const settings = await getGlobalSettings('gemini');
   const apiKey = customApiKey || 
-                 localStorage.getItem('gemini_api_key') || 
+                 settings?.key || 
                  (import.meta.env?.VITE_GEMINI_API_KEY as string) || 
                  '';
 

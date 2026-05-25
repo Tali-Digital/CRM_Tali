@@ -1,73 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Key, AlertTriangle, Save, Database, Users, Trash2, Activity } from 'lucide-react';
+import { UserProfile } from '../types';
+import { getGlobalSettings, updateGlobalSettings } from '../services/firestoreService';
 
-export const AdminView: React.FC = () => {
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile }) => {
   const [geminiKey, setGeminiKey] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('gemini_api_key') || '';
-    setGeminiKey(savedKey);
-  }, []);
-
-  const handleUnlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    const currentAdminPassword = localStorage.getItem('admin_password') || 'admin123';
-    
-    if (password === currentAdminPassword || password === 'tali123') {
-      setIsUnlocked(true);
-      setError('');
+    const loadSettings = async () => {
+      const settings = await getGlobalSettings('gemini');
+      if (settings && settings.key) {
+        setGeminiKey(settings.key);
+      }
+      setIsLoading(false);
+    };
+    if (userProfile?.role === 'admin') {
+      loadSettings();
     } else {
-      setError('Senha incorreta. Acesso negado.');
+      setIsLoading(false);
     }
-  };
+  }, [userProfile]);
 
-  const handleSaveKey = () => {
-    localStorage.setItem('gemini_api_key', geminiKey);
+  const handleSaveKey = async () => {
+    await updateGlobalSettings('gemini', { key: geminiKey });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  if (!isUnlocked) {
+  if (isLoading) {
+    return <div className="flex-1 h-screen bg-[#060B19] text-white flex items-center justify-center">Carregando...</div>;
+  }
+
+  if (userProfile?.role !== 'admin') {
     return (
       <div className="flex-1 h-screen bg-[#060B19] text-white flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-[#0C1122] rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500" />
-          
-          <div className="flex flex-col items-center text-center mb-8">
+        <div className="max-w-md w-full bg-[#0C1122] rounded-3xl p-8 border border-red-500/30 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-red-600 to-red-500" />
+          <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
               <Lock className="w-8 h-8 text-red-500" />
             </div>
-            <h2 className="text-2xl font-bold font-heading mb-2">Área Restrita</h2>
+            <h2 className="text-2xl font-bold font-heading mb-2 text-red-400">Acesso Negado</h2>
             <p className="text-white/60 text-sm">
-              Esta é uma zona de administração sensível. Por favor, insira a senha para continuar.
+              Esta é uma zona de administração sensível. Apenas usuários com privilégios de Administrador podem acessar esta área.
             </p>
           </div>
-
-          <form onSubmit={handleUnlock} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Digite a senha..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all text-center tracking-widest"
-                autoFocus
-              />
-              {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
-            >
-              <Lock size={18} />
-              Desbloquear
-            </button>
-          </form>
         </div>
       </div>
     );
@@ -116,7 +95,7 @@ export const AdminView: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <p className="text-xs text-white/40">
-                  Salvo localmente no navegador (localStorage).
+                  Salvo de forma segura no banco de dados (Apenas admins).
                 </p>
                 <button
                   onClick={handleSaveKey}
@@ -146,31 +125,9 @@ export const AdminView: React.FC = () => {
                   <div className="p-2 bg-yellow-500/20 rounded-lg group-hover:bg-yellow-500/30 transition-colors shrink-0">
                     <Key className="text-yellow-400 w-5 h-5" />
                   </div>
-                  <div className="flex-1 w-full">
-                    <h3 className="font-bold text-sm text-yellow-400 mb-1">Alterar Senha de Acesso</h3>
-                    <div className="flex gap-2 w-full">
-                      <input 
-                        type="password" 
-                        id="new-password-input"
-                        placeholder="Nova senha..." 
-                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:border-yellow-500 text-white"
-                      />
-                      <button 
-                        onClick={() => {
-                          const input = document.getElementById('new-password-input') as HTMLInputElement;
-                          if (input && input.value.trim().length > 0) {
-                            localStorage.setItem('admin_password', input.value.trim());
-                            alert('Senha alterada com sucesso!');
-                            input.value = '';
-                          } else {
-                            alert('A senha não pode ser vazia.');
-                          }
-                        }}
-                        className="text-xs font-bold bg-yellow-500/20 hover:bg-yellow-500/40 px-3 py-1.5 rounded-lg text-yellow-400 transition-colors shrink-0"
-                      >
-                        Salvar
-                      </button>
-                    </div>
+                  <div className="flex-1 w-full opacity-50 cursor-not-allowed">
+                    <h3 className="font-bold text-sm text-yellow-400 mb-1">Acesso Mestre via Firebase Auth</h3>
+                    <p className="text-xs text-white/40">O acesso agora é validado pelo nível de permissão da conta do usuário.</p>
                   </div>
                 </div>
               </div>

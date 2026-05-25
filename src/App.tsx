@@ -1057,7 +1057,7 @@ export function App() {
       case 'links':
         return <QuickLinksView links={quickLinks} companyId={selectedCompanyId} />;
       case 'admin':
-        return <AdminView />;
+        return <AdminView userProfile={userProfile} />;
       case 'prospeccao':
         return <ProspectingView companyId={selectedCompanyId} />;
       case 'comercial':
