@@ -354,26 +354,7 @@ TEXTO DE ENTRADA:
 ${text}
 """
 
-Retorne OBRIGATORIAMENTE o resultado dentro de um bloco de código markdown \`\`\`json.
-O JSON deve ter exatamente esta estrutura e chaves:
-{
-  "clinicName": "Nome da clínica (ex: Atually Odontologia Especializada)",
-  "location": "Local/Cidade e Estado (ex: Águas Claras - DF)",
-  "clinicInstagram": "Link ou username do Instagram da clínica (ex: https://www.instagram.com/atually.odontologia/)",
-  "gmn": "Link do Google Maps se fornecido",
-  "site": "Site oficial da clínica (caso informado ou contido nos links)",
-  "ownerName": "Nome do proprietário/dono (caso possa ser inferido ou esteja explícito)",
-  "ownerInstagram": "Instagram do proprietário (caso esteja explícito)",
-  "collaborators": "Quantidade de funcionários (se explícito)",
-  "size": "Tamanho/Estrutura estimado (se explícito)",
-  "age": "Idade da empresa (se explícito)",
-  "gmnRating": "Nota de avaliação (se explícito, ex: '4.8')",
-  "gmnReviewsCount": "Número de avaliações (se explícito, ex: '150')",
-  "observations": "Qualquer outra informação relevante extraída do texto"
-}
-
-IMPORTANTE: Se alguma informação não estiver explícita no texto, você DEVE usar sua base de conhecimento e pesquisar na internet (se possível) usando o nome da clínica, localização ou links fornecidos para encontrar os dados que faltam. Preencha o MÁXIMO de campos possíveis (como nota do GMN, número de avaliações, site, idade). Apenas retorne a string vazia "" se for absolutamente impossível encontrar ou deduzir a informação.
-Lembre-se de certificar que o JSON é válido e que as chaves e aspas estão fechadas.
+O JSON gerado preencherá a ficha automaticamente. Preencha todos os campos corretamente com base no texto. Use string vazia "" se não encontrar a informação.
 `;
 
     const response = await fetch(
@@ -393,14 +374,28 @@ Lembre-se de certificar que o JSON é válido e que as chaves e aspas estão fec
               ]
             }
           ],
-          tools: [
-            {
-              googleSearch: {}
-            }
-          ],
           generationConfig: {
-            temperature: 0.1, // temperatura baixa para maior determinismo na extração de dados
-            maxOutputTokens: 1500
+            temperature: 0.1,
+            maxOutputTokens: 1500,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                clinicName: { type: "STRING", description: "APENAS o nome comercial da clínica. Ex: VS Odonto" },
+                location: { type: "STRING", description: "Endereço completo, cidade, estado e CEP" },
+                clinicInstagram: { type: "STRING", description: "Instagram da clínica" },
+                gmn: { type: "STRING", description: "Link do Google Maps" },
+                site: { type: "STRING", description: "Website oficial" },
+                ownerName: { type: "STRING", description: "Nome dos donos, responsáveis ou dentistas. Ex: VALERIA MARIA" },
+                ownerInstagram: { type: "STRING", description: "Instagram do dono" },
+                collaborators: { type: "STRING", description: "Quantidade de funcionários" },
+                size: { type: "STRING", description: "Tamanho da clínica" },
+                age: { type: "STRING", description: "Idade da empresa" },
+                gmnRating: { type: "STRING", description: "Nota do Google. Ex: 5.0" },
+                gmnReviewsCount: { type: "STRING", description: "Total de avaliações. Ex: 185" },
+                observations: { type: "STRING", description: "Telefones de contato, especialidades, serviços e qualquer outra informação restante." }
+              }
+            }
           }
         })
       }
@@ -416,17 +411,6 @@ Lembre-se de certificar que o JSON é válido e que as chaves e aspas estão fec
 
     if (!generatedText) {
       throw new Error('Formato de resposta da API do Gemini inválido.');
-    }
-
-    generatedText = generatedText.trim();
-    // Remover blocos de marcação de markdown se a IA colocar
-    const jsonMatch = generatedText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      generatedText = jsonMatch[1].trim();
-    } else {
-      if (generatedText.startsWith('```')) {
-        generatedText = generatedText.replace(/^```[a-z]*\s*/i, '').replace(/```$/, '').trim();
-      }
     }
 
     const parsedJson = JSON.parse(generatedText);
@@ -451,18 +435,12 @@ Lembre-se de certificar que o JSON é válido e que as chaves e aspas estão fec
     };
   } catch (error: any) {
     console.error('Erro ao estruturar dados do bloco de texto com Gemini:', error);
-    // Em caso de falha da API, fazer fallback para o mock sintático local para garantir resiliência
-    const fallbackData = parseProspectFromBlockTextMock(text);
-    const filled = Object.entries(fallbackData)
-      .filter(([_, val]) => val !== undefined && val !== '')
-      .map(([key]) => key);
-
     return {
-      success: true,
-      isMock: true,
-      prospect: fallbackData,
-      aiFilledFields: filled,
-      error: error.message || 'Erro ao chamar a API da IA Gemini. Foi utilizado o extrator interno.'
+      success: false,
+      isMock: false,
+      prospect: {},
+      aiFilledFields: [],
+      error: error.message || 'Erro ao chamar a API da IA Gemini.'
     };
   }
 };

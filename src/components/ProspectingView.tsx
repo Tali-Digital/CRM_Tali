@@ -282,6 +282,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         aiFilledFields: prospect.aiFilledFields || [],
       });
     } else {
+      setAiSubTab('preenchimento');
       setEditingProspect(null);
       setFormData({
         order: prospects.length + 1,
@@ -444,7 +445,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
     setIsGeneratingAI(true);
     try {
-      const result = await generateProspectReport(dummyProspect, apiKeyInput);
+      const result = await generateProspectReport(dummyProspect);
       if (result.success) {
         setFormData(prev => ({
           ...prev,
@@ -487,7 +488,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
     setIsGeneratingInsta(true);
     try {
-      const result = await generateInstagramMessage(dummyProspect, apiKeyInput);
+      const result = await generateInstagramMessage(dummyProspect);
       if (result.success) {
         setFormData(prev => ({
           ...prev,
@@ -521,7 +522,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     }
     setIsParsingFreeText(true);
     try {
-      const result = await parseProspectFromBlockText(freeText, apiKeyInput);
+      const result = await parseProspectFromBlockText(freeText);
       if (result.success && result.prospect) {
         const parsed = result.prospect;
         const filledFields: string[] = [];
@@ -543,13 +544,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           ...parsed,
           aiFilledFields: filledFields,
         }));
-        if (result.isMock) {
-          alert(`✅ Dados extraídos (Modo Demonstração)! ${filledFields.length} campo(s) foram preenchidos automaticamente. Verifique os campos marcados com o selo laranja "IA" antes de salvar.`);
-        } else {
-          alert(`✅ Gemini extraiu ${filledFields.length} campo(s) com sucesso! Verifique os campos marcados com o selo laranja "IA" e confirme antes de salvar.`);
-        }
-        setAiSubTab('analise');
-        setActiveTab('dados');
+        // Sucesso visual tratado diretamente no componente de interface
       } else {
         alert(`Não foi possível extrair dados: ${result.error || 'Resposta inválida da IA.'}`);
       }
@@ -711,13 +706,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
+            <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
               placeholder="Buscar clínica, dono ou local..."
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-64 transition-all"
+              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-64 transition-all resize-none overflow-hidden custom-scrollbar"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-            />
+             />
           </div>
           
 
@@ -737,7 +731,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           </button>
           
           <button 
-            onClick={() => handleOpenModal()}
+            onClick={() => handleOpenModal(undefined, true)}
             className="flex items-center gap-2 bg-blue-900 text-white px-5 py-2 rounded-xl hover:bg-blue-800 transition-all shadow-md active:scale-95 font-medium"
           >
             <Plus size={20} />
@@ -853,7 +847,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     onClick={() => !hasDragged && handleOpenModal(p, false)}
                     className="px-4 py-4 text-sm text-gray-600 font-medium border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
                   >
-                    {p.order}
+                    {idx + 1}
                   </td>
                   <td 
                     onClick={() => !hasDragged && handleOpenModal(p, false)}
@@ -1156,7 +1150,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200"
+            className={`bg-white rounded-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 ${!editingProspect ? 'max-w-7xl' : 'max-w-4xl'}`}
           >
             <div className="px-8 py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-4">
               <div>
@@ -1284,7 +1278,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             )}
             
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8">
-              {(activeTab === 'dados' || !editingProspect) && (
+              <div className={!editingProspect ? "grid grid-cols-1 xl:grid-cols-[1.3fr_1fr] gap-8" : ""}>
+                {/* Coluna Esquerda: Formulário Principal */}
+                <div className={!editingProspect ? "border-r border-gray-100 pr-8" : ""}>
+                  {(activeTab === 'dados' || !editingProspect) && (
                 <div className="space-y-8 animate-in fade-in duration-200">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
@@ -1300,14 +1297,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Nome da Clínica *
                             {renderAiReviewBadge('clinicName')}
                           </label>
-                          <input 
-                            type="text" 
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
                             required
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Nome comercial da clínica"
                             value={formData.clinicName}
                             onChange={(e) => handleFieldChange('clinicName', e.target.value)}
-                          />
+                           />
                         </div>
                         
                         <div className="space-y-1">
@@ -1332,13 +1328,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Cidade/Bairro - UF
                             {renderAiReviewBadge('location')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: Águas Claras - DF"
                             value={formData.location}
                             onChange={(e) => handleFieldChange('location', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1 md:col-span-2 lg:col-span-3">
@@ -1369,13 +1364,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Instagram da Clínica
                             {renderAiReviewBadge('clinicInstagram')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Link ou @username"
                             value={formData.clinicInstagram}
                             onChange={(e) => handleFieldChange('clinicInstagram', e.target.value)}
-                          />
+                           />
                         </div>
       
                         <div className="space-y-1">
@@ -1383,13 +1377,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Nome do Proprietário / Dono
                             {renderAiReviewBadge('ownerName')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Nome completo do dono"
                             value={formData.ownerName}
                             onChange={(e) => handleFieldChange('ownerName', e.target.value)}
-                          />
+                           />
                         </div>
       
                         <div className="space-y-1">
@@ -1397,13 +1390,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Instagram do Dono
                             {renderAiReviewBadge('ownerInstagram')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Link ou @username"
                             value={formData.ownerInstagram}
                             onChange={(e) => handleFieldChange('ownerInstagram', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1">
@@ -1428,13 +1420,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Nº de Colaboradores
                             {renderAiReviewBadge('collaborators')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: 8 colaboradores"
                             value={formData.collaborators}
                             onChange={(e) => handleFieldChange('collaborators', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1">
@@ -1442,13 +1433,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Tamanho da Clínica (Cadeiras)
                             {renderAiReviewBadge('size')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: 3 consultórios"
                             value={formData.size}
                             onChange={(e) => handleFieldChange('size', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1">
@@ -1456,13 +1446,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Idade da Empresa
                             {renderAiReviewBadge('age')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: 4 anos"
                             value={formData.age}
                             onChange={(e) => handleFieldChange('age', e.target.value)}
-                          />
+                           />
                         </div>
                       </div>
                     </div>
@@ -1479,13 +1468,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Nota do GMN
                             {renderAiReviewBadge('gmnRating')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: 4.9"
                             value={formData.gmnRating}
                             onChange={(e) => handleFieldChange('gmnRating', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1">
@@ -1493,13 +1481,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Qtd. Avaliações do Google
                             {renderAiReviewBadge('gmnReviewsCount')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: 140 avaliações"
                             value={formData.gmnReviewsCount}
                             onChange={(e) => handleFieldChange('gmnReviewsCount', e.target.value)}
-                          />
+                           />
                         </div>
 
                         <div className="space-y-1">
@@ -1632,13 +1619,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             Abordagem Comercial Utilizada
                             {renderAiReviewBadge('approachUsed')}
                           </label>
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium"
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                             placeholder="Ex: Abordagem consultiva sobre pontos cegos do GMN / Parceria..."
                             value={formData.approachUsed}
                             onChange={(e) => handleFieldChange('approachUsed', e.target.value)}
-                          />
+                           />
                         </div>
                       </div>
                     </div>
@@ -1663,8 +1649,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                   </div>
                 </div>
               )}
+                </div>
+                
+                {/* Coluna Direita: IA e Ferramentas */}
+                <div className={!editingProspect ? "pl-2" : ""}>
 
-              {activeTab === 'ia' && editingProspect && (
+              {(activeTab === 'ia' || !editingProspect) && (
                 /* Gemini AI Section */
                 <div className="space-y-5 animate-in fade-in duration-200">
                   {/* Header */}
@@ -1680,54 +1670,6 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     </div>
                   </div>
 
-                  {/* API Key Section */}
-                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Key size={15} className="text-gray-500" />
-                        <span className="text-sm font-bold text-gray-700">Chave de API do Gemini</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                        className="text-xs font-semibold text-blue-900 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!!import.meta.env.VITE_GEMINI_API_KEY}
-                      >
-                        {!!import.meta.env.VITE_GEMINI_API_KEY ? 'Chave Fixada' : (showApiKeyInput ? 'Ocultar Campo' : (apiKeyInput ? 'Alterar Chave' : 'Configurar Chave'))}
-                      </button>
-                    </div>
-
-                    {apiKeyInput && !showApiKeyInput && (
-                      <div className="text-xs text-green-700 font-bold bg-green-50 px-3 py-2 rounded-xl flex items-center gap-1.5 w-max border border-green-200">
-                        {!!import.meta.env.VITE_GEMINI_API_KEY ? '✓ Chave de API configurada de forma fixa (ambiente)!' : '✓ Chave de API configurada localmente no navegador!'}
-                      </div>
-                    )}
-
-                    {(!apiKeyInput || showApiKeyInput) && (
-                      <div className="flex gap-2 animate-in slide-in-from-top-2 duration-200">
-                        <input
-                          type="password"
-                          className="flex-1 px-4 py-2 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-900 outline-none"
-                          placeholder="Cole sua API Key do Gemini aqui..."
-                          value={apiKeyInput}
-                          onChange={(e) => setApiKeyInput(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSaveApiKey(apiKeyInput)}
-                          className="bg-blue-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-800 transition-colors"
-                        >
-                          Salvar
-                        </button>
-                      </div>
-                    )}
-
-                    {!apiKeyInput && (
-                      <p className="text-[10px] text-amber-600 font-medium">
-                        * Nenhuma chave configurada. O sistema funcionará em Modo de Demonstração estruturado.
-                      </p>
-                    )}
-                  </div>
 
                   {/* Sub-tabs */}
                   <div className="flex gap-3 border-b border-gray-100 pb-4">
@@ -2328,6 +2270,8 @@ A IA vai interpretar e preencher a ficha! 🤖`}
                   </div>
                 );
               })()}
+                </div>
+              </div>
               
               <div className="mt-8 flex justify-end gap-4 border-t border-gray-100 pt-6">
                 <button 

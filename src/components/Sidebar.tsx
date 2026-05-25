@@ -17,7 +17,8 @@ import {
   MonitorPlay,
   Layers,
   Link,
-  Search
+  Search,
+  Lock
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -234,6 +235,20 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
             >
               <Users size={20} className="shrink-0" />
               {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Clientes</span>}
+            </button>
+          )}
+          {userRole === 'admin' && (
+            <button
+              onClick={() => onTabChange('admin')}
+              className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'admin' 
+                  ? activeItemClasses 
+                  : itemHoverClasses
+              }`}
+              title={isCollapsed ? 'Administração' : ''}
+            >
+              <Lock size={20} className="shrink-0 text-red-500" />
+              {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold text-red-500 truncate">Administração</span>}
             </button>
           )}
           <button 
