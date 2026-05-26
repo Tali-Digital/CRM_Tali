@@ -74,10 +74,25 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [quickFilter, setQuickFilter] = useState<'active' | 'step1' | 'step2' | 'step3' | 'step4' | 'restart' | 'all'>('active');
+  const [quickFilter, setQuickFilter] = useState<string>('active');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [isProgressFilterOpen, setIsProgressFilterOpen] = useState(false);
+  const progressFilterRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdown de progresso ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (progressFilterRef.current && !progressFilterRef.current.contains(event.target as Node)) {
+        setIsProgressFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // IA Gemini States
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -290,16 +305,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       let matchesQuickFilter = true;
       if (quickFilter === 'active') {
         matchesQuickFilter = !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status);
-      } else if (quickFilter === 'Mandar Mensagem') {
-        matchesQuickFilter = p.status === 'Mandar Mensagem';
-      } else if (quickFilter === 'Mensagem Enviada') {
-        matchesQuickFilter = ['Mensagem Enviada', '1º Follow Up', '2º Follow Up', '3º+ Follow Up'].includes(p.status);
-      } else if (quickFilter === 'Reunião Agendada') {
-        matchesQuickFilter = p.status === 'Reunião Agendada';
-      } else if (quickFilter === 'Cliente Fechado') {
-        matchesQuickFilter = p.status === 'Cliente Fechado';
-      } else if (quickFilter === 'Base de Recomeço') {
-        matchesQuickFilter = p.status === 'Base de Recomeço';
+      } else if (quickFilter === 'all') {
+        matchesQuickFilter = true;
+      } else {
+        matchesQuickFilter = p.status === quickFilter;
       }
 
       return matchesSearch && matchesFilters && matchesQuickFilter;
@@ -819,8 +828,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           <p className="text-gray-500">Gerenciamento de contatos e funil de vendas</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 md:justify-end max-w-5xl">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-wrap items-center gap-2 flex-1 md:justify-end max-w-5xl">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '38px'; }} style={{ minHeight: '38px', fieldSizing: 'content' }}  
               placeholder="Buscar clínica, dono ou local..."
@@ -829,6 +838,95 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               onChange={(e) => setSearchTerm(e.target.value)}
              />
           </div>
+
+          {/* Dropdown de Filtro de Progresso */}
+          <div className="relative shrink-0 animate-in fade-in zoom-in duration-200" ref={progressFilterRef}>
+            <button
+              type="button"
+              onClick={() => setIsProgressFilterOpen(!isProgressFilterOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold border ${
+                quickFilter !== 'active' && quickFilter !== 'all'
+                  ? 'bg-blue-50 border-blue-200 text-blue-900'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ height: '38px' }}
+            >
+              <Filter size={14} className={quickFilter !== 'active' && quickFilter !== 'all' ? 'text-blue-900' : 'text-gray-400'} />
+              <span>
+                {quickFilter === 'active' ? 'Ativos' : 
+                 quickFilter === 'all' ? 'Mostrar Todos' : 
+                 quickFilter}
+              </span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${isProgressFilterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isProgressFilterOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[99] py-2 text-gray-700 animate-in fade-in zoom-in-95 duration-200">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-1.5">Progresso</div>
+                <div className="max-h-72 overflow-y-auto px-1.5 custom-scrollbar">
+                  {[
+                    { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, dotColor: 'bg-blue-900' },
+                    { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, dotColor: 'bg-amber-500' },
+                    { key: 'Mensagem Enviada', label: 'Mensagem Enviada', count: prospects.filter(p => p.status === 'Mensagem Enviada').length, dotColor: 'bg-blue-500' },
+                    { key: '1º Follow Up', label: '1º Follow Up', count: prospects.filter(p => p.status === '1º Follow Up').length, dotColor: 'bg-cyan-500' },
+                    { key: '2º Follow Up', label: '2º Follow Up', count: prospects.filter(p => p.status === '2º Follow Up').length, dotColor: 'bg-purple-500' },
+                    { key: '3º+ Follow Up', label: '3º+ Follow Up', count: prospects.filter(p => p.status === '3º+ Follow Up').length, dotColor: 'bg-indigo-500' },
+                    { key: 'Cliente Respondeu', label: 'Cliente Respondeu', count: prospects.filter(p => p.status === 'Cliente Respondeu').length, dotColor: 'bg-pink-500' },
+                    { key: 'Reunião Agendada', label: 'Reunião Agendada', count: prospects.filter(p => p.status === 'Reunião Agendada').length, dotColor: 'bg-orange-500' },
+                    { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.status === 'Cliente Fechado').length, dotColor: 'bg-emerald-600' },
+                    { key: 'Contrato Encerrado', label: 'Contrato Encerrado', count: prospects.filter(p => p.status === 'Contrato Encerrado').length, dotColor: 'bg-red-500' },
+                    { key: 'Base de Recomeço', label: 'Base de Recomeço', count: prospects.filter(p => p.status === 'Base de Recomeço').length, dotColor: 'bg-slate-500' },
+                    { key: 'all', label: 'Mostrar Todos', count: prospects.length, dotColor: 'bg-gray-400' }
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => {
+                        setQuickFilter(f.key);
+                        setIsProgressFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                        quickFilter === f.key
+                          ? 'bg-blue-900 text-white shadow-sm'
+                          : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${f.dotColor} shrink-0`} />
+                        <span>{f.label}</span>
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                        quickFilter === f.key
+                          ? 'bg-white/20 text-white'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {f.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Seletor Tabela / Cards */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/40 shrink-0" style={{ height: '38px' }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-lg transition-all flex items-center ${viewMode === 'table' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+              title="Tabela"
+            >
+              <Grid size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`p-1.5 rounded-lg transition-all flex items-center ${viewMode === 'cards' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+              title="Cards"
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
           
           <button 
             onClick={() => {
@@ -836,26 +934,29 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               setSearchTerm('');
               setQuickFilter('active');
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 shrink-0"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 shrink-0"
+            style={{ height: '38px' }}
             title="Limpar Filtros"
           >
             <RotateCcw size={14} />
-            Limpar Filtros
+            Limpar
           </button>
           
           <button 
             onClick={startRemoveDuplicates}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shrink-0"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shrink-0"
+            style={{ height: '38px' }}
             title="Remover Duplicados"
           >
             <Copy size={14} />
-            Remover Duplicados
+            Duplicados
           </button>
 
           <button 
             onClick={importInitialData}
             disabled={isImporting}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0 ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0 ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+            style={{ height: '38px' }}
             title="Importar dados da planilha"
           >
             {isImporting ? (
@@ -863,83 +964,21 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             ) : (
               <Clock size={14} />
             )}
-            {isImporting ? 'Importando...' : 'Importar Dados'}
+            Importar
           </button>
           
           <button 
             onClick={() => handleOpenModal(undefined, true)}
-            className="flex items-center gap-1.5 bg-blue-900 text-white px-4 py-1.5 rounded-xl hover:bg-blue-800 transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0"
+            className="flex items-center gap-1 bg-blue-900 text-white px-3.5 py-1.5 rounded-xl hover:bg-blue-800 transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0"
+            style={{ height: '38px' }}
           >
-            <Plus size={16} />
-            Novo Prospecto
+            <Plus size={15} />
+            Novo
           </button>
         </div>
       </div>
 
-      {/* Barra de Filtros Rápidos */}
-      <div className="flex flex-wrap items-center gap-2 mb-6 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">Filtros Rápidos:</span>
-        {[
-          { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, colorClass: 'bg-blue-900 border-blue-900', textColor: 'text-blue-900', lightBg: 'bg-blue-50' },
-          { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, colorClass: 'bg-amber-600 border-amber-600', textColor: 'text-amber-600', lightBg: 'bg-amber-50' },
-          { key: 'Mensagem Enviada', label: 'Mensagem/Follow Ups', count: prospects.filter(p => ['Mensagem Enviada', '1º Follow Up', '2º Follow Up', '3º+ Follow Up'].includes(p.status)).length, colorClass: 'bg-purple-600 border-purple-600', textColor: 'text-purple-600', lightBg: 'bg-purple-50' },
-          { key: 'Reunião Agendada', label: 'Reunião Agendada', count: prospects.filter(p => p.status === 'Reunião Agendada').length, colorClass: 'bg-orange-500 border-orange-500', textColor: 'text-orange-500', lightBg: 'bg-orange-50' },
-          { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.status === 'Cliente Fechado').length, colorClass: 'bg-emerald-600 border-emerald-600', textColor: 'text-emerald-600', lightBg: 'bg-emerald-50' },
-          { key: 'Base de Recomeço', label: 'Base de Recomeço', count: prospects.filter(p => p.status === 'Base de Recomeço').length, colorClass: 'bg-slate-600 border-slate-600', textColor: 'text-slate-600', lightBg: 'bg-slate-50' },
-          { key: 'all', label: 'Mostrar Todos', count: prospects.length, colorClass: 'bg-gray-800 border-gray-800', textColor: 'text-gray-800', lightBg: 'bg-gray-50' }
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setQuickFilter(f.key as any)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border whitespace-nowrap ${
-              quickFilter === f.key
-                ? `${f.colorClass} text-white shadow-md`
-                : `bg-white border-gray-200 ${f.textColor} hover:${f.lightBg}`
-            }`}
-          >
-            {f.label}
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              quickFilter === f.key
-                ? 'bg-white/20 text-white'
-                : 'bg-gray-100 text-gray-500'
-            }`}>
-              {f.count}
-            </span>
-          </button>
-        ))}
-        <div className="flex items-center gap-3 ml-auto shrink-0">
-          {quickFilter !== 'active' && (
-            <button
-              onClick={() => setQuickFilter('active')}
-              className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100 flex items-center gap-1"
-              title="Limpar Filtro"
-            >
-              <RotateCcw size={14} /> Limpar Filtro
-            </button>
-          )}
-          
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/40">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold ${viewMode === 'table' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-              title="Tabela"
-            >
-              <Grid size={13} />
-              Tabela
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold ${viewMode === 'cards' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-              title="Cards"
-            >
-              <LayoutGrid size={13} />
-              Cards
-            </button>
-          </div>
-        </div>
-      </div>
+
 
       {viewMode === 'table' ? (
         /* Table Container */
