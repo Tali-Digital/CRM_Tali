@@ -290,7 +290,7 @@ export interface Prospect {
   followedOwner: 'Sim' | 'Solicitado' | 'Não' | '';
   size: string;
   age: string;
-  status: 'Mandar mensagem' | 'Mensagem Enviada' | '1º Follow up' | '2º Follow up' | 'Reunião Agendada' | 'Cliente Fechado' | 'Contato Encerrado' | '';
+  status: 'Mandar Mensagem' | 'Mensagem Enviada' | '1º Follow Up' | '2º Follow Up' | '3º+ Follow Up' | 'Cliente Respondeu' | 'Reunião Agendada' | 'Cliente Fechado' | 'Contrato Encerrado' | 'Base de Recomeço' | '';
   hasAnswered: boolean;
   lastFollowUp: string;
   observations: string;
@@ -317,4 +317,5 @@ export interface Prospect {
   followUps?: FollowUp[];
   aiFilledFields?: string[];
   calculatorData?: CalculatorData;
+  fullAddress?: string;
 }

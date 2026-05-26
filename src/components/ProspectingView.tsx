@@ -31,7 +31,11 @@ import {
   Building2,
   Zap,
   Users as UsersIcon,
-  CalendarDays
+  CalendarDays,
+  Copy,
+  Settings,
+  LayoutGrid,
+  Grid
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings } from '../services/firestoreService';
@@ -42,13 +46,16 @@ interface ProspectingViewProps {
 }
 
 const STATUS_COLORS = {
-  'Mandar mensagem': 'bg-amber-100 text-amber-800',
+  'Mandar Mensagem': 'bg-amber-100 text-amber-800',
   'Mensagem Enviada': 'bg-blue-100 text-blue-800',
-  '1º Follow up': 'bg-cyan-100 text-cyan-800',
-  '2º Follow up': 'bg-purple-100 text-purple-800',
-  'Reunião Agendada': 'bg-green-100 text-green-800',
+  '1º Follow Up': 'bg-cyan-100 text-cyan-800',
+  '2º Follow Up': 'bg-purple-100 text-purple-800',
+  '3º+ Follow Up': 'bg-indigo-100 text-indigo-800',
+  'Cliente Respondeu': 'bg-pink-100 text-pink-800',
+  'Reunião Agendada': 'bg-orange-100 text-orange-800',
   'Cliente Fechado': 'bg-emerald-800 text-white',
-  'Contato Encerrado': 'bg-red-100 text-red-800',
+  'Contrato Encerrado': 'bg-red-100 text-red-800',
+  'Base de Recomeço': 'bg-slate-100 text-slate-800',
   '': 'bg-gray-100 text-gray-800'
 };
 
@@ -70,6 +77,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [quickFilter, setQuickFilter] = useState<'active' | 'step1' | 'step2' | 'step3' | 'step4' | 'restart' | 'all'>('active');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   
   // IA Gemini States
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -86,6 +94,9 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [freeText, setFreeText] = useState('');
   const [isParsingFreeText, setIsParsingFreeText] = useState(false);
   const [aiSubTab, setAiSubTab] = useState<'analise' | 'preenchimento'>('preenchimento');
+
+  // Duplicate Check State
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Drag to Scroll States
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -125,6 +136,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     isRestartBase: false,
     followUps: [],
     aiFilledFields: [],
+    fullAddress: '',
   });
 
   // Refs para salvar de forma automática ao clicar fora ou apertar ESC
@@ -142,6 +154,45 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   useEffect(() => {
     isModalOpenRef.current = isModalOpen;
   }, [isModalOpen]);
+
+  // Check duplicates real-time
+  useEffect(() => {
+    if (!formData.clinicName && !formData.location && !formData.clinicInstagram) {
+      setDuplicateWarning(null);
+      return;
+    }
+
+    const normalizeString = (str?: string) => {
+      if (!str) return '';
+      return str.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, "") // Remove acentos
+        .replace(/[^a-z0-9]/g, ''); // Remove espaços, traços e caracteres especiais
+    };
+    
+    const normalizedName = normalizeString(formData.clinicName);
+    const normalizedLocation = normalizeString(formData.location);
+    const normalizedInsta = formData.clinicInstagram?.toLowerCase().trim().replace('@', '').replace('https://instagram.com/', '').replace('www.instagram.com/', '').replace(/\/$/, '') || '';
+
+    const duplicate = prospects.find(p => {
+      // Ignora a si mesmo na edição
+      if (editingProspect && p.id === editingProspect.id) return false;
+
+      const pName = normalizeString(p.clinicName);
+      const pLoc = normalizeString(p.location);
+      const pInsta = p.clinicInstagram?.toLowerCase().trim().replace('@', '').replace('https://instagram.com/', '').replace('www.instagram.com/', '').replace(/\/$/, '') || '';
+
+      const nameLocMatch = normalizedName && normalizedLocation && pName === normalizedName && pLoc === normalizedLocation;
+      const instaMatch = normalizedInsta && pInsta === normalizedInsta;
+      
+      return nameLocMatch || instaMatch;
+    });
+
+    if (duplicate) {
+      setDuplicateWarning(`Atenção: Já existe um prospecto parecido (${duplicate.clinicName} ${duplicate.location ? `- ${duplicate.location}` : ''}) cadastrado por ${duplicate.responsible || 'alguém'}! Verifique para não trabalharem o mesmo cliente.`);
+    } else {
+      setDuplicateWarning(null);
+    }
+  }, [formData.clinicName, formData.location, formData.clinicInstagram, prospects, editingProspect]);
 
   const handleCloseAndSave = useCallback(async () => {
     if (isModalOpenRef.current) {
@@ -238,17 +289,17 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       // Quick Step / Restart Base Filter
       let matchesQuickFilter = true;
       if (quickFilter === 'active') {
-        matchesQuickFilter = !p.isRestartBase && p.currentStep < 4;
-      } else if (quickFilter === 'step1') {
-        matchesQuickFilter = !p.isRestartBase && p.currentStep === 1;
-      } else if (quickFilter === 'step2') {
-        matchesQuickFilter = !p.isRestartBase && p.currentStep === 2;
-      } else if (quickFilter === 'step3') {
-        matchesQuickFilter = !p.isRestartBase && p.currentStep === 3;
-      } else if (quickFilter === 'step4') {
-        matchesQuickFilter = !p.isRestartBase && p.currentStep === 4;
-      } else if (quickFilter === 'restart') {
-        matchesQuickFilter = !!p.isRestartBase;
+        matchesQuickFilter = !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status);
+      } else if (quickFilter === 'Mandar Mensagem') {
+        matchesQuickFilter = p.status === 'Mandar Mensagem';
+      } else if (quickFilter === 'Mensagem Enviada') {
+        matchesQuickFilter = ['Mensagem Enviada', '1º Follow Up', '2º Follow Up', '3º+ Follow Up'].includes(p.status);
+      } else if (quickFilter === 'Reunião Agendada') {
+        matchesQuickFilter = p.status === 'Reunião Agendada';
+      } else if (quickFilter === 'Cliente Fechado') {
+        matchesQuickFilter = p.status === 'Cliente Fechado';
+      } else if (quickFilter === 'Base de Recomeço') {
+        matchesQuickFilter = p.status === 'Base de Recomeço';
       }
 
       return matchesSearch && matchesFilters && matchesQuickFilter;
@@ -288,12 +339,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         isRestartBase: !!prospect.isRestartBase,
         followUps: prospect.followUps || [],
         aiFilledFields: prospect.aiFilledFields || [],
+        fullAddress: prospect.fullAddress || '',
       });
     } else {
       setAiSubTab('preenchimento');
       setEditingProspect(null);
       setFormData({
-        order: prospects.length + 1,
+        order: Date.now() * -1,
         responsible: '',
         location: '',
         clinicName: '',
@@ -323,6 +375,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         isRestartBase: false,
         followUps: [],
         aiFilledFields: [],
+        fullAddress: '',
       });
     }
     setIsModalOpen(true);
@@ -374,60 +427,110 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   };
 
   const [isCleaning, setIsCleaning] = useState(false);
-  const [confirmClean, setConfirmClean] = useState<{count: number, ids: string[]} | null>(null);
+  const [duplicateGroups, setDuplicateGroups] = useState<{key: string; items: Prospect[]; hasDifferences: boolean}[] | null>(null);
 
   const startRemoveDuplicates = () => {
-    console.log('Iniciando verificação de duplicados...', { count: prospects.length });
     if (prospects.length === 0) {
       alert('Não há registros para verificar.');
       return;
     }
 
-    const seen = new Map<string, string>(); // key -> id
-    const toDelete: string[] = [];
+    const groups = new Map<string, Prospect[]>();
 
     prospects.forEach(p => {
       const normalizedName = p.clinicName.toLowerCase().trim().replace(/\s+/g, ' ');
-      const normalizedLocation = p.location.toLowerCase().trim().replace(/\s+/g, ' ');
+      const normalizedLocation = (p.location || '').toLowerCase().trim().replace(/\s+/g, ' ');
       const key = `${normalizedName}|${normalizedLocation}`;
       
-      if (seen.has(key)) {
-        toDelete.push(p.id);
-      } else {
-        seen.set(key, p.id);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(p);
+    });
+
+    const duplicates: {key: string; items: Prospect[]; hasDifferences: boolean}[] = [];
+
+    groups.forEach((items, key) => {
+      if (items.length > 1) {
+        let hasDifferences = false;
+        const baseItem = items[0];
+        for (let i = 1; i < items.length; i++) {
+          const item = items[i];
+          if (
+            item.gmnRating !== baseItem.gmnRating ||
+            item.gmnReviewsCount !== baseItem.gmnReviewsCount ||
+            item.clinicInstagram !== baseItem.clinicInstagram ||
+            item.ownerName !== baseItem.ownerName ||
+            item.site !== baseItem.site ||
+            item.responsible !== baseItem.responsible ||
+            item.size !== baseItem.size
+          ) {
+            hasDifferences = true;
+            break;
+          }
+        }
+        duplicates.push({ key, items, hasDifferences });
       }
     });
 
-    if (toDelete.length === 0) {
+    if (duplicates.length === 0) {
       alert('Nenhum registro duplicado encontrado (mesmo nome e localização).');
       return;
     }
 
-    setConfirmClean({ count: toDelete.length, ids: toDelete });
+    setDuplicateGroups(duplicates);
   };
 
-  const handleRemoveDuplicates = async () => {
-    if (!confirmClean) return;
+  const handleKeepDuplicate = async (groupIndex: number, keepId: string) => {
+    if (!duplicateGroups) return;
     
     setIsCleaning(true);
     try {
-      let count = 0;
-      for (const id of confirmClean.ids) {
-        console.log(`Deletando ${count + 1}/${confirmClean.count}: ${id}`);
+      const group = duplicateGroups[groupIndex];
+      const idsToDelete = group.items.map(i => i.id).filter(id => id !== keepId);
+      
+      for (const id of idsToDelete) {
         await deleteProspect(id);
-        count++;
       }
-      alert(`${count} registros duplicados foram removidos com sucesso!`);
-      setConfirmClean(null);
+      
+      const newGroups = [...duplicateGroups];
+      newGroups.splice(groupIndex, 1);
+      
+      if (newGroups.length === 0) {
+        setDuplicateGroups(null);
+        alert('Todos os duplicados foram resolvidos!');
+      } else {
+        setDuplicateGroups(newGroups);
+      }
     } catch (error) {
-      console.error('Erro crítico ao remover duplicados:', error);
-      alert('Erro ao processar a limpeza. Verifique o console.');
+      console.error('Erro ao remover duplicados:', error);
+      alert('Erro ao processar a limpeza.');
     } finally {
       setIsCleaning(false);
     }
   };
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Tem certeza que deseja excluir os ${selectedIds.length} prospectos selecionados?`)) {
+      setIsCleaning(true);
+      try {
+        for (const id of selectedIds) {
+          await deleteProspect(id);
+        }
+        setSelectedIds([]);
+        alert('Prospectos selecionados excluídos com sucesso!');
+      } catch (error) {
+        console.error('Erro ao excluir prospectos:', error);
+        alert('Ocorreu um erro ao excluir alguns registros.');
+      } finally {
+        setIsCleaning(false);
+      }
+    }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -541,7 +644,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         const filledFields: string[] = [];
         // Detecta quais campos foram preenchidos pela IA
         const checkFields = [
-          'clinicName','responsible','location','clinicInstagram','gmn','site',
+          'clinicName','responsible','location','fullAddress','clinicInstagram','gmn','site',
           'ownerName','ownerInstagram','followedOwner','size','age','collaborators',
           'gmnRating','gmnReviewsCount','status','firstContactDate','week',
           'lastContactDate','approachUsed','observations','instagramMessage',
@@ -716,38 +819,58 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           <p className="text-gray-500">Gerenciamento de contatos e funil de vendas</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 md:justify-end max-w-5xl">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '38px'; }} style={{ minHeight: '38px', fieldSizing: 'content' }}  
               placeholder="Buscar clínica, dono ou local..."
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-64 transition-all resize-none overflow-hidden custom-scrollbar"
+              className="pl-10 pr-4 py-1.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-full transition-all resize-none overflow-hidden custom-scrollbar text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
              />
           </div>
           
-
+          <button 
+            onClick={() => {
+              setFilters({});
+              setSearchTerm('');
+              setQuickFilter('active');
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 shrink-0"
+            title="Limpar Filtros"
+          >
+            <RotateCcw size={14} />
+            Limpar Filtros
+          </button>
+          
+          <button 
+            onClick={startRemoveDuplicates}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shrink-0"
+            title="Remover Duplicados"
+          >
+            <Copy size={14} />
+            Remover Duplicados
+          </button>
 
           <button 
             onClick={importInitialData}
             disabled={isImporting}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl transition-all shadow-md active:scale-95 font-medium ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0 ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
             title="Importar dados da planilha"
           >
             {isImporting ? (
-              <Loader2 className="animate-spin" size={18} />
+              <Loader2 className="animate-spin" size={14} />
             ) : (
-              <Clock size={18} />
+              <Clock size={14} />
             )}
             {isImporting ? 'Importando...' : 'Importar Dados'}
           </button>
           
           <button 
             onClick={() => handleOpenModal(undefined, true)}
-            className="flex items-center gap-2 bg-blue-900 text-white px-5 py-2 rounded-xl hover:bg-blue-800 transition-all shadow-md active:scale-95 font-medium"
+            className="flex items-center gap-1.5 bg-blue-900 text-white px-4 py-1.5 rounded-xl hover:bg-blue-800 transition-all shadow-md active:scale-95 text-xs font-semibold shrink-0"
           >
-            <Plus size={20} />
+            <Plus size={16} />
             Novo Prospecto
           </button>
         </div>
@@ -757,12 +880,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       <div className="flex flex-wrap items-center gap-2 mb-6 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">Filtros Rápidos:</span>
         {[
-          { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !p.isRestartBase && p.currentStep < 4).length, colorClass: 'bg-blue-900 border-blue-900', textColor: 'text-blue-900', lightBg: 'bg-blue-50' },
-          { key: 'step1', label: '01. Encontrar/Seguir', count: prospects.filter(p => !p.isRestartBase && p.currentStep === 1).length, colorClass: 'bg-cyan-600 border-cyan-600', textColor: 'text-cyan-600', lightBg: 'bg-cyan-50' },
-          { key: 'step2', label: '02. Mensagem/Follows', count: prospects.filter(p => !p.isRestartBase && p.currentStep === 2).length, colorClass: 'bg-purple-600 border-purple-600', textColor: 'text-purple-600', lightBg: 'bg-purple-50' },
-          { key: 'step3', label: '03. Reunião Agendada', count: prospects.filter(p => !p.isRestartBase && p.currentStep === 3).length, colorClass: 'bg-orange-500 border-orange-500', textColor: 'text-orange-500', lightBg: 'bg-orange-50' },
-          { key: 'step4', label: '04. Contratou (Método)', count: prospects.filter(p => !p.isRestartBase && p.currentStep === 4).length, colorClass: 'bg-emerald-600 border-emerald-600', textColor: 'text-emerald-600', lightBg: 'bg-emerald-50' },
-          { key: 'restart', label: '🔄 Base de Recomeço', count: prospects.filter(p => p.isRestartBase).length, colorClass: 'bg-slate-600 border-slate-600', textColor: 'text-slate-600', lightBg: 'bg-slate-50' },
+          { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, colorClass: 'bg-blue-900 border-blue-900', textColor: 'text-blue-900', lightBg: 'bg-blue-50' },
+          { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, colorClass: 'bg-amber-600 border-amber-600', textColor: 'text-amber-600', lightBg: 'bg-amber-50' },
+          { key: 'Mensagem Enviada', label: 'Mensagem/Follow Ups', count: prospects.filter(p => ['Mensagem Enviada', '1º Follow Up', '2º Follow Up', '3º+ Follow Up'].includes(p.status)).length, colorClass: 'bg-purple-600 border-purple-600', textColor: 'text-purple-600', lightBg: 'bg-purple-50' },
+          { key: 'Reunião Agendada', label: 'Reunião Agendada', count: prospects.filter(p => p.status === 'Reunião Agendada').length, colorClass: 'bg-orange-500 border-orange-500', textColor: 'text-orange-500', lightBg: 'bg-orange-50' },
+          { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.status === 'Cliente Fechado').length, colorClass: 'bg-emerald-600 border-emerald-600', textColor: 'text-emerald-600', lightBg: 'bg-emerald-50' },
+          { key: 'Base de Recomeço', label: 'Base de Recomeço', count: prospects.filter(p => p.status === 'Base de Recomeço').length, colorClass: 'bg-slate-600 border-slate-600', textColor: 'text-slate-600', lightBg: 'bg-slate-50' },
           { key: 'all', label: 'Mostrar Todos', count: prospects.length, colorClass: 'bg-gray-800 border-gray-800', textColor: 'text-gray-800', lightBg: 'bg-gray-50' }
         ].map((f) => (
           <button
@@ -784,344 +907,307 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             </span>
           </button>
         ))}
-        {quickFilter !== 'active' && (
-          <button
-            onClick={() => setQuickFilter('active')}
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100 flex items-center gap-1 ml-auto"
-            title="Limpar Filtro"
-          >
-            <RotateCcw size={14} /> Limpar Filtro
-          </button>
-        )}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          {quickFilter !== 'active' && (
+            <button
+              onClick={() => setQuickFilter('active')}
+              className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100 flex items-center gap-1"
+              title="Limpar Filtro"
+            >
+              <RotateCcw size={14} /> Limpar Filtro
+            </button>
+          )}
+          
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/40">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold ${viewMode === 'table' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+              title="Tabela"
+            >
+              <Grid size={13} />
+              Tabela
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`p-1.5 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold ${viewMode === 'cards' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+              title="Cards"
+            >
+              <LayoutGrid size={13} />
+              Cards
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Table Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div 
-          ref={tableContainerRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          className="overflow-x-auto select-none"
-          style={{ cursor: isMouseDown ? 'grabbing' : 'grab' }}
-        >
-          <table className="w-full text-left border-collapse min-w-[1800px]">
-            <thead>
-              <tr className="bg-[#004a8d] text-white">
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Ordem {renderFilterDropdown('order', 'Ordem')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Responsável {renderFilterDropdown('responsible', 'Responsável')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Cidade/Bairro {renderFilterDropdown('location', 'Localização')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Clínica {renderFilterDropdown('clinicName', 'Clínica')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Links {renderFilterDropdown('clinicInstagram', 'Links')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Dono {renderFilterDropdown('ownerName', 'Dono')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Estrutura/Idade {renderFilterDropdown('size', 'Tamanho')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Avaliações Google {renderFilterDropdown('gmnRating', 'Nota GMN')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[200px]">
-                  Status & Seguiu {renderFilterDropdown('status', 'Status')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Progresso {renderFilterDropdown('currentStep', 'Passo')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 text-center">
-                  Resp? {renderFilterDropdown('hasAnswered', 'Resposta')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30">
-                  Datas/Abordagem {renderFilterDropdown('firstContactDate', 'Datas')}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 text-center">
-                  IA Gemini
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {processedProspects.map((p, idx) => (
-                <tr key={p.id} className={`hover:bg-blue-50/50 transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 text-sm text-gray-600 font-medium border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    {idx + 1}
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 shadow-sm">
-                      {p.responsible || 'Pendente'}
-                    </span>
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 text-sm text-gray-600 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    {p.location}
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    <div className="font-bold text-gray-900">{p.clinicName}</div>
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    <div className="flex gap-2">
-                      {p.clinicInstagram && (
+      {viewMode === 'table' ? (
+        /* Table Container */
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div 
+            ref={tableContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className="overflow-x-auto select-none"
+            style={{ cursor: isMouseDown ? 'grabbing' : 'grab' }}
+          >
+            <table className="w-full text-left border-collapse min-w-[1200px]">
+              <thead>
+                <tr className="bg-[#004a8d] text-white">
+                  <th className="px-4 py-3 border-r border-blue-800/30 w-8 text-center">
+                    <input 
+                      type="checkbox"
+                      className="rounded text-blue-900 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                      checked={processedProspects.length > 0 && selectedIds.length === processedProspects.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(processedProspects.map(p => p.id));
+                        } else {
+                          setSelectedIds([]);
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-10">
+                    # {renderFilterDropdown('order', '#')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
+                    Líder {renderFilterDropdown('responsible', 'Líder')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-32">
+                    Cidade/UF {renderFilterDropdown('location', 'Localização')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[160px]">
+                    Clínica {renderFilterDropdown('clinicName', 'Clínica')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-20 text-center">
+                    Links {renderFilterDropdown('clinicInstagram', 'Links')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[120px]">
+                    Dono {renderFilterDropdown('ownerName', 'Dono')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
+                    Estrutura {renderFilterDropdown('size', 'Tamanho')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
+                    Google {renderFilterDropdown('gmnRating', 'Nota GMN')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-44">
+                    Progresso {renderFilterDropdown('status', 'Progresso')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-36">
+                    Datas {renderFilterDropdown('firstContactDate', 'Datas')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider w-14 text-center">
+                    <Settings size={14} className="mx-auto text-white/80" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {processedProspects.map((p, idx) => (
+                  <tr key={p.id} className={`hover:bg-blue-50/50 transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${selectedIds.includes(p.id) ? 'bg-blue-50/30' : ''}`}>
+                    <td className="px-4 py-4 text-center border-r border-gray-100 w-8">
+                      <input 
+                        type="checkbox"
+                        className="rounded text-blue-900 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        checked={selectedIds.includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(prev => [...prev, p.id]);
+                          } else {
+                            setSelectedIds(prev => prev.filter(id => id !== p.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 text-sm text-gray-600 font-medium border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-10"
+                    >
+                      {idx + 1}
+                    </td>
+  
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 text-sm text-gray-600 font-semibold border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
+                    >
+                      {p.responsible || <span className="text-gray-400 italic">Sem Líder</span>}
+                    </td>
+  
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 text-sm text-gray-600 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-32"
+                    >
+                      {p.location}
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
+                    >
+                      <div className="font-bold text-gray-900">{p.clinicName}</div>
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-20"
+                    >
+                      <div className="flex gap-1.5 justify-center">
+                        {p.clinicInstagram && (
+                          <a 
+                            href={p.clinicInstagram} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 text-white shadow-sm hover:scale-110 transition-transform" 
+                            title="Instagram Clínica"
+                          >
+                            <Instagram size={14} />
+                          </a>
+                        )}
+                        {p.gmn && (
+                          <a 
+                            href={p.gmn} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-blue-500 text-white shadow-sm hover:scale-110 transition-transform" 
+                            title="GMN / Google Maps"
+                          >
+                            <MapPin size={14} />
+                          </a>
+                        )}
+                        {p.site && (
+                          <a 
+                            href={p.site} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-emerald-500 text-white shadow-sm hover:scale-110 transition-transform" 
+                            title="Website"
+                          >
+                            <Globe size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors min-w-[120px]"
+                    >
+                      <div className="text-sm font-bold text-gray-800">{p.ownerName}</div>
+                      {p.ownerInstagram && (
                         <a 
-                          href={p.clinicInstagram} 
+                          href={p.ownerInstagram} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           onClick={(e) => e.stopPropagation()}
-                          className="p-2 rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 text-white shadow-sm hover:scale-110 transition-transform" 
-                          title="Instagram Clínica"
+                          className="text-[10px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-1 uppercase"
                         >
-                          <Instagram size={14} />
+                          <Instagram size={10} /> Perfil do Dono
                         </a>
                       )}
-                      {p.gmn && (
-                        <a 
-                          href={p.gmn} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 rounded-xl bg-blue-500 text-white shadow-sm hover:scale-110 transition-transform" 
-                          title="GMN / Google Maps"
-                        >
-                          <MapPin size={14} />
-                        </a>
-                      )}
-                      {p.site && (
-                        <a 
-                          href={p.site} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 rounded-xl bg-emerald-500 text-white shadow-sm hover:scale-110 transition-transform" 
-                          title="Website"
-                        >
-                          <Globe size={14} />
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    <div className="text-sm font-bold text-gray-800">{p.ownerName}</div>
-                    {p.ownerInstagram && (
-                      <a 
-                        href={p.ownerInstagram} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-1 uppercase"
-                      >
-                        <Instagram size={10} /> Perfil do Dono
-                      </a>
-                    )}
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <div className="text-xs font-bold text-gray-700 bg-gray-100 inline-block px-2 py-0.5 rounded w-max">{p.size || 'Cadeiras: N/D'}</div>
-                      <div className="text-[10px] font-medium text-gray-500 uppercase">Idade: {p.age || 'N/D'}</div>
-                      {p.collaborators && (
-                        <div className="text-[10px] font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded-md w-max mt-0.5 flex items-center gap-1">
-                          👥 {p.collaborators} colab.
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td 
-                    onClick={() => !hasDragged && handleOpenModal(p, false)}
-                    className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                  >
-                    {p.gmnRating ? (
-                      <div className="flex flex-col gap-0.5">
-                        <div className="text-sm font-bold text-amber-500 flex items-center gap-1">
-                          ★ <span className="text-gray-900">{p.gmnRating}</span>
-                        </div>
-                        {p.gmnReviewsCount && (
-                          <div className="text-[10px] text-gray-500 font-medium">
-                            ({p.gmnReviewsCount} avaliações)
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="text-xs font-bold text-gray-700 bg-gray-100 inline-block px-2 py-0.5 rounded w-max">{p.size || 'Cadeiras: N/D'}</div>
+                        <div className="text-[10px] font-medium text-gray-500 uppercase">Idade: {p.age || 'N/D'}</div>
+                        {p.collaborators && (
+                          <div className="text-[10px] font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded-md w-max mt-0.5 flex items-center gap-1">
+                            👥 {p.collaborators} colab.
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">Sem avaliações</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 border-r border-gray-100">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter shrink-0">Seguiu:</span>
+                    </td>
+                    <td 
+                      onClick={() => !hasDragged && handleOpenModal(p, false)}
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
+                    >
+                      {p.gmnRating ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="text-sm font-bold text-amber-500 flex items-center gap-1">
+                            ★ <span className="text-gray-900">{p.gmnRating}</span>
+                          </div>
+                          {p.gmnReviewsCount && (
+                            <div className="text-[10px] text-gray-500 font-medium">
+                              ({p.gmnReviewsCount} avaliações)
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Sem avaliações</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 border-r border-gray-100 w-44">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter shrink-0">Seguiu:</span>
+                          <select 
+                            value={p.followedOwner}
+                            onChange={(e) => handleQuickUpdate(p.id, 'followedOwner', e.target.value)}
+                            className={`text-[9px] font-black px-2 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm uppercase tracking-tighter ${FOLLOWED_COLORS[p.followedOwner as keyof typeof FOLLOWED_COLORS]}`}
+                          >
+                            <option value="">Status</option>
+                            <option value="Sim">Sim</option>
+                            <option value="Solicitado">Sol.</option>
+                            <option value="Não">Não</option>
+                          </select>
+                        </div>
                         <select 
-                          value={p.followedOwner}
-                          onChange={(e) => handleQuickUpdate(p.id, 'followedOwner', e.target.value)}
-                          className={`text-[9px] font-black px-2 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm uppercase tracking-tighter ${FOLLOWED_COLORS[p.followedOwner as keyof typeof FOLLOWED_COLORS]}`}
+                          value={p.status}
+                          onChange={(e) => handleQuickUpdate(p.id, 'status', e.target.value)}
+                          className={`text-[10px] font-black px-2 py-1.5 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-md w-full uppercase tracking-tighter transition-all hover:scale-[1.02] active:scale-95 ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
                         >
-                          <option value="">Status</option>
-                          <option value="Sim">Sim</option>
-                          <option value="Solicitado">Sol.</option>
-                          <option value="Não">Não</option>
+                          <option value="">Definir Progresso</option>
+                          <option value="Mandar Mensagem">Mandar Mensagem</option>
+                          <option value="Mensagem Enviada">Mensagem Enviada</option>
+                          <option value="1º Follow Up">1º Follow Up</option>
+                          <option value="2º Follow Up">2º Follow Up</option>
+                          <option value="3º+ Follow Up">3º+ Follow Up</option>
+                          <option value="Cliente Respondeu">Cliente Respondeu</option>
+                          <option value="Reunião Agendada">Reunião Agendada</option>
+                          <option value="Cliente Fechado">Cliente Fechado</option>
+                          <option value="Contrato Encerrado">Contrato Encerrado</option>
+                          <option value="Base de Recomeço">Base de Recomeço</option>
                         </select>
                       </div>
-                      <select 
-                        value={p.status}
-                        onChange={(e) => handleQuickUpdate(p.id, 'status', e.target.value)}
-                        className={`text-[10px] font-black px-2 py-1.5 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-md w-full uppercase tracking-tighter transition-all hover:scale-[1.02] active:scale-95 ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
-                      >
-                        <option value="">Definir Status</option>
-                        <option value="Mandar mensagem">Mandar mensagem</option>
-                        <option value="Mensagem Enviada">Mensagem Enviada</option>
-                        <option value="1º Follow up">1º Follow up</option>
-                        <option value="2º Follow up">2º Follow up</option>
-                        <option value="Reunião Agendada">Reunião Agendada</option>
-                        <option value="Cliente Fechado">Cliente Fechado</option>
-                        <option value="Contato Encerrado">Contato Encerrado</option>
-                      </select>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 border-r border-gray-100">
-                    <div className="flex items-center gap-1">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4].map(step => (
-                          <button
-                            key={step}
-                            onClick={() => {
-                              handleQuickUpdate(p.id, 'currentStep', step);
-                              if (p.isRestartBase) {
-                                handleQuickUpdate(p.id, 'isRestartBase', false);
-                              }
-                            }}
-                            className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${
-                              p.currentStep >= step && !p.isRestartBase
-                                ? 'bg-blue-900 text-white shadow-sm' 
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                            }`}
-                            title={`Passo ${step}`}
-                          >
-                            {step}
-                          </button>
-                        ))}
+                    </td>
+  
+                    <td className="px-4 py-4 border-r border-gray-100 w-36">
+                      <div className="flex flex-col gap-1 text-xs">
+                        <div className="font-bold text-gray-600 flex items-center gap-1" title="Data do Primeiro Contato">
+                          <Calendar size={12} className="text-blue-500" /> {p.firstContactDate || '1º: N/D'}
+                        </div>
+                        {p.lastContactDate && (
+                          <div className="text-[10px] font-semibold text-purple-700 flex items-center gap-1" title="Data do Último Contato">
+                            <Clock size={10} className="text-purple-500" /> Últ: {p.lastContactDate}
+                          </div>
+                        )}
+                        {p.approachUsed ? (
+                          <div className="text-[9px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded truncate max-w-[130px] font-medium mt-0.5" title={p.approachUsed}>
+                            💬 {p.approachUsed}
+                          </div>
+                        ) : (
+                          <div className="text-[9px] text-gray-400 italic mt-0.5">Sem abordagem</div>
+                        )}
                       </div>
-
-                      <div className="h-4 w-[1px] bg-gray-200 mx-0.5"></div>
-
-                      <button
-                        onClick={() => handleQuickUpdate(p.id, 'isRestartBase', !p.isRestartBase)}
-                        className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${
-                          p.isRestartBase
-                            ? 'bg-red-500 text-white shadow-sm'
-                            : 'bg-white border border-red-200 text-red-500 hover:bg-red-50'
-                        }`}
-                        title="Base de Recomeço"
-                      >
-                        <RotateCcw size={10} className={p.isRestartBase ? 'animate-spin' : ''} />
-                      </button>
-                    </div>
-                    <div className="mt-1 flex flex-col gap-0.5">
-                      {p.isRestartBase ? (
-                        <span className="inline-block text-[9px] font-black text-red-600 uppercase tracking-tighter bg-red-50 px-1 py-0.5 rounded-md border border-red-100 w-fit">
-                          🔄 Recomeçar
-                        </span>
-                      ) : (
-                        <div className="text-[9px] font-bold text-blue-900 uppercase tracking-tighter">
-                          {p.currentStep === 1 
-                            ? '01. Encontrar/Seguir' 
-                            : p.currentStep === 2 
-                            ? `02. Msg (${p.followUps?.length || 0} f.ups)` 
-                            : p.currentStep === 3 
-                            ? '03. Reunião Marcada' 
-                            : '04. Contratou (Método)'}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-100">
-                    <button 
-                      onClick={() => handleQuickUpdate(p.id, 'hasAnswered', !p.hasAnswered)}
-                      className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${p.hasAnswered ? 'bg-green-500 border-green-500 text-white shadow-green-200 shadow-lg' : 'bg-white border-gray-200 text-transparent'}`}
-                    >
-                      <CheckCircle2 size={16} />
-                    </button>
-                  </td>
-                  <td className="px-4 py-4 border-r border-gray-100">
-                    <div className="flex flex-col gap-1 text-xs">
-                      <div className="font-bold text-gray-600 flex items-center gap-1" title="Data do Primeiro Contato">
-                        <Calendar size={12} className="text-blue-500" /> {p.firstContactDate || '1º: N/D'}
-                      </div>
-                      {p.lastContactDate && (
-                        <div className="text-[10px] font-semibold text-purple-700 flex items-center gap-1" title="Data do Último Contato">
-                          <Clock size={10} className="text-purple-500" /> Últ: {p.lastContactDate}
-                        </div>
-                      )}
-                      {p.approachUsed ? (
-                        <div className="text-[9px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded truncate max-w-[130px] font-medium mt-0.5" title={p.approachUsed}>
-                          💬 {p.approachUsed}
-                        </div>
-                      ) : (
-                        <div className="text-[9px] text-gray-400 italic mt-0.5">Sem abordagem</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-gray-100">
-                    <button
-                      onClick={() => handleOpenModal(p, true)}
-                      className={`p-2 rounded-xl transition-all shadow-sm hover:scale-110 inline-flex ${
-                        p.aiReport 
-                          ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white' 
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      }`}
-                      title={p.aiReport ? "Ver Relatório IA" : "Gerar Relatório IA"}
-                    >
-                      <Sparkles size={14} className={p.aiReport ? "animate-pulse" : ""} />
-                    </button>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => handleOpenModal(p, false)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                        title="Editar Registro"
-                      >
-                        <Edit2 size={16} />
-                      </button>
+                    </td>
+  
+                    <td className="px-4 py-4 text-center w-14">
                       {deletingId === p.id ? (
-                        <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-center items-center gap-1 animate-in fade-in zoom-in duration-200">
                           <button 
                             onClick={() => handleDelete(p.id)}
-                            className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded-lg hover:bg-red-700 transition-all"
+                            className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black rounded-lg hover:bg-red-700 transition-all"
                           >
-                            Confirmar
+                            Sim
                           </button>
                           <button 
                             onClick={() => setDeletingId(null)}
-                            className="px-2 py-1 bg-gray-200 text-gray-600 text-[10px] font-bold rounded-lg hover:bg-gray-300 transition-all"
+                            className="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[9px] font-black rounded-lg hover:bg-gray-300 transition-all"
                           >
                             X
                           </button>
@@ -1129,30 +1215,262 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       ) : (
                         <button 
                           onClick={() => setDeletingId(p.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all inline-flex justify-center"
                           title="Excluir Registro"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                         </button>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {processedProspects.length === 0 && (
-          <div className="py-20 flex flex-col items-center justify-center text-gray-400">
-            <div className="bg-gray-50 p-6 rounded-full mb-4">
-              <Search size={40} />
-            </div>
-            <p className="text-lg font-medium">Nenhum prospecto encontrado</p>
-            <p className="text-sm">Tente ajustar sua busca ou filtros</p>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+          
+          {processedProspects.length === 0 && (
+            <div className="py-20 flex flex-col items-center justify-center text-gray-400">
+              <div className="bg-gray-50 p-6 rounded-full mb-4">
+                <Search size={40} />
+              </div>
+              <p className="text-lg font-medium">Nenhum prospecto encontrado</p>
+              <p className="text-sm">Tente ajustar sua busca ou filtros</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Cards Grid View Container */
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {processedProspects.map((p, idx) => {
+              const isSelected = selectedIds.includes(p.id);
+              return (
+                <div 
+                  key={p.id}
+                  onClick={() => handleOpenModal(p, false)}
+                  className={`bg-white rounded-2xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col overflow-hidden relative cursor-pointer group ${
+                    isSelected 
+                      ? 'border-blue-900 ring-2 ring-blue-900/10 shadow-md' 
+                      : 'border-gray-200/80 hover:border-blue-300'
+                  }`}
+                >
+                  {/* Checkbox de Seleção Rápida */}
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelected) {
+                        setSelectedIds(prev => prev.filter(id => id !== p.id));
+                      } else {
+                        setSelectedIds(prev => [...prev, p.id]);
+                      }
+                    }}
+                    className="absolute top-4 left-4 z-10 w-6 h-6 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-200 flex items-center justify-center shadow-sm transition-all hover:scale-105"
+                  >
+                    <input 
+                      type="checkbox"
+                      className="rounded text-blue-900 focus:ring-blue-500 w-4 h-4 cursor-pointer border-gray-300"
+                      checked={isSelected}
+                      readOnly
+                    />
+                  </div>
+  
+                  {/* Número do Card */}
+                  <span className="absolute top-4 right-4 text-[10px] font-black text-gray-400/80 tracking-wide select-none">
+                    #{idx + 1}
+                  </span>
+  
+                  {/* Corpo do Card */}
+                  <div className="p-5 flex-1 flex flex-col pt-12">
+                    {/* Nome da Clínica e Líder */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-blue-800 text-[9px] font-black uppercase tracking-wider">
+                          {p.responsible || 'Sem Líder'}
+                        </span>
+                        {p.followedOwner === 'Sim' && (
+                          <span className="px-2 py-0.5 rounded-md bg-green-50 border border-green-100 text-green-700 text-[9px] font-black uppercase tracking-wider">
+                            Seguiu Dono
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-black text-gray-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
+                        {p.clinicName}
+                      </h3>
+                    </div>
+  
+                    {/* Informações Principais */}
+                    <div className="space-y-2.5 text-xs text-gray-600 flex-1">
+                      {/* Cidade/UF */}
+                      {p.location && (
+                        <div className="flex items-center gap-2">
+                          <MapPin size={13} className="text-blue-600 shrink-0" />
+                          <span className="font-semibold text-gray-800">{p.location}</span>
+                        </div>
+                      )}
+  
+                      {/* Dono */}
+                      {p.ownerName && (
+                        <div className="flex items-start gap-2">
+                          <User size={13} className="text-pink-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-gray-800">{p.ownerName}</span>
+                            {p.ownerInstagram && (
+                              <a 
+                                href={p.ownerInstagram} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[9px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-0.5 uppercase tracking-wide"
+                              >
+                                <Instagram size={9} /> Perfil do Dono
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+  
+                      {/* Estrutura */}
+                      {(p.size || p.age || p.collaborators) && (
+                        <div className="flex items-start gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 mt-1">
+                          <Building2 size={13} className="text-gray-500 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5 text-[10px] font-bold text-gray-700 uppercase">
+                            {p.size && <div>Cadeiras: {p.size}</div>}
+                            {p.age && <div>Idade: {p.age}</div>}
+                            {p.collaborators && <div>Colab.: {p.collaborators}</div>}
+                          </div>
+                        </div>
+                      )}
+  
+                      {/* Google */}
+                      {p.gmnRating && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-amber-500 font-bold">★</span>
+                          <span className="font-bold text-gray-800">{p.gmnRating}</span>
+                          {p.gmnReviewsCount && (
+                            <span className="text-[10px] text-gray-400 font-semibold">({p.gmnReviewsCount} avaliações)</span>
+                          )}
+                        </div>
+                      )}
+  
+                      {/* Datas */}
+                      <div className="text-[10px] font-bold text-gray-400/90 uppercase space-y-0.5 mt-2 border-t border-gray-100 pt-2.5">
+                        {p.firstContactDate && <div>1º Contato: {p.firstContactDate}</div>}
+                        {p.lastContactDate && <div>Último Contato: {p.lastContactDate}</div>}
+                        {p.approachUsed && <div className="truncate text-gray-500">Abordagem: {p.approachUsed}</div>}
+                      </div>
+                    </div>
+  
+                    {/* Links e Ações rápidos */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-2.5">
+                      {/* Links Sociais */}
+                      <div className="flex gap-1">
+                        {p.clinicInstagram && (
+                          <a 
+                            href={p.clinicInstagram} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-lg bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 text-white shadow-sm hover:scale-105 transition-transform" 
+                            title="Instagram Clínica"
+                          >
+                            <Instagram size={12} />
+                          </a>
+                        )}
+                        {p.gmn && (
+                          <a 
+                            href={p.gmn} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-lg bg-blue-500 text-white shadow-sm hover:scale-105 transition-transform" 
+                            title="Google Maps"
+                          >
+                            <MapPin size={12} />
+                          </a>
+                        )}
+                        {p.site && (
+                          <a 
+                            href={p.site} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-lg bg-emerald-500 text-white shadow-sm hover:scale-105 transition-transform" 
+                            title="Website"
+                          >
+                            <Globe size={12} />
+                          </a>
+                        )}
+                      </div>
+  
+                      {/* Seletor de Progresso Rápido no Card */}
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 max-w-[125px]"
+                      >
+                        <select 
+                          value={p.status}
+                          onChange={(e) => handleQuickUpdate(p.id, 'status', e.target.value)}
+                          className={`text-[9px] font-black px-2 py-1 rounded-xl border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
+                        >
+                          <option value="">Progresso</option>
+                          <option value="Mandar Mensagem">Mandar Mensagem</option>
+                          <option value="Mensagem Enviada">Mensagem Enviada</option>
+                          <option value="1º Follow Up">1º Follow Up</option>
+                          <option value="2º Follow Up">2º Follow Up</option>
+                          <option value="3º+ Follow Up">3º+ Follow Up</option>
+                          <option value="Cliente Respondeu">Cliente Respondeu</option>
+                          <option value="Reunião Agendada">Reunião Agendada</option>
+                          <option value="Cliente Fechado">Cliente Fechado</option>
+                          <option value="Contrato Encerrado">Contrato Encerrado</option>
+                          <option value="Base de Recomeço">Base de Recomeço</option>
+                        </select>
+                      </div>
+  
+                      {/* Excluir */}
+                      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                        {deletingId === p.id ? (
+                          <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200">
+                            <button 
+                              onClick={() => handleDelete(p.id)}
+                              className="px-1.5 py-0.5 bg-red-600 text-white text-[8px] font-black rounded-lg hover:bg-red-700 transition-all"
+                            >
+                              Sim
+                            </button>
+                            <button 
+                              onClick={() => setDeletingId(null)}
+                              className="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[8px] font-black rounded-lg hover:bg-gray-300 transition-all"
+                            >
+                              X
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setDeletingId(p.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Excluir"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+  
+          {processedProspects.length === 0 && (
+            <div className="py-20 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="bg-gray-50 p-6 rounded-full mb-4">
+                <Search size={40} />
+              </div>
+              <p className="text-lg font-medium">Nenhum prospecto encontrado</p>
+              <p className="text-sm">Tente ajustar sua busca ou filtros</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal para Adicionar/Editar */}
 
@@ -1173,38 +1491,22 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 </p>
               </div>
               
-              {/* Exibição do Estágio Atual grande e em destaque */}
+              {/* Exibição do Progresso Atual grande e em destaque */}
               <div className="flex items-center">
                 <div className={`px-4 py-2 rounded-2xl text-xs font-black tracking-wide shadow-sm flex items-center gap-2 uppercase border ${
-                  formData.isRestartBase
+                  formData.status === 'Base de Recomeço'
                     ? 'bg-red-500 border-red-400 text-white animate-pulse'
                     : 'bg-white border-blue-200 text-blue-900'
                 }`}>
-                  {formData.isRestartBase ? (
+                  {formData.status === 'Base de Recomeço' ? (
                     <>
                       <RotateCcw size={12} className="animate-spin" />
                       Base de Recomeço
                     </>
                   ) : (
                     <>
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white ${
-                        formData.currentStep === 1 ? 'bg-cyan-600' :
-                        formData.currentStep === 2 ? 'bg-purple-600' :
-                        formData.currentStep === 3 ? 'bg-orange-500' :
-                        formData.currentStep === 4 ? 'bg-emerald-600' : 'bg-blue-950'
-                      }`}>
-                        {formData.currentStep}
-                      </span>
-                      <span className={`uppercase font-bold ${
-                        formData.currentStep === 1 ? 'text-cyan-600' :
-                        formData.currentStep === 2 ? 'text-purple-600' :
-                        formData.currentStep === 3 ? 'text-orange-500' :
-                        formData.currentStep === 4 ? 'text-emerald-600' : 'text-blue-950'
-                      }`}>
-                        {formData.currentStep === 1 && 'Passo 01: Encontrar & Seguir'}
-                        {formData.currentStep === 2 && 'Passo 02: Mensagem & Follows'}
-                        {formData.currentStep === 3 && 'Passo 03: Reunião Agendada'}
-                        {formData.currentStep === 4 && 'Passo 04: Contratou (Método)'}
+                      <span className="uppercase font-bold text-blue-950">
+                        Progresso: {formData.status || 'Não Iniciado'}
                       </span>
                     </>
                   )}
@@ -1291,6 +1593,16 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             )}
             
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8">
+              {duplicateWarning && (
+                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl shadow-sm animate-in fade-in duration-300">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-red-600 shrink-0 mt-0.5" size={20} />
+                    <p className="text-sm font-bold text-red-900 leading-snug">
+                      {duplicateWarning}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className={!editingProspect ? "grid grid-cols-1 xl:grid-cols-[1.3fr_1fr] gap-8" : ""}>
                 {/* Coluna Esquerda: Formulário Principal */}
                 <div className={!editingProspect ? "border-r border-gray-100 pr-8" : ""}>
@@ -1349,7 +1661,20 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                            />
                         </div>
 
-                        <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                        <div className="space-y-1 lg:col-span-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
+                            Endereço Completo
+                            {renderAiReviewBadge('fullAddress')}
+                          </label>
+                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
+                            placeholder="Endereço completo (Rua, Número, Bairro, CEP)"
+                            value={formData.fullAddress || ''}
+                            onChange={(e) => handleFieldChange('fullAddress', e.target.value)}
+                           />
+                        </div>
+ 
+                        <div className="space-y-1 md:col-span-3 lg:col-span-3">
                           <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
                             Website Oficial
                             {renderAiReviewBadge('site')}
@@ -1526,45 +1851,9 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         
-                        <div className="space-y-1">
+                        <div className="space-y-1 md:col-span-2">
                           <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Estágio de Prospecção
-                          </label>
-                          <select 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium bg-white"
-                            value={formData.currentStep}
-                            onChange={(e) => handleFieldChange('currentStep', Number(e.target.value))}
-                          >
-                            <option value={1}>Passo 01: Encontrar & Seguir</option>
-                            <option value={2}>Passo 02: Enviar Mensagem (Direct)</option>
-                            <option value={3}>Passo 03: Reunião Comercial</option>
-                            <option value={4}>Passo 04: Cliente Fechado (Método)</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1 flex flex-col justify-end">
-                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">
-                            Situação da Prospecção
-                          </label>
-                          <div className="flex items-center h-[42px]">
-                            <label className="inline-flex items-center cursor-pointer select-none">
-                              <input 
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={formData.isRestartBase || false}
-                                onChange={(e) => handleFieldChange('isRestartBase', e.target.checked)}
-                              />
-                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
-                              <span className="ml-3 text-xs font-black text-red-600 uppercase tracking-wide">
-                                🔄 Base de Recomeço
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Status da Mensagem
+                            Progresso
                             {renderAiReviewBadge('status')}
                           </label>
                           <select 
@@ -1573,13 +1862,15 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             onChange={(e) => handleFieldChange('status', e.target.value as any)}
                           >
                             <option value="">Selecione...</option>
-                            <option value="Mandar mensagem">Mandar mensagem</option>
-                            <option value="Mensagem Enviada">Mensagem Enviada</option>
-                            <option value="1º Follow up">1º Follow up</option>
-                            <option value="2º Follow up">2º Follow up</option>
-                            <option value="Reunião Agendada">Reunião Agendada</option>
-                            <option value="Cliente Fechado">Cliente Fechado</option>
-                            <option value="Contato Encerrado">Contato Encerrado</option>
+                            <option value="Mandar Mensagem">1 - Mandar Mensagem</option>
+                            <option value="Mensagem Enviada">2 - Mensagem Enviada</option>
+                            <option value="1º Follow Up">2.1 - 1º Follow Up</option>
+                            <option value="2º Follow Up">2.2 - 2º Follow Up</option>
+                            <option value="3º+ Follow Up">2.3 - 3º+ Follow Up</option>
+                            <option value="Reunião Agendada">3 - Reunião Agendada</option>
+                            <option value="Cliente Fechado">4 - Cliente Fechado</option>
+                            <option value="Contrato Encerrado">5 - Contrato Encerrado</option>
+                            <option value="Base de Recomeço">6 - Base de Recomeço</option>
                           </select>
                         </div>
 
@@ -2305,6 +2596,94 @@ A IA vai interpretar e preencher a ficha! 🤖`}
           </div>
         </div>
       )}
+
+      {duplicateGroups && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <Copy className="text-orange-600" />
+              Resolvendo Duplicados ({duplicateGroups.length} grupos encontrados)
+            </h2>
+            <p className="text-gray-600 mb-6 text-sm">
+              Para cada grupo abaixo, revise as diferenças e clique em "Manter este" no registro correto. Os demais do mesmo grupo serão removidos permanentemente.
+            </p>
+
+            <div className="space-y-6">
+              {duplicateGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="border border-orange-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-orange-50 px-4 py-2 border-b border-orange-200 flex justify-between items-center">
+                    <span className="font-bold text-orange-800 text-sm">
+                      Clínica: {group.items[0].clinicName} / {group.items[0].location}
+                    </span>
+                    {group.hasDifferences && (
+                      <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
+                        <AlertTriangle size={14} /> Atributos Diferentes
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {group.items.map(item => (
+                      <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-white relative">
+                        <div className="text-xs space-y-1 mb-4 text-gray-700">
+                          <p><span className="font-semibold">Responsável:</span> {item.responsible}</p>
+                          <p><span className="font-semibold">Dono:</span> {item.ownerName}</p>
+                          <p><span className="font-semibold">Nota/GMN:</span> {item.gmnRating} / {item.gmnReviewsCount}</p>
+                          <p><span className="font-semibold">Estrutura:</span> {item.size}</p>
+                          <p><span className="font-semibold">Status:</span> {item.status}</p>
+                        </div>
+                        <button
+                          onClick={() => handleKeepDuplicate(groupIndex, item.id)}
+                          disabled={isCleaning}
+                          className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-1.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                        >
+                          {isCleaning ? 'Processando...' : 'Manter este'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setDuplicateGroups(null)}
+                className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                disabled={isCleaning}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0C1122]/95 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/10 z-[100] flex items-center gap-6 animate-in slide-in-from-bottom-5 duration-300">
+          <span className="text-xs font-bold tracking-wide">
+            {selectedIds.length} {selectedIds.length === 1 ? 'prospecto selecionado' : 'prospectos selecionados'}
+          </span>
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all active:scale-95 border border-white/10"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isCleaning}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all active:scale-95 shadow-md flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              Excluir Selecionados
+            </button>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );

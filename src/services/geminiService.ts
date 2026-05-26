@@ -386,7 +386,8 @@ O JSON gerado preencherá a ficha automaticamente. Preencha todos os campos corr
               type: "OBJECT",
               properties: {
                 clinicName: { type: "STRING", description: "APENAS o nome comercial da clínica. Ex: VS Odonto" },
-                location: { type: "STRING", description: "Endereço completo, cidade, estado e CEP" },
+                location: { type: "STRING", description: "APENAS a Cidade e o UF no formato 'Cidade - UF'. Ex: Águas Claras - DF. Se não houver UF, tente deduzir pelo DDD ou local ou deixe em branco se não souber." },
+                fullAddress: { type: "STRING", description: "Endereço completo da clínica com rua, número, bairro, cidade, estado e CEP, se disponível." },
                 clinicInstagram: { type: "STRING", description: "Instagram da clínica" },
                 gmn: { type: "STRING", description: "Link do Google Maps" },
                 site: { type: "STRING", description: "Website oficial" },
@@ -427,7 +428,7 @@ O JSON gerado preencherá a ficha automaticamente. Preencha todos os campos corr
       const valStr = String(value).trim();
       if (valStr !== '') {
         aiFilledFields.push(key);
-        prospectData[key as keyof Prospect] = valStr as any;
+        (prospectData as any)[key] = valStr;
       }
     });
 
@@ -457,6 +458,7 @@ const parseProspectFromBlockTextMock = (text: string): Partial<Prospect> => {
   const result: Partial<Prospect> = {
     clinicName: '',
     location: '',
+    fullAddress: '',
     clinicInstagram: '',
     gmn: '',
     site: '',
@@ -474,6 +476,7 @@ const parseProspectFromBlockTextMock = (text: string): Partial<Prospect> => {
     const cleanLine = line.trim();
     if (cleanLine.toLowerCase().startsWith('local:')) {
       result.location = cleanLine.substring(6).trim();
+      result.fullAddress = cleanLine.substring(6).trim();
     } else if (cleanLine.toLowerCase().startsWith('clínica:') || cleanLine.toLowerCase().startsWith('clinica:')) {
       result.clinicName = cleanLine.substring(8).trim();
     } else if (cleanLine.toLowerCase().startsWith('instagram da clínica:') || cleanLine.toLowerCase().startsWith('instagram:')) {
