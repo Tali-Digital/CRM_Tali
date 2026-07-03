@@ -319,3 +319,27 @@ export interface Prospect {
   calculatorData?: CalculatorData;
   fullAddress?: string;
 }
+
+export interface EditorProspeccaoDoc {
+  id: string;
+  titulo?: string;
+  clienteId?: string;
+  clienteNome?: string;
+  imovel?: string;
+  dataAssinatura?: any;
+  documentoId?: string;
+  documentoNome?: string;
+  link?: string;
+  valor?: number | string;
+  [key: string]: any;
+}
+
+
+export interface ModeloProspeccao {
+  id: string;
+  nome: string;
+  conteudo: string;
+  createdAt?: any;
+  [key: string]: any;
+}
+
