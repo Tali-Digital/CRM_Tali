@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import Papa from 'papaparse';
+import Swal from 'sweetalert2';
 import { 
   Search, 
   Plus, 
@@ -46,6 +48,7 @@ interface ProspectingViewProps {
 }
 
 const STATUS_COLORS = {
+  'VERIFICAR ICP': 'bg-pink-100 text-pink-800',
   'Mandar Mensagem': 'bg-amber-100 text-amber-800',
   'Mensagem Enviada': 'bg-blue-100 text-blue-800',
   '1º Follow Up': 'bg-cyan-100 text-cyan-800',
@@ -681,57 +684,82 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   };
 
   const importInitialData = async () => {
-    const data = [
-      { order: 1, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Concept Odontologia', clinicInstagram: 'https://www.instagram.com/concept.clinica/', gmn: 'https://www.google.com/maps?cid=17107572292729933206', site: 'https://conceptclinica.com.br/', ownerName: 'Wadson Almeida', ownerInstagram: 'https://www.instagram.com/wadson.santos.10/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '5 anos', gmnRating: '4,8 / 682', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'v1', firstContactDate: '5-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 2, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Odonto Aguas Claras', clinicInstagram: 'https://www.instagram.com/odontoaguasclaras/', gmn: 'https://www.google.com/maps?cid=10289450762552572900', site: 'https://www.odontoaguasclaras.com.br/', ownerName: 'Carlos Eduardo Silva Vale, Heverton de Alencar Silva Ferreira, Mariana Barroso Coelho', ownerInstagram: 'https://www.instagram.com/marianab.coelho/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '17 anos', gmnRating: '4,9 / 225', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'v2', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 3, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Qualis Odontologia', clinicInstagram: 'https://www.instagram.com/qualisodonto/', gmn: 'https://www.google.com/maps?cid=3577241715842256808', site: 'https://qualisodonto.com.br/', ownerName: 'Eduardo Franco', ownerInstagram: 'https://www.instagram.com/dreduardofranco/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '5 anos', gmnRating: '5,0 / 204', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '', week: 'Semana 1', currentStep: 1, },
-      { order: 4, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Clinica Odontológica Odontec', clinicInstagram: 'https://www.instagram.com/clinica.odontec/', gmn: 'https://www.google.com/maps/place/Cl%C3%ADnica+Odontol%C3%B3gica+Odontec/@-15.8338077,-48.0378024,17z/data=!3m1!4b1!4m6!3m5!1s0x935a3348fd37c5a7:0x3404dbe8bfc6a849!8m2!3d-15.8338077!4d-48.0378024!16s%2Fg%2F11px51gg3t?entry=ttu&g_ep=EgoyMDI2MDUwMi4wIKXMDSoASAFQAw%3D%3D', site: 'Não encontrado', ownerName: 'RAFAEL ASSIS MARQUES, EDYLANE SANTOS ALVES', ownerInstagram: 'https://www.instagram.com/lanesantos26/ , https://www.instagram.com/rafassis92/', followedOwner: 'Solicitado', collaborators: '', size: '1 Cadeira', age: '5 anos', gmnRating: '4,9 / 550', observations: 'Mensagem enviada para o Rafael, o perfil da Edylane é fechado', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '', week: 'Semana 1', currentStep: 1, },
-      { order: 5, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'SouClinic', clinicInstagram: 'https://www.instagram.com/souclinic.ac/', gmn: 'https://www.google.com/maps?cid=8726339100314093995', site: 'https://karinevitoria.com.br/?utm_source=GoogleMeuNegocio', ownerName: 'Karine Vitoria Monte Cardoso', ownerInstagram: 'https://www.instagram.com/dra.karinecardosov/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '3 meses', gmnRating: '4,9 / 472', observations: 'Tem muitos colaboradores para o tamanho dela', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '', week: 'Semana 1', currentStep: 1, },
-      { order: 6, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Luna Odontologia', clinicInstagram: 'https://www.instagram.com/clinicalunaodontologia/', gmn: 'https://www.google.com/maps/place/Luna+Odontologia/@-15.8351167,-48.0120236,15z/data=!4m15!1m8!3m7!1s0x935a33d91ad83105:0xd0d97a046b6d30f2!2sLuna+Odontologia!8m2!3d-15.8351201!4d-48.0121682!10e5!16s%2Fg%2F11gwhg7wy6!3m5!1s0x935a33d91ad83105:0xd0d97a046b6d30f2!8m2!3d-15.8351201!4d-48.0121682!16s%2Fg%2F11gwhg7wy6?entry=ttu&g_ep=EgoyMDI2MDUwNi4wIKXMDSoASAFQAw%3D%3D', site: 'https://www.lunaodonto.com.br/', ownerName: 'Aletheya Patrice ', ownerInstagram: 'https://www.instagram.com/aletheya_luna/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '8 anos', gmnRating: '4,9 / 208', observations: 'Aguardando ser aceito', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '', week: 'Semana 2', currentStep: 1, },
-      { order: 7, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Ceorth Clínica Odontológica', clinicInstagram: 'https://www.instagram.com/ceorth_odontologia/', gmn: 'https://www.google.com/maps/place/CEORTH+CL%C3%8DNICA+ODONTOL%C3%93GICA/@-15.8367667,-48.0192754,17z/data=!3m1!4b1!4m6!3m5!1s0x935a32136b0d7aef:0xca1c7d001537a625!8m2!3d-15.8367667!4d-48.0192754!16s%2Fg%2F11b_2_khgx?entry=ttu&g_ep=EgoyMDI2MDUwNi4wIKXMDSoASAFQAw%3D%3D', site: 'https://www.ceorth.com.br/', ownerName: 'Dra Camila Andrade', ownerInstagram: 'https://www.instagram.com/dracamilandrade/', followedOwner: 'Sim', collaborators: '5 a 10', size: '1 Cadeira', age: '13 anos', gmnRating: '4,9 / 185', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '', week: 'Semana 2', currentStep: 1, },
-      { order: 8, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'IBA Odontologia Integrada', clinicInstagram: 'https://www.instagram.com/ibaodontologia/', gmn: 'https://www.google.com/maps/place/IBA+Odontologia+Integrada/@-15.8421109,-48.0243103,3a,77.4y,90t/data=!3m8!1e2!3m6!1sAF1QipPThiL7kbMpVX7OBSkIRe-S5BJOD-T8ZaQ36jhH!2e10!3e12!6shttps:%2F%2Flh3.googleusercontent.com%2Fp%2FAF1QipPThiL7kbMpVX7OBSkIRe-S5BJOD-T8ZaQ36jhH%3Dw203-h104-k-no!7i1278!8i658!4m7!3m6!1s0x935a335666d5929b:0xa2e75534ce742888!8m2!3d-15.8418255!4d-48.0236968!10e5!16s%2Fg%2F11q4bwpyn4?entry=ttu&g_ep=EgoyMDI2MDUwNi4wIKXMDSoASAFQAw%3D%3D', site: 'https://ibaodontologia.com.br/', ownerName: 'Julia Barros Alves, Laura Barros Alves', ownerInstagram: 'https://www.instagram.com/laurabarros.alves/ , https://www.instagram.com/drajuliabarros/', followedOwner: 'Sim', collaborators: '5 a 10', size: '1 Cadeira', age: '4 anos', gmnRating: '5,0 / 146', observations: 'Conhecida do Gabriel da AES', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'Oi Fulano, tudo bem?', firstContactDate: '', week: 'Semana 2', currentStep: 1, },
-      { order: 9, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Alfa Ridere Centro Odontológico', clinicInstagram: 'https://www.instagram.com/alfaridere/', gmn: 'https://www.google.com/maps/place/Alfa+Ridere+Dentista+em+%C3%81guas+Claras+%7C+Ortodontia+Implante+e+Lentes+Dent%C3%A1rias/@-15.8359607,-48.0115019,17z/data=!3m1!4b1!4m6!3m5!1s0x935a32109bff34ef:0x470a63ce64f1bd93!8m2!3d-15.8359607!4d-48.0115019!16s%2Fg%2F11b6_cx9lg?entry=ttu&g_ep=EgoyMDI2MDUwNi4wIKXMDSoASAFQAw%3D%3D', site: '-', ownerName: 'Dr Mauro Henrique, Dra Lorena Gonçalves de Faria', ownerInstagram: 'https://www.instagram.com/drmaurogontijofaria/ , https://www.instagram.com/dralorenagontijo/ ', followedOwner: 'Sim', collaborators: 'Até 5', size: '1 Cadeira', age: '12 anos', gmnRating: '5,0 / 114', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'Oi Fulano, tudo bem?', firstContactDate: '', week: 'Semana 2', currentStep: 1, },
-      { order: 10, responsible: 'Diogo', location: 'Águas Claras - DF', clinicName: 'Odontocenter Águas Claras', clinicInstagram: 'https://www.instagram.com/odontocenteraguasclaras/', gmn: 'https://www.google.com/maps/place/Odontocenter+%C3%81guas+Claras/@-15.8339637,-48.0149226,17z/data=!3m1!4b1!4m6!3m5!1s0x935a33d37bb1ca75:0xe2bbb393595b646a!8m2!3d-15.8339637!4d-48.0149226!16s%2Fg%2F11gmvcxl_v?entry=ttu&g_ep=EgoyMDI2MDUwNi4wIKXMDSoASAFQAw%3D%3D', site: 'https://www.odontocenteracdf.com.br/', ownerName: 'Carla Pereira de Sousa - Sócio-Administrador, Eliane Seito Freire Maia - Sócio, Patricia Rogerio Elias - Sócio', ownerInstagram: 'https://www.instagram.com/carla_odontocenter/', followedOwner: 'Sim', collaborators: '5 a 10', size: '1 Cadeira', age: '18 anos', gmnRating: '4,9 / 155', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'Oi Fulano, tudo bem?', firstContactDate: '', week: 'Semana 2', currentStep: 1, },
-      { order: 11, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Lírios Odontologia', clinicInstagram: 'https://www.instagram.com/dra.alineolive/', gmn: 'Lírios Odontologia - Dra. Aline Olive', site: 'https://draalineolive.com/', ownerName: 'ALINE OLIVE DE ARAUJO JANUARIO', ownerInstagram: 'https://www.instagram.com/dra.alineolive/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '', gmnRating: '', observations: '- SEM SITE ATIVO, - Vídeo de Antes e depois muito bem pensado com imagem da pessoa e sorriso anterior no canto da tela', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: 'V2', firstContactDate: '6-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 12, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Onne Odontologia', clinicInstagram: 'https://www.instagram.com/onneodontologia/', gmn: 'Onne Odontologia | Dentista Águas Claras | Implante Dentário Aparelho Invisível Invisalign', site: 'https://onneodontologia.net/', ownerName: 'Dr Evandro Filho', ownerInstagram: 'https://www.instagram.com/evandroosternefilho/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '', gmnRating: '', observations: 'Site pessimamente Ruim, feito no Wix', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '6-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 13, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Atually Odontologia Especializada', clinicInstagram: 'https://www.instagram.com/atually.odontologia/', gmn: 'https://maps.google.com/?cid=15429181756021543609', site: 'https://atuallyodontologia.com.br/', ownerName: 'BRUNA MOREIRA COELHO, JHYMES DE SOUZA RODRIGUES', ownerInstagram: 'https://www.instagram.com/dra.bruna_moreira?igsh=MTBkcWh5czVkdDZyMQ%3D%3D&utm_source=qr, https://www.instagram.com/dr.jhymes_rodrigues/', followedOwner: 'Sim', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: 'Coloquei o Instagram dos dois Donos, segui os dois também, vai que com um deles da certo', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '6-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 14, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Odonto Abreu Clínica Odontológica', clinicInstagram: 'https://www.instagram.com/clinicaodontoabreu/', gmn: 'https://maps.google.com/?cid=6525529241232235457', site: 'https://www.odontoabreu.com.br/', ownerName: 'ANA PAULA DE ABREU', ownerInstagram: 'https://www.instagram.com/draanapaula_odontoabreu/', followedOwner: 'Sim', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: '- Site péssimo, aparentemente tem várias cadeiras na clínica, mas não vi os outros profissionais nem no site nem no instagram', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '6-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 15, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Plena Clínica Odontológica', clinicInstagram: 'https://www.instagram.com/plena.clinicaodonto/', gmn: 'https://maps.google.com/?cid=16473019337197712508', site: 'https://plenaodonto.com/', ownerName: 'POLIANA XAVIER', ownerInstagram: 'https://www.instagram.com/polianax.odp/', followedOwner: 'Sim', collaborators: '', size: '1 Cadeira', age: '', gmnRating: '', observations: '1 Cadeira só, parece pequena, voltada para crianças, Em dúvida sobre o ICP, mas vou entrar em contato', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 16, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Faces Odontologia', clinicInstagram: 'https://www.instagram.com/facesodontologia/', gmn: 'https://www.google.com/maps/place/Faces+Odontologia+Especializada+-+Lentes+de+Contato+Dental/@-15.8413189,-48.0231217,17z/data=!4m15!1m8!3m7!1s0x935a32727bd2a68b:0x324ae453e88d41c!2sFaces+Odontologia+Especializada+-+Lentes+de+Contato+Dental!8m2!3d-15.8413977!4d-48.0233!10e5!16s%2Fg%2F11dxl46nht!3m5!1s0x935a32727bd2a68b:0x324ae453e88d41c!8m2!3d-15.8413977!4d-48.0233!16s%2Fg%2F11dxl46nht?entry=ttu&g_ep=EgoyMDI2MDUwMi4wIKXMDSoASAFQAw%3D%3D', site: 'https://www.facesodontologia.com.br/in%C3%ADcio', ownerName: 'Dra. Karina de Oliveira Sales da Cruz', ownerInstagram: 'https://www.instagram.com/drakarinacruz/', followedOwner: 'Sim', collaborators: '', size: '2 Cadeiras', age: '', gmnRating: '', observations: 'GMN está legal, instagram e site da pra melhorar', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '7-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 18, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'COB - Centro Odontológico De Brasília', clinicInstagram: 'https://www.instagram.com/cob.odontologia/', gmn: 'https://maps.google.com/?cid=6409669711096750032', site: 'https://cobrasilia.com.br/', ownerName: 'WALKIRIA MENDES DE LIMA CERBINO', ownerInstagram: 'https://www.instagram.com/dra.walkiria/', followedOwner: 'Sim', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: 'Site não Carrega - 2 Unidades', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '7-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 19, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'IMP Odonto', clinicInstagram: 'https://www.instagram.com/impodonto/', gmn: 'https://maps.google.com/?cid=540869271782453575', site: 'http://impodonto.com.br/', ownerName: 'RICARDO FABRIS PAULIN, LIANA BONFIM MISSON PAULIN', ownerInstagram: 'https://www.instagram.com/drricardopaulin/', followedOwner: 'Solicitado', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: 'Ja tem Agência (https://insitemarketing.digital/)', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: 'Oi, Dr. Ricardo, tudo bem? Me chamo Helenilton Alves...', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 20, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'OdontoMed Clinica Odontologica', clinicInstagram: 'https://www.instagram.com/odontomed_df/', gmn: 'https://maps.google.com/?cid=16175309161409557498', site: 'NÃO TEM', ownerName: 'BARBARA CAROLINE PEDROZA TENORIO', ownerInstagram: 'https://www.instagram.com/dra.barbaractenorio/', followedOwner: 'Sim', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: 'Tentar pelo Facebook também: https://www.facebook.com/DraBarbaratenorio/', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '7-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 21, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Patrícia Pizzo Clínica Odontológica', clinicInstagram: 'https://www.instagram.com/odontopatriciapizzo/', gmn: 'https://maps.google.com/?cid=9944486686592341465', site: 'http://www.patriciapizzo.com.br/', ownerName: 'PATRICIA MARIA PIZZO REIS', ownerInstagram: 'https://www.instagram.com/odontopatriciapizzo/', followedOwner: 'Sim', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: '', status: 'Mensagem Enviada', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '7-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 22, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'SCury Odontologia', clinicInstagram: 'https://www.instagram.com/scuryodontologia/', gmn: 'https://maps.google.com/?cid=12964385716841226767', site: 'http://scuryodontologia.com.br/', ownerName: 'STEFANNY CURY GUERRA VASCONCELOS', ownerInstagram: 'https://www.instagram.com/tetycury/', followedOwner: 'Solicitado', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: '', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '7-mai.-2026', week: 'Semana 2', currentStep: 1, },
-      { order: 23, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Orthos Odontologia', clinicInstagram: 'https://www.instagram.com/orthosbrasilia', gmn: 'https://maps.google.com/?cid=17602167728930593026', site: 'https://orthosodonto.com.br/', ownerName: 'Dra Mariella Salgado', ownerInstagram: 'https://www.instagram.com/dra.mariellasalgado', followedOwner: 'Solicitado', collaborators: '', size: '3+ Cadeiras ', age: '', gmnRating: '', observations: 'Site fora do ar. Segui o Welss e o Sérgio Marra', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 24, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'harmonizare odontologia', clinicInstagram: 'https://www.instagram.com/p/C4_QFoqpjup/', gmn: 'https://www.google.com/maps/place/Harmonizare+Odontologia./@-15.7431803,-47.9024719,17z/data=!3m1!4b1!4m6!3m5!1s0x935a3a309ad6b9b7:0x398084b5a6eaa74a!8m2!3d-15.7431803!4d-47.9024719!16s%2Fg%2F11c5h2_dd6?hl=pt-BR&entry=ttu&g_ep=EgoyMDI2MDUxNy4wIKXMDSoASAFQAw%3D%3D', site: 'https://www.harmonizare.com/', ownerName: 'João Henrique', ownerInstagram: 'https://www.instagram.com/drjoaohenriquerosa/', followedOwner: 'Sim', collaborators: '', size: '2 Cadeiras', age: '', gmnRating: '', observations: '', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 25, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Perioclinic', clinicInstagram: 'https://www.instagram.com/perioclinicodontologiaa/', gmn: 'https://maps.google.com/?cid=4081078317850022728', site: 'http://odontologiaperioclinic.com.br/', ownerName: 'SAMARA SILVA TOMAZ', ownerInstagram: 'https://www.instagram.com/drasamaratomaz/', followedOwner: 'Sim', collaborators: '', size: '2 Cadeiras', age: '', gmnRating: '', observations: 'Site Fora do Ar', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 26, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Guiotti Galvão Odontologia - Dentista em Águas Claras', clinicInstagram: 'https://www.instagram.com/guiottigalvao/', gmn: 'https://maps.google.com/?cid=10607495656419104780', site: 'https://guiottigalvao.com.br/', ownerName: 'ADRIANO GUIOTTI GALVAO, JOVELINO FERREIRA GALVAO', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'Mandar mensagem', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '19-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 28, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Onne Odontologia', clinicInstagram: 'https://www.instagram.com/onneodontologia/', gmn: 'https://maps.google.com/?cid=9231454741253015599', site: 'https://onneodontologia.net/', ownerName: 'HELEN DE MELO SANTOS OSTERNE', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'VERIFICAR', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 29, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Vital Odontologia e Saúde', clinicInstagram: 'https://www.instagram.com/vital_odonto_saude/', gmn: 'https://maps.google.com/?cid=406867147876303350', site: 'https://instagram.com/vital_odonto_saude?igshid=wetn0hqt7oxn', ownerName: 'FLAVIA MAYUMI KOMENO ENDRES, THIAGO ENDRES DA SILVA GOMES', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'VERIFICAR', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 30, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Ampla Odontologia', clinicInstagram: 'https://www.instagram.com/ampla_odontologia/', gmn: 'https://maps.google.com/?cid=9965070652727543755', site: '', ownerName: 'BIANCA DE SANTI BONATTI OLIVEIRA, THIAGO AMARAL DE OLIVEIRA', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'VERIFICAR', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 31, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'Clínica Odontológica Sorriso Aberto', clinicInstagram: 'https://www.instagram.com/sorriso.aberto/', gmn: 'https://maps.google.com/?cid=11651250230918435552', site: '', ownerName: 'GILBERTO MINORU SHIMANO', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'VERIFICAR', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-      { order: 32, responsible: 'Helenilton', location: 'Águas Claras - DF', clinicName: 'OdontoZ', clinicInstagram: 'https://www.instagram.com/odontoz/', gmn: 'https://maps.google.com/?cid=11468393895107961725', site: 'https://www.odontoz.com.br/', ownerName: 'ZACARIAS SILVA CONDE, VINICIUS SILVA CONDE', ownerInstagram: '', followedOwner: '', collaborators: '', size: '', age: '', gmnRating: '', observations: '', status: 'VERIFICAR', hasAnswered: false, lastFollowUp: '', approachUsed: '', firstContactDate: '20-mai.-2026', week: 'Semana 1', currentStep: 1, },
-    ];
+    Swal.fire({
+      title: 'Selecione o Líder',
+      input: 'select',
+      inputOptions: {
+        'Diogo': 'Diogo',
+        'Helenilton': 'Helenilton'
+      },
+      inputPlaceholder: 'Selecione o líder da prospecção',
+      showCancelButton: true,
+      confirmButtonText: 'Continuar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed && result.value) {
+        const leader = result.value;
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.csv';
+        fileInput.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return;
 
-    try {
-      setIsImporting(true);
-      console.log('Iniciando importação silenciosa...');
-      for (const item of data) {
-        await addProspect({
-          ...item,
-          companyId: companyId as any,
-          followedOwner: item.followedOwner as any,
-          status: item.status as any
-        });
+          setIsImporting(true);
+          Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+              try {
+                let importedCount = 0;
+                for (const row of results.data as any[]) {
+                  const clinicName = row['Nome '] || row['Nome'] || '';
+                  if (!clinicName) continue; // Skip if no name
+
+                  const address = row['Endereço'] || '';
+                  const cityMatch = address.split('-').map((s: string) => s.trim());
+                  let location = address;
+                  if (cityMatch.length >= 3) {
+                    location = `${cityMatch[cityMatch.length - 3]} - ${cityMatch[cityMatch.length - 2]}`;
+                  }
+
+                  await addProspect({
+                    order: prospects.length + importedCount + 1,
+                    responsible: leader,
+                    location: location.substring(0, 50),
+                    clinicName: clinicName,
+                    clinicInstagram: row['Instagram'] || '',
+                    gmn: row['URL Google Maps'] || '',
+                    site: row['Site'] || '',
+                    ownerName: row['Socios'] || row['Sócio'] || '',
+                    ownerInstagram: row['Instagram Socios'] || '',
+                    followedOwner: '',
+                    size: row['Quadro de Funcionarios'] || '',
+                    age: '',
+                    status: 'VERIFICAR ICP',
+                    hasAnswered: false,
+                    lastFollowUp: '',
+                    observations: '',
+                    firstContactDate: '',
+                    week: 'Semana 1',
+                    currentStep: 1,
+                    companyId: companyId as any
+                  });
+                  importedCount++;
+                }
+                Swal.fire('Sucesso!', `${importedCount} prospecções importadas.`, 'success');
+              } catch (error) {
+                console.error('Erro na importação:', error);
+                Swal.fire('Erro', 'Erro ao importar. Verifique o console.', 'error');
+              } finally {
+                setIsImporting(false);
+              }
+            }
+          });
+        };
+        fileInput.click();
       }
-      alert('Dados importados com sucesso!');
-    } catch (error) {
-      console.error('Erro na importação:', error);
-      alert('Erro ao importar. Verifique o console.');
-    } finally {
-      setIsImporting(false);
-    }
+    });
   };
 
   const renderFilterDropdown = (column: keyof Prospect, label: string) => {
@@ -866,6 +894,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <div className="max-h-72 overflow-y-auto px-1.5 custom-scrollbar">
                   {[
                     { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, dotColor: 'bg-blue-900' },
+                    { key: 'VERIFICAR ICP', label: 'VERIFICAR ICP', count: prospects.filter(p => p.status === 'VERIFICAR ICP').length, dotColor: 'bg-pink-500' },
                     { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, dotColor: 'bg-amber-500' },
                     { key: 'Mensagem Enviada', label: 'Mensagem Enviada', count: prospects.filter(p => p.status === 'Mensagem Enviada').length, dotColor: 'bg-blue-500' },
                     { key: '1º Follow Up', label: '1º Follow Up', count: prospects.filter(p => p.status === '1º Follow Up').length, dotColor: 'bg-cyan-500' },
@@ -1201,6 +1230,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           className={`text-[10px] font-black px-2 py-1.5 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-md w-full uppercase tracking-tighter transition-all hover:scale-[1.02] active:scale-95 ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
                         >
                           <option value="">Definir Progresso</option>
+                          <option value="VERIFICAR ICP">VERIFICAR ICP</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
                           <option value="1º Follow Up">1º Follow Up</option>
@@ -1452,6 +1482,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           className={`text-[9px] font-black px-2 py-1 rounded-xl border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
                         >
                           <option value="">Progresso</option>
+                          <option value="VERIFICAR ICP">VERIFICAR ICP</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
                           <option value="1º Follow Up">1º Follow Up</option>
@@ -1901,6 +1932,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             onChange={(e) => handleFieldChange('status', e.target.value as any)}
                           >
                             <option value="">Selecione...</option>
+                            <option value="VERIFICAR ICP">0 - VERIFICAR ICP</option>
                             <option value="Mandar Mensagem">1 - Mandar Mensagem</option>
                             <option value="Mensagem Enviada">2 - Mensagem Enviada</option>
                             <option value="1º Follow Up">2.1 - 1º Follow Up</option>

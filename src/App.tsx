@@ -109,6 +109,7 @@ import {
 } from './services/firestoreService';
 import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
+import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
 
 export function App() {
   const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string } | null>(null);
@@ -116,7 +117,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'links' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'links' | 'prospeccao' | 'editor_prospeccao' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe' | 'admin'>('dashboard');
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
@@ -1060,6 +1061,8 @@ export function App() {
         return <AdminView userProfile={userProfile} />;
       case 'prospeccao':
         return <ProspectingView companyId={selectedCompanyId} />;
+      case 'editor_prospeccao':
+        return <GestaoProspeccaoEditor />;
       case 'comercial':
         if (!isTabAllowed('comercial')) return null;
         return (
@@ -1355,7 +1358,7 @@ export function App() {
               )}
 
               {/* Filtros de Visualização de Setor */}
-              {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && activeTab !== 'links' && activeTab !== 'prospeccao' && (
+              {activeTab !== 'dashboard' && activeTab !== 'clientes' && activeTab !== 'gestao' && activeTab !== 'equipe' && activeTab !== 'links' && activeTab !== 'prospeccao' && activeTab !== 'editor_prospeccao' && (
                 <div className="hidden lg:flex items-center gap-4 ml-4">
                   <div className="h-8 w-px bg-stone-100" />
                   

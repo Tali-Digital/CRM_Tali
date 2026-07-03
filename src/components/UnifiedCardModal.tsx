@@ -13,7 +13,7 @@ import {
 import { Modal } from './Modal';
 import { 
   Trash2, Plus, X, CheckSquare, FileText, User, Edit2, 
-  Calendar, Briefcase, TrendingUp, Settings, LayoutGrid, DollarSign, Clock, Tag as TagIcon
+  Calendar, Briefcase, TrendingUp, Settings, LayoutGrid, DollarSign, Clock, Tag as TagIcon, Layers
 } from 'lucide-react';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { Timestamp } from 'firebase/firestore';
@@ -33,7 +33,7 @@ interface UnifiedCardModalProps {
 }
 
 export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({ 
-  isOpen, onClose, card, sector, client, clients, users, onMoveToSector, allSectors = [] 
+  isOpen, onClose, card, sector, client, clients = [], users = [], onMoveToSector, allSectors = [] 
 }) => {
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
@@ -506,7 +506,36 @@ export const UnifiedCardModal: React.FC<UnifiedCardModalProps> = ({
                       </select>
                     </div>
                   )}
+
+                  {onMoveToSector && allSectors && allSectors.length > 0 && (
+                    <div className="space-y-3 mt-6">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 px-1 flex items-center gap-2">
+                         <Layers size={12} /> Mover para Quadro / Setor
+                      </label>
+                      <select
+                        value={sector}
+                        onChange={(e) => {
+                          const newSector = e.target.value;
+                          if (newSector && newSector !== sector && onMoveToSector) {
+                            if (window.confirm('Deseja mover este item para o quadro selecionado? O modal será fechado.')) {
+                              onMoveToSector(newSector);
+                            }
+                          }
+                        }}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-5 py-3 text-sm font-bold text-stone-900 focus:outline-none focus:ring-4 focus:ring-stone-900/5 transition-all"
+                      >
+                        <option value={sector} disabled>Atual: {allSectors.find(s => s.id === sector)?.name || (sector === 'internal_tasks' ? 'Tarefas' : sector)}</option>
+                        {allSectors.filter(s => s.id !== sector).map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.group === 'cliente' ? 'Cliente' : 'Interno'})</option>
+                        ))}
+                        {sector !== 'internal_tasks' && (
+                          <option value="internal_tasks">Tarefas (Padrão)</option>
+                        )}
+                      </select>
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 px-1 flex items-center gap-2">

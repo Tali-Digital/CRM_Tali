@@ -76,3 +76,16 @@
   border-width: 2px !important;
 }
 
+:root {
+  --primary-color: #5271FF;
+  --primary-dark: #3b50c1;
+  --secondary-color: #0C1122;
+  --bg-color: #f8fafc;
+  --surface-color: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+}

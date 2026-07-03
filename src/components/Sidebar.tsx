@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -8,16 +8,16 @@ import {
   TrendingUp,
   UserPlus,
   RefreshCw,
-  FileVideo,
   Edit2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Plus,
   MonitorPlay,
-  Layers,
   Link,
   Search,
+  FileText,
   Lock
 } from 'lucide-react';
 import { Logo } from './Logo';
@@ -38,67 +38,204 @@ interface Props {
 }
 
 export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isCollapsed, onToggleCollapse, isMobileOpen, onClose, userRole, sectors, onAddSector, onEditSector, currentUserId }) => {
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    vendas: false,
+    clientes: false,
+    tarefas: false,
+    configuracoes: false
+  });
+
+  const toggleMenu = (menu: string) => {
+    setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
+  };
+
   const isUserVisible = (sectorId: string) => {
     if (userRole === 'admin') return true;
     const sector = sectors?.find(s => s.id === sectorId);
     if (!sector || !sector.visibility || sector.visibility.length === 0) return false;
     return sector.visibility.includes(currentUserId);
   };
+  
   const getIconForSector = (name: string, defaultIcon: any) => {
     const lower = name.toLowerCase().trim();
     if (lower.includes('tutorial') || lower.includes('tutoriais')) return MonitorPlay;
     return defaultIcon;
   };
 
-  const menuItems: any[] = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
-    { id: 'links', icon: Link, label: 'Links Rápidos' },
-    { id: 'prospeccao', icon: Search, label: 'Prospecção' },
-    { type: 'header', label: 'Cliente', onAdd: userRole === 'admin' ? () => onAddSector?.('cliente') : undefined },
+  // 1. Clientes
+  const clienteChildren = [
     ...(isUserVisible('comercial') ? [{ 
-      id: 'comercial', 
-      icon: TrendingUp, 
-      label: sectors?.find(s => s.id === 'comercial')?.name || 'Comercial',
+      id: 'comercial', icon: TrendingUp, label: sectors?.find(s => s.id === 'comercial')?.name || 'Comercial',
       onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'comercial') || { id: 'comercial', name: 'Comercial', group: 'cliente' }) : undefined
     }] : []),
     ...(isUserVisible('integracao') ? [{ 
-      id: 'integracao', 
-      icon: UserPlus, 
-      label: sectors?.find(s => s.id === 'integracao')?.name || 'Integração do Cliente',
+      id: 'integracao', icon: UserPlus, label: sectors?.find(s => s.id === 'integracao')?.name || 'Integração do Cliente',
       onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'integracao') || { id: 'integracao', name: 'Integração do Cliente', group: 'cliente' }) : undefined
     }] : []),
     ...(isUserVisible('operacao') ? [{ 
-      id: 'operacao', 
-      icon: RefreshCw, 
-      label: sectors?.find(s => s.id === 'operacao')?.name || 'Operação Contínua',
+      id: 'operacao', icon: RefreshCw, label: sectors?.find(s => s.id === 'operacao')?.name || 'Operação Contínua',
       onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'operacao') || { id: 'operacao', name: 'Operação Contínua', group: 'cliente' }) : undefined
     }] : []),
     ...(sectors?.filter(s => s.group === 'cliente' && !['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
-      id: s.id,
-      icon: getIconForSector(s.name, TrendingUp),
-      label: s.name,
-      isDynamic: true,
-      onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
-    })) || []),
-    { type: 'header', label: 'Tarefas', onAdd: userRole === 'admin' ? () => onAddSector?.('interno') : undefined },
+      id: s.id, icon: getIconForSector(s.name, TrendingUp), label: s.name, onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
+    })) || [])
+  ];
+
+  // 2. Tarefas
+  const tarefasChildren = [
     ...(isUserVisible('internal_tasks') ? [{ 
-      id: 'internal_tasks', 
-      icon: CheckCircle2, 
-      label: sectors?.find(s => s.id === 'internal_tasks')?.name || 'Tarefas',
+      id: 'internal_tasks', icon: CheckCircle2, label: sectors?.find(s => s.id === 'internal_tasks')?.name || 'Tarefas',
       onEdit: userRole === 'admin' ? () => onEditSector?.(sectors?.find(s => s.id === 'internal_tasks') || { id: 'internal_tasks', name: 'Tarefas', group: 'interno' }) : undefined
     }] : []),
     ...(sectors?.filter(s => s.group === 'interno' && !['internal_tasks'].includes(s.id) && isUserVisible(s.id)).map(s => ({
-      id: s.id,
-      icon: getIconForSector(s.name, CheckCircle2),
-      label: s.name,
-      isDynamic: true,
-      onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
-    })) || []),
+      id: s.id, icon: getIconForSector(s.name, CheckCircle2), label: s.name, onEdit: userRole === 'admin' ? () => onEditSector?.(s) : undefined
+    })) || [])
+  ];
+
+  const topMenuItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
+    { id: 'links', icon: Link, label: 'Links Rápidos' },
+    {
+      id: 'vendas', icon: Search, label: 'Vendas & Prospecção', isGroup: true,
+      children: [
+        { id: 'prospeccao', icon: Search, label: 'Prospecção online' },
+        { id: 'editor_prospeccao', icon: FileText, label: 'Prospecção Presencial' },
+      ]
+    },
+    {
+      id: 'clientes', icon: Users, label: 'Clientes e Operação', isGroup: true,
+      onAdd: userRole === 'admin' ? () => onAddSector?.('cliente') : undefined,
+      children: clienteChildren
+    },
+    {
+      id: 'tarefas', icon: CheckCircle2, label: 'Atividades e Rotinas', isGroup: true,
+      onAdd: userRole === 'admin' ? () => onAddSector?.('interno') : undefined,
+      children: tarefasChildren
+    }
+  ];
+
+  const bottomMenuItems = [
+    {
+      id: 'configuracoes', icon: Settings, label: 'Administrativo', isGroup: true,
+      children: [
+        { id: 'equipe', icon: Briefcase, label: 'Equipe' },
+        ...(userRole !== 'equipe' ? [{ id: 'clientes', icon: Users, label: 'Base de Clientes' }] : []),
+        ...(userRole === 'admin' ? [{ id: 'admin', icon: Lock, label: 'Administração' }] : []),
+      ]
+    }
   ];
 
   const themeClasses = 'bg-[#0C1122] text-white border-[#0C1122] shadow-2xl';
   const itemHoverClasses = 'hover:bg-[#5271FF] hover:text-white';
   const activeItemClasses = 'bg-[#5271FF] text-white shadow-md shadow-black/20';
+
+  const renderItem = (item: any, isBottom: boolean = false) => {
+    if (item.isGroup) {
+      const isOpen = openMenus[item.id] || (isCollapsed && !isMobileOpen); // keep visual state for collapsed
+      
+      // Auto expand se algum filho está ativo
+      const isChildActive = item.children?.some((c: any) => c.id === activeTab);
+      const shouldOpen = isOpen || isChildActive;
+
+      return (
+        <div key={item.id} className="mb-2">
+          <button 
+            onClick={() => {
+              if (isCollapsed && !isMobileOpen) {
+                onToggleCollapse(); // expande a sidebar primeiro
+              }
+              toggleMenu(item.id);
+            }} 
+            className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-between'} px-4 py-3 rounded-xl transition-all ${itemHoverClasses} ${isChildActive ? 'bg-white/5' : ''}`}
+            title={isCollapsed ? item.label : ''}
+          >
+            <div className="flex items-center space-x-3">
+               <item.icon size={20} className={`shrink-0 ${isChildActive ? 'text-[#5271FF]' : ''}`} />
+               {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">{item.label}</span>}
+            </div>
+            {(!isCollapsed || isMobileOpen) && (
+               <div className="flex items-center gap-1">
+                  {item.onAdd && (
+                    <div 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        e.preventDefault();
+                        if(item.onAdd) item.onAdd(); 
+                      }} 
+                      className="p-1 hover:bg-[#5271FF] rounded-md transition-colors"
+                      title="Adicionar"
+                    >
+                      <Plus size={16} />
+                    </div>
+                  )}
+                  <ChevronDown size={16} className={`transition-transform duration-300 ${shouldOpen ? 'rotate-180' : ''}`} />
+               </div>
+            )}
+          </button>
+          
+          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${shouldOpen && (!isCollapsed || isMobileOpen) ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+            <div className="pl-4 pr-1 space-y-1 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10">
+              {item.children.map((child: any) => {
+                 const isActive = activeTab === child.id;
+                 const ChildIcon = child.icon;
+                 return (
+                   <button 
+                     key={child.id} 
+                     onClick={() => onTabChange(child.id)} 
+                     className={`w-full flex items-center justify-between pl-6 pr-4 py-2.5 rounded-xl transition-all ${isActive ? activeItemClasses : itemHoverClasses} relative`}
+                   >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        {isActive && <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full bg-[#5271FF]" />}
+                        <ChildIcon size={16} className={`shrink-0 ${isActive ? 'text-white' : 'text-white/60'}`} />
+                        <span className={`text-sm truncate ${isActive ? 'font-bold' : 'font-medium text-white/80'}`}>{child.label}</span>
+                      </div>
+                      {child.onEdit && (
+                        <div
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            child.onEdit();
+                          }}
+                          className="p-1 rounded-md hover:bg-white/20 text-white/40 hover:text-white transition-all ml-2 flex-shrink-0"
+                          title="Editar"
+                        >
+                          <Edit2 size={12} />
+                        </div>
+                      )}
+                   </button>
+                 )
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Normal Item
+    const Icon = item.icon;
+    const isActive = activeTab === item.id;
+
+    return (
+      <button
+        key={item.id}
+        data-sidebar-tab={item.id}
+        onClick={() => onTabChange(item.id as any)}
+        className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all mb-1 ${
+          isActive 
+            ? activeItemClasses 
+            : itemHoverClasses
+        }`}
+        title={isCollapsed ? item.label : ''}
+      >
+        <Icon size={20} className="shrink-0" />
+        {(!isCollapsed || isMobileOpen) && (
+          <div className="flex-1 flex items-center justify-between min-w-0">
+            <span className="text-sm font-bold truncate">{item.label}</span>
+          </div>
+        )}
+      </button>
+    );
+  };
 
   return (
     <>
@@ -113,7 +250,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
       <div className={`
         fixed left-0 top-0 h-screen flex flex-col p-4 border-r font-nunito z-[999] transition-all duration-300 ease-in-out
         ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
-        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+        ${isCollapsed ? 'md:w-20' : 'md:w-[280px]'}
         ${themeClasses}
       `}>
         <div className={`mb-10 px-2 flex items-center justify-between ${isCollapsed ? 'md:flex-col md:gap-6 pt-2' : ''}`}>
@@ -149,111 +286,18 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1">
-          {menuItems.map((item, index) => {
-            if (item.type === 'header') {
-              if (isCollapsed && !isMobileOpen) return <div key={`header-${index}`} className="h-px bg-white/10 my-4 mx-4" />;
-              return (
-                <div key={`header-${index}`} className="group flex items-center justify-between px-4 pt-4 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
-                    {item.label}
-                  </span>
-                  {item.onAdd && (
-                    <button 
-                      onClick={item.onAdd}
-                      className="p-1 rounded-md hover:bg-white/10 text-white/20 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                      title={`Adicionar Novo sob ${item.label}`}
-                    >
-                      <Plus size={12} />
-                    </button>
-                  )}
-                </div>
-              );
-            }
-
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-
-            return (
-              <button
-                key={item.id}
-                data-sidebar-tab={item.id}
-                onClick={() => onTabChange(item.id as any)}
-                className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
-                  isActive 
-                    ? activeItemClasses 
-                    : itemHoverClasses
-                }`}
-                title={isCollapsed ? item.label : ''}
-              >
-                <Icon size={20} className="shrink-0" />
-                {(!isCollapsed || isMobileOpen) && (
-                  <div className="flex-1 flex items-center justify-between min-w-0">
-                    <span className="text-sm font-bold truncate">{item.label}</span>
-                    {item.onEdit && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          item.onEdit();
-                        }}
-                        className="p-1 rounded-md bg-white/0 hover:bg-white/20 text-white/0 group-hover:text-white/40 hover:text-white transition-all ml-2"
-                        title="Editar Setor"
-                      >
-                        <Edit2 size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </button>
-            );
-          })}
+        {/* Top Menus */}
+        <nav className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
+          {topMenuItems.map(item => renderItem(item))}
         </nav>
 
-        <div className="pt-4 border-t space-y-1 border-white/10">
+        {/* Bottom Menus */}
+        <div className="pt-4 border-t border-white/10 mt-2">
+          {bottomMenuItems.map(item => renderItem(item, true))}
+          
           <button
-            onClick={() => onTabChange('equipe')}
-            className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
-              activeTab === 'equipe' 
-                ? activeItemClasses 
-                : itemHoverClasses
-            }`}
-            title={isCollapsed ? 'Equipe' : ''}
-          >
-            <Briefcase size={20} className="shrink-0" />
-            {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Equipe</span>}
-          </button>
-          {userRole !== 'equipe' && (
-            <button
-              onClick={() => onTabChange('clientes')}
-              className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'clientes' 
-                  ? activeItemClasses 
-                  : itemHoverClasses
-              }`}
-              title={isCollapsed ? 'Clientes' : ''}
-            >
-              <Users size={20} className="shrink-0" />
-              {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">Clientes</span>}
-            </button>
-          )}
-          {userRole === 'admin' && (
-            <button
-              onClick={() => onTabChange('admin')}
-              className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'admin' 
-                  ? activeItemClasses 
-                  : itemHoverClasses
-              }`}
-              title={isCollapsed ? 'Administração' : ''}
-            >
-              <Lock size={20} className="shrink-0 text-red-500" />
-              {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold text-red-500 truncate">Administração</span>}
-            </button>
-          )}
-          <button 
             onClick={onLogout}
-            className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all hover:bg-red-600 hover:text-white text-white/80`}
+            className={`w-full flex items-center mt-2 ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all hover:bg-red-500/20 text-red-400 hover:text-red-300`}
             title={isCollapsed ? 'Sair' : ''}
           >
             <LogOut size={20} className="shrink-0" />

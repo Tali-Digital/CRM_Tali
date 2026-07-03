@@ -1217,3 +1217,60 @@ export const updateGlobalSettings = async (documentId: string, data: any) => {
     throw error;
   }
 };
+
+export const subscribeToProspeccaoDocs = (callback: (docs: import('../types').EditorProspeccaoDoc[]) => void) => {
+  const q = query(collection(db, 'prospeccoes_docs'));
+  return onSnapshot(q, (snapshot) => {
+    const docs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as import('../types').EditorProspeccaoDoc[];
+    callback(docs);
+  });
+};
+
+export const addProspeccaoDoc = async (data: Omit<import('../types').EditorProspeccaoDoc, 'id'>) => {
+  const docRef = await addDoc(collection(db, 'prospeccoes_docs'), {
+    ...data,
+    createdAt: new Date().toISOString()
+  });
+  return docRef.id;
+};
+
+export const updateProspeccaoDoc = async (id: string, data: Partial<import('../types').EditorProspeccaoDoc>) => {
+  const docRef = doc(db, 'prospeccoes_docs', id);
+  await updateDoc(docRef, {
+    ...data,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+export const deleteProspeccaoDoc = async (id: string) => {
+  await deleteDoc(doc(db, 'prospeccoes_docs', id));
+};
+
+export const subscribeToModelosProspeccao = (callback: (modelos: import('../types').ModeloProspeccao[]) => void) => {
+  const q = query(collection(db, 'modelos_prospeccoes'));
+  return onSnapshot(q, (snapshot) => {
+    const modelos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as import('../types').ModeloProspeccao[];
+    callback(modelos);
+  });
+};
+
+export const addModeloProspeccao = async (data: Omit<import('../types').ModeloProspeccao, 'id'>) => {
+  const docRef = await addDoc(collection(db, 'modelos_prospeccoes'), data);
+  return docRef.id;
+};
+
+export const updateModeloProspeccao = async (id: string, data: Partial<import('../types').ModeloProspeccao>) => {
+  const docRef = doc(db, 'modelos_prospeccoes', id);
+  await updateDoc(docRef, data);
+};
+
+export const deleteModeloProspeccao = async (id: string) => {
+  await deleteDoc(doc(db, 'modelos_prospeccoes', id));
+};
+
