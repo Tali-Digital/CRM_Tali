@@ -15,6 +15,7 @@ import { OperationView } from './components/OperationView';
 import { ClientsView } from './components/ClientsView';
 import { QuickLinksView } from './components/QuickLinksView';
 import { ProspectingView } from './components/ProspectingView';
+import { RotaProspeccaoView } from './components/RotaProspeccaoView';
 import { UnifiedCardManagerView } from './components/UnifiedCardManagerView';
 import { UserMenu } from './components/UserMenu';
 import { UserProfileModal } from './components/UserProfileModal';
@@ -117,7 +118,34 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const selectedCompanyId: CompanyType = 'digital';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'links' | 'prospeccao' | 'editor_prospeccao' | 'comercial' | 'integracao' | 'operacao' | 'clientes' | 'internal_tasks' | 'gestao' | 'equipe' | 'admin'>('dashboard');
+  const [activeTab, setActiveTabState] = useState<any>(() => {
+    const fullHash = window.location.hash.replace('#/', '');
+    const tabName = fullHash.split('?')[0];
+    return tabName || 'dashboard';
+  });
+
+  const setActiveTab = (tab: any) => {
+    const fullHash = window.location.hash.replace('#/', '');
+    const currentTab = fullHash.split('?')[0];
+    if (currentTab !== tab) {
+      window.location.hash = `/${tab}`;
+    }
+    setActiveTabState(tab);
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const fullHash = window.location.hash.replace('#/', '');
+      const tabName = fullHash.split('?')[0];
+      if (tabName) {
+        setActiveTabState(tabName);
+      } else {
+        setActiveTabState('dashboard');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [sectorViewMode, setSectorViewMode] = useState<'kanban' | 'list' | 'vertical' | 'calendar'>('kanban');
   const [sectorCardFilter, setSectorCardFilter] = useState<SectorCardFilter>('both');
   const [dashboardView, setDashboardView] = useState<'minhas' | 'global'>('minhas');
@@ -1061,6 +1089,8 @@ export function App() {
         return <AdminView userProfile={userProfile} />;
       case 'prospeccao':
         return <ProspectingView companyId={selectedCompanyId} />;
+      case 'rota_prospeccao':
+        return <RotaProspeccaoView companyId={selectedCompanyId} />;
       case 'editor_prospeccao':
         return <GestaoProspeccaoEditor />;
       case 'comercial':

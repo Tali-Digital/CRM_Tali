@@ -18,7 +18,8 @@ import {
   Link,
   Search,
   FileText,
-  Lock
+  Lock,
+  Map
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -100,6 +101,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
       children: [
         { id: 'prospeccao', icon: Search, label: 'Prospecção online' },
         { id: 'editor_prospeccao', icon: FileText, label: 'Prospecção Presencial' },
+        { id: 'rota_prospeccao', icon: Map, label: 'Rota de Prospecção' },
       ]
     },
     {
@@ -179,9 +181,13 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
                  const isActive = activeTab === child.id;
                  const ChildIcon = child.icon;
                  return (
-                   <button 
+                   <a 
                      key={child.id} 
-                     onClick={() => onTabChange(child.id)} 
+                     href={`#/${child.id}`}
+                     onClick={() => {
+                       onTabChange(child.id);
+                       if (window.innerWidth < 768 && onClose) onClose();
+                     }}
                      className={`w-full flex items-center justify-between pl-6 pr-4 py-2.5 rounded-xl transition-all ${isActive ? activeItemClasses : itemHoverClasses} relative`}
                    >
                       <div className="flex items-center space-x-3 min-w-0">
@@ -202,7 +208,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
                           <Edit2 size={12} />
                         </div>
                       )}
-                   </button>
+                   </a>
                  )
               })}
             </div>
@@ -216,10 +222,14 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
     const isActive = activeTab === item.id;
 
     return (
-      <button
+      <a
         key={item.id}
         data-sidebar-tab={item.id}
-        onClick={() => onTabChange(item.id as any)}
+        href={`#/${item.id}`}
+        onClick={() => {
+          onTabChange(item.id as any);
+          if (window.innerWidth < 768 && onClose) onClose();
+        }}
         className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'md:justify-center' : 'space-x-3'} px-4 py-3 rounded-xl transition-all mb-1 ${
           isActive 
             ? activeItemClasses 
@@ -233,7 +243,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
             <span className="text-sm font-bold truncate">{item.label}</span>
           </div>
         )}
-      </button>
+      </a>
     );
   };
 

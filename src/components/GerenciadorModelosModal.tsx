@@ -36,7 +36,13 @@ export default function GerenciadorModelosModal({ onClose }: Props) {
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Sim, excluir!',
-      cancelButtonText: 'Cancelar'
+      cancelButtonText: 'Cancelar',
+      didOpen: () => {
+        const swalContainer = document.querySelector('.swal2-container') as HTMLElement;
+        if (swalContainer) {
+          swalContainer.style.zIndex = '3000';
+        }
+      }
     });
     
     if (isConfirmed) {
@@ -46,7 +52,13 @@ export default function GerenciadorModelosModal({ onClose }: Props) {
         text: 'O modelo foi removido.',
         icon: 'success',
         timer: 1500,
-        showConfirmButton: false
+        showConfirmButton: false,
+        didOpen: () => {
+          const swalContainer = document.querySelector('.swal2-container') as HTMLElement;
+          if (swalContainer) {
+            swalContainer.style.zIndex = '3000';
+          }
+        }
       });
     }
   };

@@ -1176,11 +1176,102 @@ export const subscribeToProspects = (companyId: string, callback: (prospects: Pr
 };
 
 export const addProspect = async (prospect: Omit<Prospect, 'id' | 'createdAt' | 'updatedAt'>) => {
-  return await addDoc(collection(db, 'prospects'), {
+  const docRef = await addDoc(collection(db, 'prospects'), {
     ...prospect,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+
+  try {
+    const tagsQuery = query(collection(db, 'tags'), where('companyId', '==', prospect.companyId));
+    const tagsSnapshot = await getDocs(tagsQuery);
+    let tagId = '';
+    const tagDoc = tagsSnapshot.docs.find(d => d.data().name.toLowerCase() === 'prospecção' || d.data().name.toLowerCase() === 'prospeccao');
+    
+    if (tagDoc) {
+      tagId = tagDoc.id;
+    } else {
+      const newTagRef = await addDoc(collection(db, 'tags'), {
+        name: 'Prospecção',
+        color: '#3b82f6',
+        companyId: prospect.companyId
+      });
+      tagId = newTagRef.id;
+    }
+
+    await addDoc(collection(db, 'clients'), {
+      name: prospect.clinicName || prospect.ownerName || 'Novo Prospecto',
+      themeColor: 'blue',
+      serviceTags: [tagId],
+      checklist: [],
+      notes: prospect.observations || '',
+      companyId: prospect.companyId,
+      createdAt: serverTimestamp()
+    });
+  } catch (e) {
+    console.error('Erro ao espelhar prospecto para clientes', e);
+  }
+
+  return docRef;
+};
+
+export const syncProspectsToClients = async (companyId: string) => {
+  try {
+    const allProspectsSnap = await getDocs(collection(db, 'prospects'));
+    const prospectsDocs = allProspectsSnap.docs.filter(d => {
+      const cId = d.data().companyId;
+      return cId === companyId || !cId; // include legacy without companyId
+    });
+    
+    const clientsSnap = await getDocs(query(collection(db, 'clients'), where('companyId', '==', companyId)));
+    
+    const existingClientNames = clientsSnap.docs.map(d => (d.data().name || '').toLowerCase().trim());
+    
+    let tagId = '';
+    const tagsSnap = await getDocs(query(collection(db, 'tags'), where('companyId', '==', companyId)));
+    const tagDoc = tagsSnap.docs.find(d => {
+      const n = (d.data().name || '').toLowerCase();
+      return n.includes('prospecç') || n.includes('prospecc');
+    });
+    
+    if (tagDoc) {
+      tagId = tagDoc.id;
+    } else {
+      const newTagRef = await addDoc(collection(db, 'tags'), { name: 'Prospecção', color: '#3b82f6', companyId });
+      tagId = newTagRef.id;
+    }
+    
+    let synced = 0;
+    for (const docSnap of prospectsDocs) {
+      const p = docSnap.data() as Prospect;
+      const pName = (p.clinicName || p.ownerName || 'Novo Prospecto').trim();
+      
+      // If contract is closed, they are active, so don't put prospeccao tag
+      let finalTags = [tagId];
+      if (p.isContractClosed) {
+        finalTags = [];
+      }
+      
+      if (pName && !existingClientNames.includes(pName.toLowerCase())) {
+        await addDoc(collection(db, 'clients'), {
+          name: pName,
+          themeColor: 'blue',
+          serviceTags: finalTags,
+          checklist: [],
+          notes: p.observations || '',
+          companyId: p.companyId || companyId,
+          createdAt: serverTimestamp()
+        });
+        existingClientNames.push(pName.toLowerCase()); // prevent duplicate in same run
+        synced++;
+      }
+    }
+    console.log(`Synced ${synced} prospects`);
+    return synced;
+  } catch (error) {
+    console.error('Failed to sync prospects', error);
+    throw error;
+  }
 };
 
 export const updateProspect = async (id: string, data: Partial<Prospect>) => {

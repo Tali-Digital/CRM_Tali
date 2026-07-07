@@ -6,7 +6,7 @@ import GerenciadorModelosModal from './GerenciadorModelosModal';
 
 
 
-import { subscribeToProspeccaoDocs, deleteProspeccaoDoc, addProspeccaoDoc, updateProspeccaoDoc } from '../services/firestoreService';
+import { subscribeToProspeccaoDocs, deleteProspeccaoDoc, addProspeccaoDoc, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
 import { EditorProspeccaoDoc } from '../types';
 
 export default function GestaoProspeccaoEditor() {
@@ -38,6 +38,9 @@ export default function GestaoProspeccaoEditor() {
   const handleDelete = async () => {
     if (confirmDelete) {
       await deleteProspeccaoDoc(confirmDelete.id);
+      if (confirmDelete.clienteId) {
+        await updateProspect(confirmDelete.clienteId, { hasPresencialFicha: false });
+      }
       setConfirmDelete(null);
     }
   };
@@ -177,7 +180,7 @@ export default function GestaoProspeccaoEditor() {
             </thead>
             <tbody>
               {prospeccoes.filter(c => (c.clienteNome || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.titulo || '').toLowerCase().includes(searchTerm.toLowerCase())).map(prospeccao => (
-                <tr key={prospeccao.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr key={prospeccao.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => handleOpenGerador(prospeccao)} className="prospeccao-row-hover">
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{prospeccao.titulo || 'Prospecção'}</div>
                   </td>
@@ -185,9 +188,9 @@ export default function GestaoProspeccaoEditor() {
                   <td style={{ padding: '1rem' }}>{(() => { try { return new Date(prospeccao.dataAssinatura).toLocaleDateString('pt-BR'); } catch { return '—'; } })()}</td>
                   <td style={{ padding: '1rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                      <button onClick={() => { if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
-                      <button onClick={() => handleOpenGerador(prospeccao)} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
-                      <button onClick={() => setConfirmDelete(prospeccao)} title="Excluir" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
                     </div>
                   </td>
                 </tr>
@@ -227,6 +230,13 @@ export default function GestaoProspeccaoEditor() {
 
               if (editingEditorProspeccaoDoc) {
                 await updateProspeccaoDoc(editingEditorProspeccaoDoc.id, sanitizedData);
+                if (editingEditorProspeccaoDoc.clienteId && (sanitizedData.location || sanitizedData.fullAddress)) {
+                  await updateProspect(editingEditorProspeccaoDoc.clienteId, {
+                    location: sanitizedData.location || '',
+                    fullAddress: sanitizedData.fullAddress || '',
+                    geocodeFailed: false // Forçar recálculo no mapa
+                  });
+                }
               } else {
                 await addProspeccaoDoc(sanitizedData as any);
               }
@@ -245,6 +255,11 @@ export default function GestaoProspeccaoEditor() {
       {isGerenciadorOpen && (
         <GerenciadorModelosModal onClose={() => setIsGerenciadorOpen(false)} />
       )}
+      <style>{`
+        .prospeccao-row-hover:hover {
+          background-color: #f8fafc;
+        }
+      `}</style>
     </div>
   );
 }

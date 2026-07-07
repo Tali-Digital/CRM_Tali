@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspeccao, getGlobalSettings } from '../services/firestoreService';
+import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspeccao, getGlobalSettings, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors } from 'lucide-react';
+import { X, Printer, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface GeradorProspeccaoProps {
@@ -14,7 +16,10 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [donoClinica, setDonoClinica] = useState('');
   const [clinica, setClinica] = useState('');
   const [dataProspeccao, setDataProspeccao] = useState(new Date().toISOString().split('T')[0]);
+  const [cidadeBairro, setCidadeBairro] = useState('');
+  const [enderecoCompleto, setEnderecoCompleto] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isEntregue, setIsEntregue] = useState(false);
 
   const [selectedModeloId, setSelectedModeloId] = useState('');
   const [modelos, setModelos] = useState<ModeloProspeccao[]>([]);
@@ -36,12 +41,43 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const conteudoInicial = `<p>Escreva ou cole o texto da sua prospecção aqui...</p>`;
 
+  // Escutar a tecla ESC para fechar o editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Preencher dados ao editar
   useEffect(() => {
     if (prospeccaoParaEditar) {
       if (prospeccaoParaEditar.clienteNome) setDonoClinica(prospeccaoParaEditar.clienteNome);
       if (prospeccaoParaEditar.titulo) setClinica(prospeccaoParaEditar.titulo);
       if (prospeccaoParaEditar.dataAssinatura) setDataProspeccao(prospeccaoParaEditar.dataAssinatura);
+      if (prospeccaoParaEditar.isEntregue) setIsEntregue(true);
+      
+      // Fetch live prospect data to ensure address is accurate
+      if (prospeccaoParaEditar.clienteId) {
+        getDoc(doc(db, 'prospects', prospeccaoParaEditar.clienteId)).then(snap => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setCidadeBairro(data.location || '');
+            setEnderecoCompleto(data.fullAddress || '');
+          } else {
+            if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
+            if (prospeccaoParaEditar.fullAddress) setEnderecoCompleto(prospeccaoParaEditar.fullAddress);
+          }
+        });
+      } else {
+        if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
+        if (prospeccaoParaEditar.fullAddress) setEnderecoCompleto(prospeccaoParaEditar.fullAddress);
+      }
+
       if (prospeccaoParaEditar.conteudoHtml && editorRef.current) {
         editorRef.current.innerHTML = prospeccaoParaEditar.conteudoHtml;
         setPreviewHtml(prospeccaoParaEditar.conteudoHtml);
@@ -86,6 +122,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleEditorInput = () => {
     if (editorRef.current) setPreviewHtml(editorRef.current.innerHTML);
+  };
+
+  const handleMarcarEntregue = async () => {
+    if (!prospeccaoParaEditar || isSaving) return;
+    setIsSaving(true);
+    const newStatus = !isEntregue;
+    try {
+      await updateProspeccaoDoc(prospeccaoParaEditar.id, { isEntregue: newStatus });
+      if (prospeccaoParaEditar.clienteId) {
+        await updateProspect(prospeccaoParaEditar.clienteId, { isEntregue: newStatus });
+      }
+      setIsEntregue(newStatus);
+      Swal.fire('Sucesso', newStatus ? 'Endereço marcado como entregue!' : 'Status de entrega revertido!', 'success');
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      Swal.fire('Erro', 'Não foi possível alterar o status de entrega.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ── Modelos ──────────────────────────────────────────────────────────────
@@ -216,13 +271,17 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const handleEditorClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLImageElement) {
       const img = e.target;
+      
+      const scrollContainer = document.getElementById('editor-scroll-container');
+      const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
       Swal.fire({
         title: 'Ajustar Imagem',
         html: `
           <div style="text-align: left; font-size: 0.95rem; display: flex; flex-direction: column; gap: 1.5rem; padding: 0.5rem;">
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
               <label style="font-weight: 700; color: #475569;">Largura da Imagem <span style="font-size:0.75rem;font-weight:400;color:#94a3b8">Ex: 150 (px) ou 50%</span></label>
-              <input id="swal-img-width" class="swal2-input" style="margin: 0; width: 100%; box-sizing: border-box;" value="${img.style.width || img.width}" placeholder="Ex: 300, 100%, 50vw" onkeydown="if(event.key==='Enter')Swal.clickConfirm()">
+              <input id="swal-img-width" class="swal2-input" style="margin: 0; width: 100%; box-sizing: border-box;" value="${img.style.width || img.width}" placeholder="Ex: 300, 100%, 50vw">
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
               <label style="font-weight: 700; color: #475569;">Alinhamento na Página</label>
@@ -236,7 +295,24 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             </div>
           </div>
         `,
+        didOpen: () => {
+          const input = document.getElementById('swal-img-width') as HTMLInputElement;
+          const select = document.getElementById('swal-img-align') as HTMLSelectElement;
+          
+          if (input) {
+            setTimeout(() => input.focus(), 100);
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') Swal.clickConfirm();
+            });
+          }
+          if (select) {
+            select.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') Swal.clickConfirm();
+            });
+          }
+        },
         focusConfirm: false,
+        returnFocus: false,
         showCancelButton: true,
         confirmButtonText: 'Aplicar',
         cancelButtonText: 'Cancelar',
@@ -262,6 +338,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             Object.assign(img.style, { position: 'static', display: 'inline-block', margin: '0', float: 'none' });
           }
           handleEditorInput();
+        }
+        
+        // Restore scroll position
+        if (scrollContainer) {
+          setTimeout(() => {
+            scrollContainer.scrollTop = scrollTop;
+          }, 10);
         }
       });
     }
@@ -300,6 +383,59 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     }
   };
 
+  const resizeImage = (file: File | Blob, maxWidth: number = 800): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#FFFFFF'; // Fundo branco caso haja transparência e converta para jpeg
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            resolve(event.target?.result as string);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const uploadImageToHostinger = async (base64Image: string): Promise<string> => {
+    Swal.fire({ title: 'Enviando imagem...', text: 'Aguarde um momento.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const response = await fetch('https://crm.talidigital.com.br/upload.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
+      });
+      const data = await response.json();
+      if (data.success && data.url) {
+        Swal.close();
+        return data.url;
+      } else {
+        throw new Error(data.message || 'Erro no upload');
+      }
+    } catch (error) {
+      console.error('Upload falhou:', error);
+      Swal.fire('Erro!', 'Falha ao enviar a imagem para o servidor. Inserindo localmente.', 'error');
+      return base64Image; // Fallback para base64 se falhar
+    }
+  };
+
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const clipboardData = e.clipboardData;
@@ -308,13 +444,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       if (clipboardData.items[i].type.indexOf('image') !== -1) {
         const blob = clipboardData.items[i].getAsFile();
         if (blob) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              document.execCommand('insertHTML', false, `<img src="${event.target.result}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
-            }
-          };
-          reader.readAsDataURL(blob);
+          resizeImage(blob).then(resizedBase64 => {
+            uploadImageToHostinger(resizedBase64).then(finalUrl => {
+              document.execCommand('insertHTML', false, `<img src="${finalUrl}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
+              handleEditorInput();
+            });
+          });
           return;
         }
       }
@@ -359,14 +494,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       for (let i = 0; i < dt.files.length; i++) {
         const file = dt.files[i];
         if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              document.execCommand('insertHTML', false, `<img src="${event.target.result}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
+          resizeImage(file).then(resizedBase64 => {
+            uploadImageToHostinger(resizedBase64).then(finalUrl => {
+              document.execCommand('insertHTML', false, `<img src="${finalUrl}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
               handleEditorInput();
-            }
-          };
-          reader.readAsDataURL(file);
+            });
+          });
         }
       }
     }
@@ -379,15 +512,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     input.onchange = (e: any) => {
       const file = e.target.files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            document.execCommand('insertHTML', false, `<img src="${event.target.result}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
+        resizeImage(file).then(resizedBase64 => {
+          uploadImageToHostinger(resizedBase64).then(finalUrl => {
+            document.execCommand('insertHTML', false, `<img src="${finalUrl}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
             editorRef.current?.focus();
             handleEditorInput();
-          }
-        };
-        reader.readAsDataURL(file);
+          });
+        });
       }
     };
     input.click();
@@ -536,6 +667,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         clienteNome: donoClinica,
         titulo: clinica,
         dataAssinatura: dataProspeccao,
+        location: cidadeBairro,
+        fullAddress: enderecoCompleto,
         conteudoHtml: editorRef.current?.innerHTML || ''
       });
       Swal.fire({ icon: 'success', title: 'Salvo!', text: 'Prospecção registrada com sucesso.', timer: 1500, showConfirmButton: false });
@@ -553,6 +686,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           clienteNome: donoClinica,
           titulo: clinica,
           dataAssinatura: dataProspeccao,
+          location: cidadeBairro,
+          fullAddress: enderecoCompleto,
           conteudoHtml: editorRef.current?.innerHTML || ''
         });
       } catch (err) { /* continua para imprimir mesmo se save falhar */ }
@@ -664,6 +799,32 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
               </div>
 
+              {/* Endereço - Visualização */}
+              <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Localização</h4>
+                  <button 
+                    onClick={() => {
+                      if (prospeccaoParaEditar && prospeccaoParaEditar.clienteId) {
+                        window.location.hash = `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}`;
+                      } else {
+                        Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
+                      }
+                    }}
+                    style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                  >
+                    <Edit2 size={12} /> Editar Ficha Completa
+                  </button>
+                </div>
+                
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: 'white' }}>Cidade/Bairro:</strong> {cidadeBairro || '-'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
+                  <strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}
+                </div>
+              </div>
+
               <div style={{ flex: 1 }}></div>
 
               {/* Botões de ação */}
@@ -682,6 +843,32 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 >
                   <Printer size={18} /> {isSaving ? 'Processando...' : 'Imprimir / Salvar PDF'}
                 </button>
+                
+                {prospeccaoParaEditar && (
+                  <button
+                    disabled={isSaving}
+                    onClick={handleMarcarEntregue}
+                    style={{ 
+                      width: '100%', 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      gap: '0.5rem', 
+                      padding: '0.75rem', 
+                      fontSize: '1rem', 
+                      fontWeight: 'bold', 
+                      backgroundColor: isEntregue ? '#22c55e' : '#ef4444', 
+                      border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`, 
+                      color: 'white', 
+                      borderRadius: '8px', 
+                      cursor: isSaving ? 'not-allowed' : 'pointer', 
+                      opacity: isSaving ? 0.7 : 1,
+                      marginTop: '0.5rem'
+                    }}
+                  >
+                    <Check size={18} /> {isEntregue ? 'Endereço Entregue' : 'Marcar como Entregue'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -774,7 +961,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             </div>
 
             {/* Editor Central */}
-            <div style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'white' }}>
+            <div id="editor-scroll-container" style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'white' }}>
               <div className="editor-page-wrapper" style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', margin: '0 auto', backgroundColor: 'white', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
 
                 {viewHtml && (

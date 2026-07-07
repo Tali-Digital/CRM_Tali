@@ -40,7 +40,8 @@ import {
   Grid
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
-import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings } from '../services/firestoreService';
+import { auth } from '../firebase';
+import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
 
 interface ProspectingViewProps {
@@ -48,7 +49,7 @@ interface ProspectingViewProps {
 }
 
 const STATUS_COLORS = {
-  'VERIFICAR ICP': 'bg-pink-100 text-pink-800',
+  'Fora de ICP': 'bg-pink-100 text-pink-800',
   'Mandar Mensagem': 'bg-amber-100 text-amber-800',
   'Mensagem Enviada': 'bg-blue-100 text-blue-800',
   '1º Follow Up': 'bg-cyan-100 text-cyan-800',
@@ -73,15 +74,36 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const getSavedFilter = (key: string, defaultValue: any) => {
+    try {
+      const uid = auth?.currentUser?.uid || 'guest';
+      const saved = localStorage.getItem(`prospecting_filters_${uid}_${key}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultValue;
+  };
+
+  const [searchTerm, setSearchTerm] = useState<string>(() => getSavedFilter('searchTerm', ''));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [quickFilter, setQuickFilter] = useState<string>('active');
+  const [filters, setFilters] = useState<Record<string, string>>(() => getSavedFilter('filters', {}));
+  const [quickFilter, setQuickFilter] = useState<string>(() => getSavedFilter('quickFilter', 'active'));
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(() => getSavedFilter('sortConfig', null));
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => getSavedFilter('viewMode', 'table'));
   const [isProgressFilterOpen, setIsProgressFilterOpen] = useState(false);
+  
+  // Persist filters when they change
+  useEffect(() => {
+    const uid = auth?.currentUser?.uid || 'guest';
+    localStorage.setItem(`prospecting_filters_${uid}_searchTerm`, JSON.stringify(searchTerm));
+    localStorage.setItem(`prospecting_filters_${uid}_filters`, JSON.stringify(filters));
+    localStorage.setItem(`prospecting_filters_${uid}_quickFilter`, JSON.stringify(quickFilter));
+    localStorage.setItem(`prospecting_filters_${uid}_sortConfig`, JSON.stringify(sortConfig));
+    localStorage.setItem(`prospecting_filters_${uid}_viewMode`, JSON.stringify(viewMode));
+  }, [searchTerm, filters, quickFilter, sortConfig, viewMode]);
   const progressFilterRef = useRef<HTMLDivElement>(null);
 
   // Fechar dropdown de progresso ao clicar fora
@@ -155,6 +177,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     followUps: [],
     aiFilledFields: [],
     fullAddress: '',
+    isInPerson: false,
+    hasPresencialFicha: false,
   });
 
   // Refs para salvar de forma automática ao clicar fora ou apertar ESC
@@ -212,16 +236,85 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     }
   }, [formData.clinicName, formData.location, formData.clinicInstagram, prospects, editingProspect]);
 
+  const processContractStatus = async (prospectData: typeof formData) => {
+    try {
+      const { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      
+      const tagsSnap = await getDocs(collection(db, 'tags'));
+      let prosTag = tagsSnap.docs.find(d => d.data().name?.toLowerCase().includes('prospecç'))?.id;
+      
+      if (!prosTag) return;
+      
+      const clientsSnap = await getDocs(collection(db, 'clients'));
+      const clientDoc = clientsSnap.docs.find(d => d.data().name?.toLowerCase().trim() === prospectData.clinicName?.toLowerCase().trim());
+      
+      if (clientDoc) {
+        const clientData = clientDoc.data();
+        const hasTag = clientData.serviceTags?.includes(prosTag);
+        
+        if (prospectData.isContractClosed && hasTag) {
+          await updateDoc(doc(db, 'clients', clientDoc.id), {
+            serviceTags: clientData.serviceTags.filter((t: string) => t !== prosTag)
+          });
+        } else if (!prospectData.isContractClosed && !hasTag) {
+          await updateDoc(doc(db, 'clients', clientDoc.id), {
+            serviceTags: [...(clientData.serviceTags || []), prosTag]
+          });
+        }
+      } else {
+        // Client doesn't exist yet, create it 
+        await addDoc(collection(db, 'clients'), {
+          name: prospectData.clinicName?.trim() || prospectData.ownerName?.trim() || 'Novo Cliente',
+          themeColor: 'blue',
+          serviceTags: prospectData.isContractClosed ? [] : [prosTag],
+          checklist: [],
+          notes: prospectData.observations || '',
+          companyId: prospectData.companyId || companyId,
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch(e) {
+      console.error('Erro ao processar status de contrato', e);
+    }
+  };
+
   const handleCloseAndSave = useCallback(async () => {
     if (isModalOpenRef.current) {
       try {
         const currentData = formDataRef.current;
         const currentEditing = editingProspectRef.current;
         if (currentData.clinicName && currentData.clinicName.trim() !== '') {
+          let savedId = currentEditing?.id;
           if (currentEditing) {
-            await updateProspect(currentEditing.id, currentData);
+            await updateProspect(currentEditing.id, { 
+              ...currentData,
+              geocodeFailed: false // Clear flag so map can retry geocoding
+            });
           } else {
-            await addProspect(currentData);
+            const docRef = await addProspect(currentData);
+            savedId = docRef.id;
+          }
+
+          if (currentData.isInPerson && (!currentData.hasPresencialFicha || !editingProspectRef.current?.isInPerson) && savedId) {
+            await addProspeccaoDoc({
+              titulo: currentData.clinicName,
+              clienteNome: currentData.ownerName || '',
+              clienteId: savedId,
+              dataAssinatura: new Date().toISOString()
+            });
+            await updateProspect(savedId, { hasPresencialFicha: true });
+            currentData.hasPresencialFicha = true; // Update local ref state too
+            if (editingProspectRef.current) {
+              editingProspectRef.current.isInPerson = true; // Prevents multiple creations in autosave
+            }
+          }
+          
+          if (currentData.isContractClosed !== editingProspectRef.current?.isContractClosed) {
+            await processContractStatus(currentData);
+            if (editingProspectRef.current) {
+              editingProspectRef.current.isContractClosed = currentData.isContractClosed;
+            }
           }
         }
       } catch (error) {
@@ -352,6 +445,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         followUps: prospect.followUps || [],
         aiFilledFields: prospect.aiFilledFields || [],
         fullAddress: prospect.fullAddress || '',
+        isInPerson: !!prospect.isInPerson,
+        hasPresencialFicha: !!prospect.hasPresencialFicha,
       });
     } else {
       setAiSubTab('preenchimento');
@@ -388,10 +483,29 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         followUps: [],
         aiFilledFields: [],
         fullAddress: '',
+        isInPerson: false,
+        hasPresencialFicha: false,
       });
     }
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (prospects.length > 0) {
+      const fullHash = window.location.hash;
+      if (fullHash.includes('?edit=')) {
+        const editId = fullHash.split('?edit=')[1]?.split('&')[0];
+        if (editId) {
+          const prospectToEdit = prospects.find(p => p.id === editId);
+          if (prospectToEdit) {
+            handleOpenModal(prospectToEdit);
+          }
+          // Cleanup hash
+          window.location.hash = fullHash.split('?')[0];
+        }
+      }
+    }
+  }, [prospects]);
 
   const renderAiReviewBadge = (fieldName: string) => {
     if (!formData.aiFilledFields?.includes(fieldName)) return null;
@@ -427,11 +541,38 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingProspect) {
-        await updateProspect(editingProspect.id, formData);
+      let savedId = editingProspect?.id;
+      
+      const dataToSave = {
+        ...formData,
+        geocodeFailed: false // Clear flag so map can retry geocoding
+      };
+
+      if (savedId) {
+        await updateProspect(savedId, dataToSave);
       } else {
-        await addProspect(formData);
+        const docRef = await addProspect(dataToSave);
+        savedId = docRef.id;
       }
+
+      if (formData.isInPerson && (!formData.hasPresencialFicha || !editingProspect?.isInPerson) && savedId) {
+        await addProspeccaoDoc({
+          titulo: formData.clinicName,
+          clienteNome: formData.ownerName || '',
+          clienteId: savedId,
+          dataAssinatura: new Date().toISOString()
+        });
+        await updateProspect(savedId, { hasPresencialFicha: true });
+        setFormData(prev => ({ ...prev, hasPresencialFicha: true }));
+        if (editingProspect) {
+          editingProspect.isInPerson = true;
+        }
+      }
+      
+      if (formData.isContractClosed !== editingProspect?.isContractClosed) {
+        await processContractStatus(formData);
+      }
+
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error saving prospect:', error);
@@ -736,7 +877,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     followedOwner: '',
                     size: row['Quadro de Funcionarios'] || '',
                     age: '',
-                    status: 'VERIFICAR ICP',
+                    status: 'Fora de ICP',
                     hasAnswered: false,
                     lastFollowUp: '',
                     observations: '',
@@ -894,7 +1035,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <div className="max-h-72 overflow-y-auto px-1.5 custom-scrollbar">
                   {[
                     { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, dotColor: 'bg-blue-900' },
-                    { key: 'VERIFICAR ICP', label: 'VERIFICAR ICP', count: prospects.filter(p => p.status === 'VERIFICAR ICP').length, dotColor: 'bg-pink-500' },
+                    { key: 'Fora de ICP', label: 'Fora de ICP', count: prospects.filter(p => p.status === 'Fora de ICP').length, dotColor: 'bg-pink-500' },
                     { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, dotColor: 'bg-amber-500' },
                     { key: 'Mensagem Enviada', label: 'Mensagem Enviada', count: prospects.filter(p => p.status === 'Mensagem Enviada').length, dotColor: 'bg-blue-500' },
                     { key: '1º Follow Up', label: '1º Follow Up', count: prospects.filter(p => p.status === '1º Follow Up').length, dotColor: 'bg-cyan-500' },
@@ -1230,7 +1371,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           className={`text-[10px] font-black px-2 py-1.5 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-md w-full uppercase tracking-tighter transition-all hover:scale-[1.02] active:scale-95 ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
                         >
                           <option value="">Definir Progresso</option>
-                          <option value="VERIFICAR ICP">VERIFICAR ICP</option>
+                          <option value="Fora de ICP">Fora de ICP</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
                           <option value="1º Follow Up">1º Follow Up</option>
@@ -1482,7 +1623,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           className={`text-[9px] font-black px-2 py-1 rounded-xl border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
                         >
                           <option value="">Progresso</option>
-                          <option value="VERIFICAR ICP">VERIFICAR ICP</option>
+                          <option value="Fora de ICP">Fora de ICP</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
                           <option value="1º Follow Up">1º Follow Up</option>
@@ -1555,7 +1696,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           >
             <div className="px-8 py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-4">
               <div>
-                <h2 className="text-xl font-bold">{editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}</h2>
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
+                  {formData.isInPerson && (
+                    <span className="text-xs font-black bg-blue-800 text-blue-100 px-2 py-1 rounded-lg uppercase tracking-wide border border-blue-700">
+                      (Prospecção Presencial)
+                    </span>
+                  )}
+                </h2>
                 <p className="text-blue-100 text-sm">
                   {editingProspect ? `Editando: ${formData.clinicName}` : 'Preencha os dados da clínica para prospecção'}
                 </p>
@@ -1682,10 +1830,42 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     
                     {/* Bloco 1: Clínica & Identificação (Azul) */}
                     <div className="md:col-span-3 bg-blue-50/10 border border-blue-100 rounded-3xl p-6 shadow-sm border-t-4 border-t-blue-600 transition-all hover:shadow-md">
-                      <h4 className="text-sm font-black text-blue-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <User size={16} className="text-blue-600" />
-                        1. Clínica & Identificação Geral
-                      </h4>
+                      <div className="flex flex-col mb-4 gap-3">
+                        <h4 className="text-sm font-black text-blue-900 uppercase tracking-wider flex items-center gap-2">
+                          <User size={16} className="text-blue-600" />
+                          1. Clínica & Identificação Geral
+                        </h4>
+                        
+                        <div className="flex gap-4 flex-wrap">
+                          <div className="bg-white border-2 border-blue-500/30 rounded-xl p-3 shadow-sm inline-flex items-center w-fit transition-all hover:border-blue-500/50">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="rounded text-blue-700 focus:ring-blue-500 w-5 h-5 cursor-pointer shadow-sm border-gray-300"
+                                checked={formData.isInPerson}
+                                onChange={(e) => handleFieldChange('isInPerson', e.target.checked)}
+                              />
+                              <span className="text-sm font-bold text-blue-900 select-none">
+                                Marcar como Prospecção Presencial
+                              </span>
+                            </label>
+                          </div>
+                          
+                          <div className="bg-white border-2 border-emerald-500/30 rounded-xl p-3 shadow-sm inline-flex items-center w-fit transition-all hover:border-emerald-500/50">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="rounded text-emerald-600 focus:ring-emerald-500 w-5 h-5 cursor-pointer shadow-sm border-gray-300"
+                                checked={formData.isContractClosed}
+                                onChange={(e) => handleFieldChange('isContractClosed', e.target.checked)}
+                              />
+                              <span className="text-sm font-bold text-emerald-800 select-none">
+                                Contrato Fechado
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
@@ -1932,7 +2112,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             onChange={(e) => handleFieldChange('status', e.target.value as any)}
                           >
                             <option value="">Selecione...</option>
-                            <option value="VERIFICAR ICP">0 - VERIFICAR ICP</option>
+                            <option value="Fora de ICP">0 - Fora de ICP</option>
                             <option value="Mandar Mensagem">1 - Mandar Mensagem</option>
                             <option value="Mensagem Enviada">2 - Mensagem Enviada</option>
                             <option value="1º Follow Up">2.1 - 1º Follow Up</option>

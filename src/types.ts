@@ -299,6 +299,7 @@ export interface Prospect {
   companyId: CompanyType;
   createdAt?: any;
   updatedAt?: any;
+  isDeleted?: boolean;
   currentStep: number; // 1 to 4
   step1Done?: boolean;
   step2Done?: boolean;
@@ -318,6 +319,13 @@ export interface Prospect {
   aiFilledFields?: string[];
   calculatorData?: CalculatorData;
   fullAddress?: string;
+  isInPerson?: boolean;
+  hasPresencialFicha?: boolean;
+  isContractClosed?: boolean;
+  lat?: number;
+  lng?: number;
+  geocodeFailed?: boolean;
+  isEntregue?: boolean;
 }
 
 export interface EditorProspeccaoDoc {

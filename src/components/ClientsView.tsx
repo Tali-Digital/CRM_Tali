@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { Client, Tag, CompanyType, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, UserProfile } from '../types';
-import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag } from '../services/firestoreService';
+import { addClient, updateClient, deleteClient, addTag, updateTag, deleteTag, syncProspectsToClients } from '../services/firestoreService';
 import { Plus, Edit2, Trash2, Settings, Search, TrendingUp, UserPlus, ExternalLink } from 'lucide-react';
 import { playCashSound } from '../utils/audio';
 import { Modal } from './Modal';
@@ -74,6 +74,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [clientTags, setClientTags] = useState<string[]>([]);
   const [clientNotes, setClientNotes] = useState('');
   const [clientDriveLink, setClientDriveLink] = useState('');
+  
+  const [showAtivos, setShowAtivos] = useState(true);
+  const [showProspeccao, setShowProspeccao] = useState(true);
 
   // Tag Form State
   const [tagName, setTagName] = useState('');
@@ -172,6 +175,37 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const prospeccaoTagId = tags.find(t => t.name.toLowerCase().includes('prospecç') || t.name.toLowerCase().includes('prospecc'))?.id;
+
+  const ativosFinalizados = filteredClients.filter(c => !prospeccaoTagId || !c.serviceTags?.includes(prospeccaoTagId));
+  const somenteProspeccao = filteredClients.filter(c => prospeccaoTagId && c.serviceTags?.includes(prospeccaoTagId));
+
+  const clientGroups = [
+    { id: 'ativos', title: 'Clientes Talí', clients: ativosFinalizados, show: showAtivos, toggle: () => setShowAtivos(!showAtivos) },
+    { id: 'prospeccao', title: 'Apenas Prospecção', clients: somenteProspeccao, show: showProspeccao, toggle: () => setShowProspeccao(!showProspeccao) }
+  ];
+
+  const handleSyncOldProspects = async (showWarning = false) => {
+    try {
+      if (companyId) {
+        const count = await syncProspectsToClients(companyId);
+        if (showWarning) {
+          alert(`Sincronização concluída! ${count} clientes importados da prospecção.`);
+        }
+      }
+    } catch (error: any) {
+      console.error('Auto-sync error:', error);
+      if (showWarning) {
+        alert(`Erro na sincronização: ${error.message || 'Desconhecido'}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Run sync in background once on load
+    handleSyncOldProspects();
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
       {/* Search Header */}
@@ -181,6 +215,17 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Base central de clientes e serviços.</p>
         </div>
         <div className="flex w-full md:w-auto gap-2">
+          <button 
+            onClick={() => {
+              if (window.confirm('Isto irá forçar a sincronização de Prospectos faltantes. Continuar?')) {
+                handleSyncOldProspects(true);
+              }
+            }}
+            className="flex-1 md:flex-none bg-blue-50 border border-blue-200 text-blue-700 px-3 md:px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 text-[11px] md:text-sm font-bold shadow-sm"
+            title="Importar prospectos antigos para a base de clientes"
+          >
+            Sincronizar Antigos
+          </button>
           <button 
             onClick={() => setIsTagsModalOpen(true)}
             className="flex-1 md:flex-none bg-white border border-stone-200 text-stone-700 px-3 md:px-4 py-2 rounded-xl hover:bg-stone-50 transition-colors flex items-center justify-center gap-2 text-[11px] md:text-sm font-bold shadow-sm"
@@ -212,7 +257,20 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         <div className="flex-1 overflow-auto custom-scrollbar">
           {/* Mobile Card Grid */}
           <div className="md:hidden p-4 space-y-4">
-            {filteredClients.map(client => {
+            {clientGroups.map(group => (
+              <div key={group.id} className="space-y-4 mb-8">
+                <div 
+                  className="flex justify-between items-center bg-stone-100 p-3 rounded-xl cursor-pointer shadow-sm border border-stone-200" 
+                  onClick={group.toggle}
+                >
+                  <span className="font-bold text-stone-700 text-xs uppercase tracking-wide">
+                    {group.title} <span className="bg-white px-2 py-0.5 rounded-full ml-2 text-stone-500">{group.clients.length}</span>
+                  </span>
+                  <button className="text-[10px] text-stone-500 font-bold bg-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-stone-50 transition-colors">
+                    {group.show ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
+                {group.show && group.clients.map(client => {
               const clientCommCards = commercialCards.filter(c => c.clientId === client.id && !c.deleted);
               const commCard = clientCommCards.find(c => c.type === 'client') || clientCommCards[0];
               const commList = commCard ? commercialLists.find(l => l.id === commCard.listId) : null;
@@ -289,7 +347,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   </div>
                 </div>
               );
-            })}
+                })}
+                {group.show && group.clients.length === 0 && (
+                  <div className="p-4 text-center text-stone-500 text-sm italic">Nenhum cliente nesta lista.</div>
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Desktop Table View */}
@@ -304,7 +367,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredClients.map(client => {
+              {clientGroups.map(group => (
+                <React.Fragment key={group.id}>
+                  <tr className="bg-stone-100/80 cursor-pointer hover:bg-stone-200/50 transition-colors border-y border-stone-200" onClick={group.toggle}>
+                    <td colSpan={5} className="p-3">
+                      <div className="flex justify-between items-center w-full">
+                        <span className="font-bold text-stone-700 text-xs uppercase tracking-wide flex items-center gap-2">
+                          {group.title}
+                          <span className="bg-white px-2 py-0.5 rounded-full text-stone-500 shadow-sm">{group.clients.length}</span>
+                        </span>
+                        <button className="text-[10px] text-stone-500 font-bold bg-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-stone-50 transition-colors">
+                          {group.show ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {group.show && group.clients.map(client => {
                 // Find any card for this client in each sector
                 const clientCommCards = commercialCards.filter(c => c.clientId === client.id && !c.deleted);
                 const commCard = clientCommCards.find(c => c.type === 'client') || clientCommCards[0];
@@ -425,14 +503,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     </td>
                   </tr>
                 );
-              })}
-              {filteredClients.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-stone-500">
-                    Nenhum cliente encontrado.
-                  </td>
-                </tr>
-              )}
+                  })}
+                  {group.show && group.clients.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-stone-500 text-sm italic">
+                        Nenhum cliente nesta lista.
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
             </tbody>
           </table>
         </div>

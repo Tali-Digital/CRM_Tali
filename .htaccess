@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Permite acesso direto ao upload.php e à pasta de uploads
+  RewriteCond %{REQUEST_URI} !^/upload\.php
+  RewriteCond %{REQUEST_URI} !^/uploads/
+
   # Passa todas as requisições que não começam com /dist para dentro da pasta /dist/
   RewriteCond %{REQUEST_URI} !^/dist/
   RewriteRule ^(.*)$ dist/$1 [L]
