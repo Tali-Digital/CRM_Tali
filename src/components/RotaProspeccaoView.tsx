@@ -59,12 +59,12 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
           
           const tryGeocode = async (query: string) => {
             try {
-              const response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`);
+              const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(query)}&maxLocations=1`);
               const data = await response.json();
-              if (data && data.features && data.features.length > 0) {
+              if (data && data.candidates && data.candidates.length > 0) {
                 return {
-                  lat: data.features[0].geometry.coordinates[1],
-                  lng: data.features[0].geometry.coordinates[0]
+                  lat: data.candidates[0].location.y,
+                  lng: data.candidates[0].location.x
                 };
               }
             } catch (e) {
@@ -147,12 +147,15 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
 
   const handleForceRetry = async () => {
     setIsRetrying(true);
-    const badProspects = prospects.filter(p => p.geocodeFailed || (p.lng && p.lng > 0));
-    for (const p of badProspects) {
-      await updateProspect(p.id, { geocodeFailed: false });
+    Swal.fire({ title: 'Recalculando...', text: 'O mapa está buscando todos os endereços novamente usando a nova inteligência. Isso pode levar alguns minutos.', icon: 'info', showConfirmButton: false });
+    
+    // Clear lat/lng for all to force a full fresh geocode with ArcGIS
+    const prospectsToUpdate = prospects.filter(p => !p.isEntregue);
+    for (const p of prospectsToUpdate) {
+      await updateProspect(p.id, { geocodeFailed: false, lat: null, lng: null });
     }
+    
     setIsRetrying(false);
-    Swal.fire({ title: 'Recalculando...', text: 'O mapa está buscando os endereços novamente.', icon: 'info', timer: 2000, showConfirmButton: false });
   };
 
   const handleCopyAddress = (address: string) => {
