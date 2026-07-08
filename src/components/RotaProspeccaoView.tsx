@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { Icon } from 'leaflet';
 import { subscribeToProspects, updateProspect } from '../services/firestoreService';
 import { Prospect } from '../types';
-import { Map as MapIcon, Search, User, Navigation, CheckCircle2, Copy, RefreshCw, Filter } from 'lucide-react';
+import { Map as MapIcon, Search, User, Navigation, CheckCircle2, Copy, RefreshCw, Filter, MapPin, X, Route } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 // Custom Icons
@@ -26,6 +26,15 @@ const deliveredIcon = new Icon({
   shadowSize: [41, 41]
 });
 
+const selectedIcon = new Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +45,13 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
   const [showDelivered, setShowDelivered] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [citySearchTerm, setCitySearchTerm] = useState('');
+  
+  // Route Selection
+  const [isRouteSelectionMode, setIsRouteSelectionMode] = useState(false);
+  const [selectedRoutePoints, setSelectedRoutePoints] = useState<Prospect[]>([]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -146,15 +162,45 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
     return Array.from(resps);
   }, [prospects]);
 
+  const availableCities = useMemo(() => {
+    const cityMap = new Map<string, string>();
+    prospects.forEach(p => {
+      if (!p.isEntregue && p.location) {
+        const match = p.location.match(/^([^,-]+)/);
+        const rawCity = match ? match[1].trim() : p.location.trim();
+        const normCity = rawCity.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        
+        if (!cityMap.has(normCity)) {
+          cityMap.set(normCity, rawCity);
+        } else {
+          // Prefere a versão com acentos/capitalizada
+          if (rawCity !== normCity && cityMap.get(normCity) === normCity) {
+            cityMap.set(normCity, rawCity);
+          }
+        }
+      }
+    });
+    return Array.from(cityMap.values()).sort();
+  }, [prospects]);
+
   const filteredProspects = useMemo(() => {
-    const normalizeString = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizeString = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const normalizedSelectedCities = selectedCities.map(normalizeString);
     
     const filtered = prospects.filter(p => {
       const matchDelivery = showDelivered ? true : !p.isEntregue;
       const matchLocation = searchLocation === '' || (p.fullAddress && normalizeString(p.fullAddress).includes(normalizeString(searchLocation)));
       const matchResponsible = selectedResponsible === '' || p.responsible === selectedResponsible;
       
-      return matchDelivery && matchLocation && matchResponsible && p.lat && p.lng && p.lng < 0;
+      let matchCity = true;
+      if (normalizedSelectedCities.length > 0) {
+        const pCityMatch = p.location ? p.location.match(/^([^,-]+)/) : null;
+        const pCityRaw = pCityMatch ? pCityMatch[1].trim() : (p.location ? p.location.trim() : '');
+        const pCityNorm = normalizeString(pCityRaw);
+        matchCity = normalizedSelectedCities.includes(pCityNorm);
+      }
+      
+      return matchDelivery && matchLocation && matchResponsible && matchCity && p.lat && p.lng && p.lng < 0;
     });
 
     // Add tiny jitter to identical coordinates so they spread out slightly instead of perfectly overlapping
@@ -173,7 +219,7 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
         visualLng: p.lng! + jitterLng
       };
     });
-  }, [prospects, showDelivered, searchLocation, selectedResponsible]);
+  }, [prospects, showDelivered, searchLocation, selectedResponsible, selectedCities]);
 
   const handleForceRetry = async () => {
     if (isRetrying) return;
@@ -209,6 +255,38 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
+  const handleOpenWaze = (lat: number, lng: number) => {
+    window.open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`, '_blank');
+  };
+
+  const toggleRoutePoint = (prospect: Prospect) => {
+    setSelectedRoutePoints(prev => {
+      if (prev.find(p => p.id === prospect.id)) {
+        return prev.filter(p => p.id !== prospect.id);
+      }
+      return [...prev, prospect];
+    });
+  };
+
+  const handleGenerateRoute = () => {
+    if (selectedRoutePoints.length === 0) return;
+    
+    let url = 'https://www.google.com/maps/dir/?api=1';
+    const points = [...selectedRoutePoints];
+    const destination = points.pop(); // Remove and get the last element
+    
+    if (destination) {
+      url += `&destination=${destination.lat},${destination.lng}`;
+    }
+    
+    if (points.length > 0) {
+      const waypoints = points.map(p => `${p.lat},${p.lng}`).join('|');
+      url += `&waypoints=${waypoints}`;
+    }
+    
+    window.open(url, '_blank');
+  };
+
   const center: [number, number] = filteredProspects.length > 0 
     ? [filteredProspects[0].lat!, filteredProspects[0].lng!] 
     : [-15.793889, -47.882778]; // Default to Brasília
@@ -232,6 +310,23 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setIsRouteSelectionMode(!isRouteSelectionMode);
+                if (isRouteSelectionMode) {
+                  setSelectedRoutePoints([]);
+                }
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold shadow-sm ${
+                isRouteSelectionMode 
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <MapPin size={16} />
+              {isRouteSelectionMode ? 'Cancelar Rota' : 'Definir Entrega'}
+            </button>
+            
             <button
               onClick={handleForceRetry}
               disabled={isRetrying}
@@ -265,6 +360,81 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
               </select>
             </div>
             
+            <div className="relative">
+              <button 
+                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                className="flex items-center justify-between gap-2 pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white w-[200px] text-left hover:bg-slate-50 transition-colors"
+              >
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <span className="truncate">
+                  {selectedCities.length === 0 ? 'Todas as Cidades' : `${selectedCities.length} selecionada(s)`}
+                </span>
+                <Filter size={14} className="text-slate-400 flex-shrink-0" />
+              </button>
+              
+              {isCityDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsCityDropdownOpen(false)}></div>
+                  <div className="absolute top-full left-0 mt-1 w-[280px] bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-[22rem] overflow-y-auto flex flex-col">
+                    <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10 flex flex-col gap-2 shadow-sm">
+                      <div className="flex justify-between items-center px-1">
+                        <span className="text-xs font-semibold text-slate-500">Filtrar Cidades</span>
+                        <button 
+                          onClick={() => setSelectedCities([])}
+                          className="text-xs text-blue-600 font-semibold hover:underline"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input
+                          type="text"
+                          placeholder="Buscar cidade..."
+                          value={citySearchTerm}
+                          onChange={(e) => setCitySearchTerm(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {availableCities
+                        .filter(city => {
+                          const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                          return normalize(city).includes(normalize(citySearchTerm));
+                        })
+                        .map(city => {
+                          const isSelected = selectedCities.includes(city);
+                          return (
+                            <label key={city} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                              <input 
+                                type="checkbox" 
+                                checked={isSelected}
+                                onChange={() => {
+                                  if (isSelected) {
+                                    setSelectedCities(prev => prev.filter(c => c !== city));
+                                  } else {
+                                    setSelectedCities(prev => [...prev, city]);
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                              />
+                              <span className="text-sm text-slate-700 font-medium truncate" title={city}>{city}</span>
+                            </label>
+                          );
+                      })}
+                      {availableCities.filter(city => {
+                          const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                          return normalize(city).includes(normalize(citySearchTerm));
+                        }).length === 0 && (
+                        <div className="p-4 text-center text-xs text-slate-400">Nenhuma cidade encontrada</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            
             <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
               <input
                 type="checkbox"
@@ -284,41 +454,149 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {filteredProspects.map((p: any) => (
-            <Marker key={p.id} position={[p.visualLat, p.visualLng]} icon={p.isEntregue ? deliveredIcon : pendingIcon}>
-              <Popup>
-                <div className="p-1 min-w-[200px]">
-                  <h3 className="font-bold text-slate-800 text-sm mb-1">{p.clinicName}</h3>
-                  {p.ownerName && <p className="text-xs text-slate-600 mb-2">Resp: {p.ownerName}</p>}
-                  
-                  <div className="bg-slate-50 p-2 rounded border border-slate-100 mb-3 text-xs text-slate-700">
-                    {p.fullAddress}
-                  </div>
-                  
-                  <div className="flex flex-col gap-2">
-                    <button 
-                      onClick={() => handleOpenGoogleMaps(p.lat!, p.lng!)}
-                      className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-1.5 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                      <Navigation size={14} /> Rotas no Maps
-                    </button>
-                    <button 
-                      onClick={() => handleCopyAddress(p.fullAddress!)}
-                      className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-1.5 rounded text-xs font-semibold hover:bg-slate-50 transition-colors"
-                    >
-                      <Copy size={14} /> Copiar Endereço
-                    </button>
-                    {p.isEntregue && (
-                      <div className="mt-1 flex items-center justify-center gap-1 text-green-600 text-xs font-bold bg-green-50 py-1 rounded">
-                        <CheckCircle2 size={14} /> Entregue
+          {filteredProspects.map((p: any) => {
+            const isSelected = selectedRoutePoints.some(selected => selected.id === p.id);
+            return (
+              <Marker 
+                key={p.id} 
+                position={[p.visualLat, p.visualLng]} 
+                icon={isSelected ? selectedIcon : (p.isEntregue ? deliveredIcon : pendingIcon)}
+                eventHandlers={{
+                  click: () => {
+                    if (isRouteSelectionMode) {
+                      toggleRoutePoint(p);
+                    }
+                  }
+                }}
+              >
+                {!isRouteSelectionMode && (
+                  <Popup>
+                    <div className="p-1 min-w-[200px]">
+                      <h3 className="font-bold text-slate-800 text-sm mb-1">{p.clinicName}</h3>
+                      {p.ownerName && <p className="text-xs text-slate-600 mb-2">Resp: {p.ownerName}</p>}
+                      
+                      <div className="bg-slate-50 p-2 rounded border border-slate-100 mb-3 text-xs text-slate-700">
+                        {p.fullAddress}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                      
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleOpenGoogleMaps(p.lat!, p.lng!)}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 text-white py-1.5 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
+                          >
+                            <Navigation size={12} /> Maps
+                          </button>
+                          <button 
+                            onClick={() => handleOpenWaze(p.lat!, p.lng!)}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-sky-500 text-white py-1.5 rounded text-xs font-semibold hover:bg-sky-600 transition-colors"
+                          >
+                            <Navigation size={12} /> Waze
+                          </button>
+                        </div>
+                        <button 
+                          onClick={() => handleCopyAddress(p.fullAddress!)}
+                          className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-1.5 rounded text-xs font-semibold hover:bg-slate-50 transition-colors"
+                        >
+                          <Copy size={14} /> Copiar Endereço
+                        </button>
+                        {p.isEntregue && (
+                          <div className="mt-1 flex items-center justify-center gap-1 text-green-600 text-xs font-bold bg-green-50 py-1 rounded">
+                            <CheckCircle2 size={14} /> Entregue
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Popup>
+                )}
+              </Marker>
+            );
+          })}
         </MapContainer>
+        
+        {/* Route Panel */}
+        {isRouteSelectionMode && (
+          <div className="absolute top-4 right-4 z-[1000] w-80 bg-white rounded-xl shadow-xl border border-slate-200 flex flex-col max-h-[80%]">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 rounded-t-xl flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Route size={18} className="text-blue-600" /> 
+                  Montar Rota
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {selectedRoutePoints.length === 0 
+                    ? 'Clique nos pinos no mapa para adicionar' 
+                    : `${selectedRoutePoints.length} pontos selecionados`}
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsRouteSelectionMode(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-2 max-h-64">
+              {selectedRoutePoints.length === 0 ? (
+                <div className="text-center p-6 text-sm text-slate-400">
+                  Nenhum ponto selecionado ainda.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {selectedRoutePoints.map((p, index) => (
+                    <div key={p.id} className="flex items-start gap-2 p-2 bg-slate-50 border border-slate-100 rounded-lg group">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="font-semibold text-slate-800 text-sm truncate">{p.clinicName}</p>
+                        <p className="text-xs text-slate-500 truncate">{p.fullAddress}</p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenWaze(p.lat!, p.lng!);
+                          }}
+                          title="Abrir no Waze"
+                          className="text-sky-500 hover:text-sky-600 p-1.5 rounded hover:bg-sky-50 transition-colors"
+                        >
+                          <Navigation size={14} />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRoutePoint(p);
+                          }}
+                          title="Remover da Rota"
+                          className="text-slate-400 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-white rounded-b-xl">
+              <button
+                onClick={handleGenerateRoute}
+                disabled={selectedRoutePoints.length === 0}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  selectedRoutePoints.length > 0
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <Navigation size={18} />
+                Gerar Rota no Maps ({selectedRoutePoints.length})
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Info Legend */}
         <div className="absolute bottom-6 left-6 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-2">
