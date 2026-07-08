@@ -46,14 +46,19 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
     return () => unsubscribe();
   }, [companyId]);
 
+  const geocodingRef = useRef(false);
+
   // Background geocoding for prospects without lat/lng
   useEffect(() => {
     const geocodeMissing = async () => {
+      if (geocodingRef.current) return;
+      
       const missing = prospects.filter(p => p.fullAddress && p.fullAddress.trim() !== '' && !p.geocodeFailed && (!p.lat || !p.lng || p.lng > 0));
       if (missing.length === 0) return;
       
-      // Geocode max 3 at a time to avoid rate limits
-      for (const p of missing.slice(0, 3)) {
+      geocodingRef.current = true;
+      
+      for (const p of missing) {
         try {
           await new Promise(r => setTimeout(r, 2000));
           
@@ -119,13 +124,21 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
             // Mark as failed so it doesn't loop forever
             await updateProspect(p.id, { geocodeFailed: true });
           }
+
+          // Small delay to respect API limits
+          await new Promise(r => setTimeout(r, 1000));
         } catch (error) {
           console.error('Erro ao geocodificar', p.fullAddress, error);
         }
       }
+      
+      geocodingRef.current = false;
     };
     
-    geocodeMissing();
+    // Only run if we have missing prospects and not currently geocoding
+    if (prospects.some(p => p.fullAddress && p.fullAddress.trim() !== '' && !p.geocodeFailed && (!p.lat || !p.lng || p.lng > 0))) {
+      geocodeMissing();
+    }
   }, [prospects, isRetrying]);
 
   const responsibles = useMemo(() => {
@@ -136,23 +149,52 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
   const filteredProspects = useMemo(() => {
     const normalizeString = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     
-    return prospects.filter(p => {
+    const filtered = prospects.filter(p => {
       const matchDelivery = showDelivered ? true : !p.isEntregue;
       const matchLocation = searchLocation === '' || (p.fullAddress && normalizeString(p.fullAddress).includes(normalizeString(searchLocation)));
       const matchResponsible = selectedResponsible === '' || p.responsible === selectedResponsible;
       
       return matchDelivery && matchLocation && matchResponsible && p.lat && p.lng && p.lng < 0;
     });
+
+    // Add tiny jitter to identical coordinates so they spread out slightly instead of perfectly overlapping
+    const coordsMap = new Map<string, number>();
+    return filtered.map(p => {
+      const key = `${p.lat},${p.lng}`;
+      const count = coordsMap.get(key) || 0;
+      coordsMap.set(key, count + 1);
+      
+      const jitterLat = count > 0 ? (Math.random() - 0.5) * 0.0015 * count : 0;
+      const jitterLng = count > 0 ? (Math.random() - 0.5) * 0.0015 * count : 0;
+      
+      return {
+        ...p,
+        visualLat: p.lat! + jitterLat,
+        visualLng: p.lng! + jitterLng
+      };
+    });
   }, [prospects, showDelivered, searchLocation, selectedResponsible]);
 
   const handleForceRetry = async () => {
+    if (isRetrying) return;
     setIsRetrying(true);
-    Swal.fire({ title: 'Recalculando...', text: 'O mapa está buscando todos os endereços novamente usando a nova inteligência. Isso pode levar alguns minutos.', icon: 'info', showConfirmButton: false });
     
-    // Clear lat/lng for all to force a full fresh geocode with ArcGIS
+    // Use toast so we don't block the screen
+    Swal.fire({ 
+      title: 'Recalculando Rotas...', 
+      text: 'Buscando os endereços em segundo plano. Você já pode usar o sistema normalmente enquanto os pinos aparecem.', 
+      icon: 'info', 
+      toast: true,
+      position: 'top-end',
+      timer: 5000,
+      showConfirmButton: false 
+    });
+    
+    // Process in batches of 10 to avoid hanging the browser
     const prospectsToUpdate = prospects.filter(p => !p.isEntregue);
-    for (const p of prospectsToUpdate) {
-      await updateProspect(p.id, { geocodeFailed: false, lat: null, lng: null });
+    for (let i = 0; i < prospectsToUpdate.length; i += 10) {
+      const batch = prospectsToUpdate.slice(i, i + 10);
+      await Promise.all(batch.map(p => updateProspect(p.id, { geocodeFailed: false, lat: null, lng: null })));
     }
     
     setIsRetrying(false);
@@ -242,8 +284,8 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {filteredProspects.map((p) => (
-            <Marker key={p.id} position={[p.lat!, p.lng!]} icon={p.isEntregue ? deliveredIcon : pendingIcon}>
+          {filteredProspects.map((p: any) => (
+            <Marker key={p.id} position={[p.visualLat, p.visualLng]} icon={p.isEntregue ? deliveredIcon : pendingIcon}>
               <Popup>
                 <div className="p-1 min-w-[200px]">
                   <h3 className="font-bold text-slate-800 text-sm mb-1">{p.clinicName}</h3>
