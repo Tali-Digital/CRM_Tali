@@ -73,18 +73,40 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
             return null;
           };
 
-          let coords = await tryGeocode(p.fullAddress!);
+          let coords = null;
+          
+          if (p.fullAddress && p.fullAddress.trim() !== '') {
+            coords = await tryGeocode(p.fullAddress);
+            
+            // Clean Brazilian complex addresses (Quadra, Lote, Lt, Qd, etc)
+            // e.g., "Avenida Comercial, Quadra 06 - Lote 28 - Valparaizo II, Valparaíso de Goiás - GO"
+            if (!coords) {
+              const cleanedAddress = p.fullAddress
+                .replace(/(?:Quadra|Qd|Q\.|Lote|Lt|L\.|Bloco|Bl|Sala|Sl|Loja|Lg|Conjunto|Cj)[^\,\-]+(?:,|-)?/gi, '')
+                .replace(/\s{2,}/g, ' ') // remove extra spaces
+                .replace(/,\s*,/g, ',') // remove empty commas
+                .replace(/-\s*-/g, '-') // remove double dashes
+                .replace(/,\s*-/g, ' -')
+                .trim();
+                
+              // Only try again if the address was actually changed
+              if (cleanedAddress !== p.fullAddress.trim()) {
+                await new Promise(r => setTimeout(r, 1500));
+                coords = await tryGeocode(cleanedAddress);
+              }
+            }
+          }
           
           if (!coords && p.location) {
             // Fallback to simpler location if full address fails
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 1500));
             coords = await tryGeocode(p.location);
 
             // Third fallback: Regex to extract just City and State (e.g. "Valparaíso de Goiás, GO")
             if (!coords) {
               const match = p.location.match(/([^,]+)\s*-\s*([A-Z]{2})/i);
               if (match) {
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 1500));
                 const cityState = `${match[1].trim()}, ${match[2]}`;
                 coords = await tryGeocode(cityState);
               }
