@@ -224,7 +224,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       const pInsta = p.clinicInstagram?.toLowerCase().trim().replace('@', '').replace('https://instagram.com/', '').replace('www.instagram.com/', '').replace(/\/$/, '') || '';
 
       const nameLocMatch = normalizedName && normalizedLocation && pName === normalizedName && pLoc === normalizedLocation;
-      const instaMatch = normalizedInsta && pInsta === normalizedInsta;
+      
+      // Only match instagram if it's a real handle (more than 2 chars and not generic placeholders)
+      const isGenericInsta = !normalizedInsta || normalizedInsta.length <= 2 || ['nenhum', 'nao', 'naotem', 'nada', 'sem', 'null', 'none'].includes(normalizedInsta);
+      const instaMatch = !isGenericInsta && pInsta === normalizedInsta;
       
       return nameLocMatch || instaMatch;
     });
