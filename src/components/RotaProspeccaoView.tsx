@@ -38,6 +38,7 @@ const selectedIcon = new Icon({
 export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geocodingProgress, setGeocodingProgress] = useState<{current: number, total: number} | null>(null);
   
   // Filters
   const [searchLocation, setSearchLocation] = useState('');
@@ -73,8 +74,12 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
       if (missing.length === 0) return;
       
       geocodingRef.current = true;
+      setGeocodingProgress({ current: 0, total: missing.length });
       
+      let processed = 0;
       for (const p of missing) {
+        processed++;
+        setGeocodingProgress({ current: processed, total: missing.length });
         try {
           await new Promise(r => setTimeout(r, 2000));
           
@@ -149,6 +154,7 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
       }
       
       geocodingRef.current = false;
+      setGeocodingProgress(null);
     };
     
     // Only run if we have missing prospects and not currently geocoding
@@ -594,6 +600,43 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
                 <Navigation size={18} />
                 Gerar Rota no Maps ({selectedRoutePoints.length})
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Indicator */}
+        {geocodingProgress && (
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] bg-white px-5 py-2.5 rounded-full shadow-lg border border-slate-200 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-sm font-semibold text-slate-700">
+              Processando endereços: {geocodingProgress.current} de {geocodingProgress.total}
+            </span>
+          </div>
+        )}
+        
+        {/* Summary Legend (when finished/always showing) */}
+        {!geocodingProgress && filteredProspects.length > 0 && (
+          <div className="absolute bottom-6 right-6 z-[1000] bg-white p-4 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-3 max-h-[16rem] w-72">
+            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-2">
+              <MapPin size={16} className="text-blue-600" /> Resumo das Rotas
+            </h4>
+            <div className="text-sm font-semibold text-slate-700 pb-2 border-b border-slate-100">
+              Total: {filteredProspects.length} clínicas
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 pr-2">
+              {Object.entries(
+                filteredProspects.reduce((acc, p) => {
+                  const cityMatch = p.location ? p.location.match(/^([^,-]+)/) : null;
+                  const city = cityMatch ? cityMatch[1].trim() : (p.location ? p.location.trim() : 'Desconhecido');
+                  acc[city] = (acc[city] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([city, count]) => (
+                <div key={city} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 truncate mr-2 font-medium" title={city}>{city}</span>
+                  <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md min-w-[28px] text-center">{count}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}

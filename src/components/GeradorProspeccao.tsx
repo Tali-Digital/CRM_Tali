@@ -61,13 +61,15 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       if (prospeccaoParaEditar.dataAssinatura) setDataProspeccao(prospeccaoParaEditar.dataAssinatura);
       if (prospeccaoParaEditar.isEntregue) setIsEntregue(true);
       
-      // Fetch live prospect data to ensure address is accurate
+      // Fetch live prospect data to ensure address and names are accurate
       if (prospeccaoParaEditar.clienteId) {
         getDoc(doc(db, 'prospects', prospeccaoParaEditar.clienteId)).then(snap => {
           if (snap.exists()) {
             const data = snap.data();
             setCidadeBairro(data.location || '');
             setEnderecoCompleto(data.fullAddress || '');
+            setDonoClinica(data.ownerName || '');
+            setClinica(data.clinicName || '');
           } else {
             if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
             if (prospeccaoParaEditar.fullAddress) setEnderecoCompleto(prospeccaoParaEditar.fullAddress);
@@ -777,32 +779,16 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
               <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.2rem 0' }} />
 
-              {/* Dono da Clínica */}
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '500', color: 'rgba(255,255,255,0.9)' }}>
-                  Dono da clínica
-                </label>
-                <input type="text" className="input" style={{ padding: '0.6rem', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} placeholder="Ex: Dra. Maria" value={donoClinica} onChange={e => setDonoClinica(e.target.value)} />
-              </div>
-
-              {/* Clínica */}
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '500', color: 'rgba(255,255,255,0.9)' }}>
-                  Clínica <span style={{ color: '#ff6b6b' }}>*</span>
-                </label>
-                <input type="text" className="input" style={{ padding: '0.6rem', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} placeholder="Ex: Clínica Odontológica Coupé" value={clinica} onChange={e => setClinica(e.target.value)} />
-              </div>
-
-              {/* Data */}
+              {/* Data da Prospecção - Único campo editável */}
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
                 <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
               </div>
 
-              {/* Endereço - Visualização */}
+              {/* Informações da Clínica - Visualização */}
               <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Localização</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
                   <button 
                     onClick={() => {
                       if (prospeccaoParaEditar && prospeccaoParaEditar.clienteId) {
@@ -817,6 +803,12 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   </button>
                 </div>
                 
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: 'white' }}>Dono da Clínica:</strong> {donoClinica || '-'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: 'white' }}>Nome da Clínica:</strong> {clinica || '-'}
+                </div>
                 <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
                   <strong style={{ color: 'white' }}>Cidade/Bairro:</strong> {cidadeBairro || '-'}
                 </div>
