@@ -689,7 +689,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         fullAddress: enderecoCompleto,
         conteudoHtml: editorRef.current?.innerHTML || ''
       });
-      Swal.fire({ icon: 'success', title: 'Salvo!', text: 'Prospecção registrada com sucesso.', timer: 1500, showConfirmButton: false });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Salvo!', text: 'Prospecção registrada com sucesso.', timer: 1500, showConfirmButton: false });
     }
   };
 
