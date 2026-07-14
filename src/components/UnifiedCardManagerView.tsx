@@ -247,36 +247,36 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-[#fdfdfd] overflow-hidden p-6 md:p-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 py-1 px-2 gap-4 shrink-0">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 py-1 px-2 gap-4 shrink-0">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-stone-900 leading-tight">Gestão de Cards</h1>
           <p className="text-stone-500 text-[11px] md:text-sm mt-0.5 font-medium">Relatórios, restauração e exclusão permanente.</p>
         </div>
-      </div>
 
-      {/* Tabs Menu */}
-      <div className="flex bg-stone-100 p-2 rounded-2xl mb-8 self-start min-w-[480px] gap-2 shadow-inner">
-        <button 
-          onClick={() => setActiveTab('active')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
-        >
-          <Layers size={14} />
-          Cards Ativos
-        </button>
-        <button 
-          onClick={() => setActiveTab('completed')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
-        >
-          <History size={14} />
-          Concluídos
-        </button>
-        <button 
-          onClick={() => setActiveTab('deleted')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
-        >
-          <Trash2 size={14} />
-          Lixeira
-        </button>
+        {/* Tabs Menu */}
+        <div className="flex bg-stone-100 p-2 rounded-2xl min-w-[480px] gap-2 shadow-inner overflow-x-auto w-full xl:w-auto">
+          <button 
+            onClick={() => setActiveTab('active')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+          >
+            <Layers size={14} />
+            Cards Ativos
+          </button>
+          <button 
+            onClick={() => setActiveTab('completed')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+          >
+            <History size={14} />
+            Concluídos
+          </button>
+          <button 
+            onClick={() => setActiveTab('deleted')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+          >
+            <Trash2 size={14} />
+            Lixeira
+          </button>
+        </div>
       </div>
 
       {activeTab === 'completed' && filteredCards.length > 0 && (
