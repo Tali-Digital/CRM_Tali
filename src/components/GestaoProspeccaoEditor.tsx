@@ -216,17 +216,17 @@ export default function GestaoProspeccaoEditor() {
         </div>
       </div>
 
-      <div className="flex bg-[#5271FF]/10 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner border border-[#5271FF]/20">
+      <div className="flex bg-[#1e3a8a]/5 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner border border-[#1e3a8a]/10">
         <button 
           onClick={() => setActiveTab('ativos')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-[#5271FF] border border-[#5271FF]/20' : 'text-[#5271FF]/60 hover:text-[#5271FF]'}`}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-[#1e3a8a] border border-[#1e3a8a]/20' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
         >
           <Layers size={14} />
           Prospecções Ativas
         </button>
         <button 
           onClick={() => setActiveTab('lixeira')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-[#5271FF]/60 hover:text-red-500'}`}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
         >
           <Trash2 size={14} />
           Lixeira
