@@ -14,6 +14,7 @@ interface GeradorProspeccaoProps {
 
 export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospeccaoParaEditar }: GeradorProspeccaoProps) {
   const [donoClinica, setDonoClinica] = useState('');
+  const [opcoesDono, setOpcoesDono] = useState<string[]>([]);
   const [clinica, setClinica] = useState('');
   const [dataProspeccao, setDataProspeccao] = useState(new Date().toISOString().split('T')[0]);
   const [cidadeBairro, setCidadeBairro] = useState('');
@@ -68,8 +69,23 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             const data = snap.data();
             setCidadeBairro(data.location || '');
             setEnderecoCompleto(data.fullAddress || '');
-            setDonoClinica(data.ownerName || '');
             setClinica(data.clinicName || '');
+            
+            const rawOwner = data.ownerName || '';
+            const parts = rawOwner.split(/,| e /i).map((s: string) => s.trim()).filter(Boolean);
+            const options = Array.from(new Set([rawOwner, ...parts]));
+            
+            if (prospeccaoParaEditar.clienteNome && !options.includes(prospeccaoParaEditar.clienteNome)) {
+              options.push(prospeccaoParaEditar.clienteNome);
+            }
+            
+            setOpcoesDono(options);
+
+            if (prospeccaoParaEditar.clienteNome) {
+              setDonoClinica(prospeccaoParaEditar.clienteNome);
+            } else {
+              setDonoClinica(rawOwner);
+            }
           } else {
             if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
             if (prospeccaoParaEditar.fullAddress) setEnderecoCompleto(prospeccaoParaEditar.fullAddress);
@@ -804,7 +820,19 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 </div>
                 
                 <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: 'white' }}>Dono da Clínica:</strong> {donoClinica || '-'}
+                  <strong style={{ color: 'white' }}>Dono da Clínica:</strong>
+                  {opcoesDono.length > 1 ? (
+                    <select
+                      className="input"
+                      style={{ marginTop: '0.3rem', fontSize: '0.85rem', padding: '0.4rem', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '4px', width: '100%' }}
+                      value={donoClinica}
+                      onChange={(e) => setDonoClinica(e.target.value)}
+                    >
+                      {opcoesDono.map(op => <option key={op} value={op}>{op}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ marginTop: '0.2rem' }}>{donoClinica || '-'}</div>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
                   <strong style={{ color: 'white' }}>Nome da Clínica:</strong> {clinica || '-'}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, FileText, CheckCircle, Clock, Settings, Bot } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, CheckCircle, Clock, Settings, Bot, Copy } from 'lucide-react';
 import Swal from 'sweetalert2';
 import GeradorProspeccao from './GeradorProspeccao';
 import GerenciadorModelosModal from './GerenciadorModelosModal';
@@ -68,6 +68,23 @@ export default function GestaoProspeccaoEditor() {
         await updateProspect(confirmDelete.clienteId, { hasPresencialFicha: false });
       }
       setConfirmDelete(null);
+    }
+  };
+
+  const handleDuplicate = async (prospeccao: EditorProspeccaoDoc) => {
+    try {
+      const copy = { ...prospeccao };
+      delete (copy as any).id;
+      if (copy.titulo) copy.titulo += ' (Cópia)';
+      if (copy.clienteNome) copy.clienteNome += ' (Cópia)';
+      copy.isEntregue = false;
+      copy.dataAssinatura = new Date().toISOString();
+      
+      await addProspeccaoDoc(copy as any);
+      Swal.fire({ icon: 'success', title: 'Prospecção Duplicada!', timer: 1500, showConfirmButton: false });
+    } catch (error: any) {
+      console.error(error);
+      Swal.fire({ icon: 'error', title: 'Erro ao duplicar', text: error.message });
     }
   };
 
@@ -355,6 +372,7 @@ export default function GestaoProspeccaoEditor() {
                   <td style={{ padding: '1rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                       <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><Copy size={18} /></button>
                       <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
                       <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
                     </div>
