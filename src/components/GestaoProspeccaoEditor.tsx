@@ -289,8 +289,8 @@ export default function GestaoProspeccaoEditor() {
             <tbody>
               {prospeccoes
                 .filter(c => {
-                  const clienteNome = c.clienteId && prospectsMap[c.clienteId]?.ownerName ? prospectsMap[c.clienteId].ownerName : c.clienteNome || '';
-                  const titulo = c.clienteId && prospectsMap[c.clienteId]?.clinicName ? prospectsMap[c.clienteId].clinicName : c.titulo || '';
+                  const clienteNome = c.clienteNome || (c.clienteId && prospectsMap[c.clienteId]?.ownerName) || '';
+                  const titulo = c.titulo || (c.clienteId && prospectsMap[c.clienteId]?.clinicName) || '';
                   return clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) || titulo.toLowerCase().includes(searchTerm.toLowerCase());
                 })
                 .filter(c => {
@@ -342,11 +342,11 @@ export default function GestaoProspeccaoEditor() {
                 <tr key={prospeccao.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => handleOpenGerador(prospeccao)} className="prospeccao-row-hover">
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
-                      {(prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.clinicName) || prospeccao.titulo || 'Prospecção'}
+                      {prospeccao.titulo || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.clinicName) || 'Prospecção'}
                     </div>
                   </td>
                   <td style={{ padding: '1rem', fontWeight: '500' }}>
-                    {(prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.ownerName) || prospeccao.clienteNome}
+                    {prospeccao.clienteNome || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.ownerName)}
                   </td>
                   <td style={{ padding: '1rem' }}>
                     {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.responsible ? (
