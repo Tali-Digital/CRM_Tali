@@ -789,18 +789,18 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
                   <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
-                  <button 
-                    onClick={() => {
-                      if (prospeccaoParaEditar && prospeccaoParaEditar.clienteId) {
-                        window.location.hash = `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}`;
-                      } else {
+                  <a 
+                    href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
+                    onClick={(e) => {
+                      if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
+                        e.preventDefault();
                         Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
                       }
                     }}
-                    style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                    style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'none' }}
                   >
                     <Edit2 size={12} /> Editar Ficha Completa
-                  </button>
+                  </a>
                 </div>
                 
                 <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>

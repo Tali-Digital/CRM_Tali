@@ -287,10 +287,11 @@ export interface Prospect {
   site: string;
   ownerName: string;
   ownerInstagram: string;
-  followedOwner: 'Sim' | 'Solicitado' | 'Não' | '';
   size: string;
   age: string;
-  status: 'VERIFICAR ICP' | 'Mandar Mensagem' | 'Mensagem Enviada' | '1º Follow Up' | '2º Follow Up' | '3º+ Follow Up' | 'Cliente Respondeu' | 'Reunião Agendada' | 'Cliente Fechado' | 'Contrato Encerrado' | 'Base de Recomeço' | '';
+  reconhecimento?: 'Verificar ICP' | 'Fora de ICP' | 'Cliente Pequeno' | 'Cliente Ideal' | '';
+  status: 'Fora de ICP' | 'Cliente Pequeno' | 'Cliente Ideal' | 'Mandar Mensagem' | 'Mensagem Enviada' | 'Cliente Respondeu' | '1º Follow Up' | '2º Follow Up' | '3º+ Follow Up' | 'Reunião Agendada' | 'Base de Recomeço' | 'Entra em Contato' | 'Negociando' | 'Cliente Fechado' | 'Contrato Encerrado' | 'VERIFICAR ICP' | '';
+  statusGeral?: 'Entra em Contato' | 'Negociando' | 'Cliente Fechado' | 'Contrato Encerrado' | '';
   hasAnswered: boolean;
   lastFollowUp: string;
   observations: string;
@@ -326,6 +327,7 @@ export interface Prospect {
   lng?: number;
   geocodeFailed?: boolean;
   isEntregue?: boolean;
+  owners?: { name: string; instagram: string }[];
 }
 
 export interface EditorProspeccaoDoc {

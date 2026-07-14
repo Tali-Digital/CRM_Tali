@@ -37,7 +37,8 @@ import {
   Copy,
   Settings,
   LayoutGrid,
-  Grid
+  Grid,
+  ArrowUp
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
@@ -49,17 +50,28 @@ interface ProspectingViewProps {
 }
 
 const STATUS_COLORS = {
-  'Fora de ICP': 'bg-pink-100 text-pink-800',
+  // Reconhecimento da Clínica
+  'Verificar ICP': 'bg-pink-100 text-pink-800',
+  'Fora de ICP': 'bg-red-100 text-red-800',
+  'Cliente Pequeno': 'bg-gray-100 text-gray-800',
+  'Cliente Ideal': 'bg-green-100 text-green-800',
+
+  // Trajeto Online
   'Mandar Mensagem': 'bg-amber-100 text-amber-800',
   'Mensagem Enviada': 'bg-blue-100 text-blue-800',
+  'Cliente Respondeu': 'bg-pink-100 text-pink-800',
   '1º Follow Up': 'bg-cyan-100 text-cyan-800',
   '2º Follow Up': 'bg-purple-100 text-purple-800',
   '3º+ Follow Up': 'bg-indigo-100 text-indigo-800',
-  'Cliente Respondeu': 'bg-pink-100 text-pink-800',
   'Reunião Agendada': 'bg-orange-100 text-orange-800',
+  'Base de Recomeço': 'bg-slate-100 text-slate-800',
+
+  // Status Geral
+  'Entra em Contato': 'bg-teal-100 text-teal-800',
+  'Negociando': 'bg-yellow-100 text-yellow-800',
   'Cliente Fechado': 'bg-emerald-800 text-white',
   'Contrato Encerrado': 'bg-red-100 text-red-800',
-  'Base de Recomeço': 'bg-slate-100 text-slate-800',
+  
   '': 'bg-gray-100 text-gray-800'
 };
 
@@ -94,6 +106,20 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(() => getSavedFilter('sortConfig', null));
   const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => getSavedFilter('viewMode', 'table'));
   const [isProgressFilterOpen, setIsProgressFilterOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 300) {
+      setShowScrollTop(true);
+    } else {
+      setShowScrollTop(false);
+    }
+  };
+
+  const scrollToTop = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   
   // Persist filters when they change
   useEffect(() => {
@@ -109,8 +135,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   // Fechar dropdown de progresso ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (progressFilterRef.current && !progressFilterRef.current.contains(event.target as Node)) {
+      const target = event.target as Element;
+      if (progressFilterRef.current && !progressFilterRef.current.contains(target)) {
         setIsProgressFilterOpen(false);
+      }
+      if (!target.closest('.column-filter-container')) {
+        setActiveFilterColumn(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -374,7 +404,36 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
   useEffect(() => {
     const unsubscribe = subscribeToProspects(companyId, (data) => {
-      setProspects(data);
+      const normalizedData = data.map(p => {
+        let recon = p.reconhecimento || '';
+        let stat = p.status || '';
+        let geral = p.statusGeral || '';
+        
+        if (stat === 'VERIFICAR ICP') stat = 'Verificar ICP';
+        if (stat === 'FORA DE ICP') stat = 'Fora de ICP';
+        if (stat === 'CLIENTE PEQUENO') stat = 'Cliente Pequeno';
+        if (stat === 'CLIENTE IDEAL') stat = 'Cliente Ideal';
+        if (recon === 'VERIFICAR ICP') recon = 'Verificar ICP';
+        if (recon === 'FORA DE ICP') recon = 'Fora de ICP';
+        if (recon === 'CLIENTE PEQUENO') recon = 'Cliente Pequeno';
+        if (recon === 'CLIENTE IDEAL') recon = 'Cliente Ideal';
+
+        const isRecon = ['Verificar ICP', 'Fora de ICP', 'Cliente Pequeno', 'Cliente Ideal'].includes(stat);
+        const isGeral = ['Entra em Contato', 'Negociando', 'Cliente Fechado', 'Contrato Encerrado'].includes(stat);
+
+        if (isRecon) {
+          if (!recon) recon = stat;
+          stat = '';
+        }
+        
+        if (isGeral) {
+          if (!geral) geral = stat;
+          stat = '';
+        }
+
+        return { ...p, reconhecimento: recon, status: stat, statusGeral: geral };
+      });
+      setProspects(normalizedData);
       setLoading(false);
     });
     
@@ -393,7 +452,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       const matchesSearch = 
         p.clinicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.location.toLowerCase().includes(searchTerm.toLowerCase());
+        p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.responsible && p.responsible.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesFilters = Object.entries(filters).every(([key, value]) => {
         if (!value) return true;
@@ -403,11 +463,15 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       // Quick Step / Restart Base Filter
       let matchesQuickFilter = true;
       if (quickFilter === 'active') {
-        matchesQuickFilter = !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status);
+        const inactive = ['Fora de ICP', 'Cliente Pequeno', 'Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'];
+        matchesQuickFilter = !inactive.includes(p.status) && !inactive.includes(p.reconhecimento || '') && !inactive.includes(p.statusGeral || '');
       } else if (quickFilter === 'all') {
         matchesQuickFilter = true;
       } else {
-        matchesQuickFilter = p.status === quickFilter;
+        matchesQuickFilter = 
+          p.status === quickFilter ||
+          p.reconhecimento === quickFilter ||
+          p.statusGeral === quickFilter;
       }
 
       return matchesSearch && matchesFilters && matchesQuickFilter;
@@ -877,10 +941,11 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     site: row['Site'] || '',
                     ownerName: row['Socios'] || row['Sócio'] || '',
                     ownerInstagram: row['Instagram Socios'] || '',
-                    followedOwner: '',
                     size: row['Quadro de Funcionarios'] || '',
                     age: '',
-                    status: 'Fora de ICP',
+                    reconhecimento: 'Verificar ICP',
+                    status: '',
+                    statusGeral: '',
                     hasAnswered: false,
                     lastFollowUp: '',
                     observations: '',
@@ -910,7 +975,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     const uniqueValues = Array.from(new Set(prospects.map(p => String(p[column] || '')))).filter(v => v !== '').sort();
     
     return (
-      <div className="relative inline-block ml-1">
+      <div className="relative inline-block ml-1 column-filter-container">
         <button 
           onClick={(e) => {
             e.stopPropagation();
@@ -961,24 +1026,6 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <Trash2 size={14} /> Limpar Filtro
               </button>
             </div>
-
-            <div className="border-t border-gray-100 my-2"></div>
-            
-            <div className="max-h-48 overflow-y-auto px-3">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-3">Valores Únicos</div>
-              {uniqueValues.map(value => (
-                <button
-                  key={value}
-                  onClick={() => {
-                    setFilters({ ...filters, [column]: value });
-                    setActiveFilterColumn(null);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors truncate ${filters[column] === value ? 'bg-blue-900 text-white' : 'hover:bg-gray-100'}`}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </div>
@@ -992,23 +1039,70 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   );
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50">
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Prospecção</h1>
-          <p className="text-gray-500">Gerenciamento de contatos e funil de vendas</p>
-        </div>
+    <div className="h-full flex flex-col overflow-hidden bg-gray-50 relative">
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-6 custom-scrollbar"
+      >
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 w-full">
         
-        <div className="flex flex-wrap items-center gap-2 flex-1 md:justify-end max-w-5xl">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
+        {/* Grupo 1: Busca e Filtros */}
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <div className="relative flex-1 min-w-[280px] max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '38px'; }} style={{ minHeight: '38px', fieldSizing: 'content' }}  
-              placeholder="Buscar clínica, dono ou local..."
+              placeholder="Buscar clínica, dono, local ou líder..."
               className="pl-10 pr-4 py-1.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-full transition-all resize-none overflow-hidden custom-scrollbar text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
              />
+          </div>
+
+          {/* Filtro de Líder */}
+          <div className="relative shrink-0 animate-in fade-in zoom-in duration-200">
+            <select
+              value={filters.responsible || ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilters({ ...filters, responsible: e.target.value });
+                } else {
+                  const newFilters = { ...filters };
+                  delete newFilters.responsible;
+                  setFilters(newFilters);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none text-xs font-semibold text-gray-700 bg-white shadow-sm cursor-pointer hover:bg-gray-50"
+              style={{ height: '38px' }}
+            >
+              <option value="">Líderes (Todos)</option>
+              {Array.from(new Set(prospects.map(p => p.responsible).filter(Boolean))).sort().map(leader => (
+                <option key={leader} value={leader}>{leader}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro de Cidade/UF */}
+          <div className="relative shrink-0 animate-in fade-in zoom-in duration-200">
+            <select
+              value={filters.location || ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilters({ ...filters, location: e.target.value });
+                } else {
+                  const newFilters = { ...filters };
+                  delete newFilters.location;
+                  setFilters(newFilters);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none text-xs font-semibold text-gray-700 bg-white shadow-sm cursor-pointer hover:bg-gray-50 max-w-[150px] truncate"
+              style={{ height: '38px' }}
+            >
+              <option value="">Cidades (Todas)</option>
+              {Array.from(new Set(prospects.map(p => p.location).filter(Boolean))).sort().map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+            </select>
           </div>
 
           {/* Dropdown de Filtro de Progresso */}
@@ -1037,22 +1131,40 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-1.5">Progresso</div>
                 <div className="max-h-72 overflow-y-auto px-1.5 custom-scrollbar">
                   {[
-                    { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => !['Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'].includes(p.status)).length, dotColor: 'bg-blue-900' },
-                    { key: 'Fora de ICP', label: 'Fora de ICP', count: prospects.filter(p => p.status === 'Fora de ICP').length, dotColor: 'bg-pink-500' },
+                    { group: 'Visualização' },
+                    { key: 'active', label: 'Todos os Ativos', count: prospects.filter(p => {
+                      const inactive = ['Fora de ICP', 'Cliente Pequeno', 'Cliente Fechado', 'Contrato Encerrado', 'Base de Recomeço'];
+                      return !inactive.includes(p.status) && !inactive.includes(p.reconhecimento || '') && !inactive.includes(p.statusGeral || '');
+                    }).length, dotColor: 'bg-blue-900' },
+                    { key: 'all', label: 'Mostrar Todos', count: prospects.length, dotColor: 'bg-gray-400' },
+                    
+                    { group: 'Reconhecimento da Clínica' },
+                    { key: 'Verificar ICP', label: 'Verificar ICP', count: prospects.filter(p => p.reconhecimento === 'Verificar ICP').length, dotColor: 'bg-pink-500' },
+                    { key: 'Fora de ICP', label: 'Fora de ICP', count: prospects.filter(p => p.reconhecimento === 'Fora de ICP').length, dotColor: 'bg-red-500' },
+                    { key: 'Cliente Pequeno', label: 'Cliente Pequeno', count: prospects.filter(p => p.reconhecimento === 'Cliente Pequeno').length, dotColor: 'bg-gray-500' },
+                    { key: 'Cliente Ideal', label: 'Cliente Ideal', count: prospects.filter(p => p.reconhecimento === 'Cliente Ideal').length, dotColor: 'bg-green-500' },
+                    
+                    { group: 'Trajeto Online' },
                     { key: 'Mandar Mensagem', label: 'Mandar Mensagem', count: prospects.filter(p => p.status === 'Mandar Mensagem').length, dotColor: 'bg-amber-500' },
                     { key: 'Mensagem Enviada', label: 'Mensagem Enviada', count: prospects.filter(p => p.status === 'Mensagem Enviada').length, dotColor: 'bg-blue-500' },
+                    { key: 'Cliente Respondeu', label: 'Cliente Respondeu', count: prospects.filter(p => p.status === 'Cliente Respondeu').length, dotColor: 'bg-pink-500' },
                     { key: '1º Follow Up', label: '1º Follow Up', count: prospects.filter(p => p.status === '1º Follow Up').length, dotColor: 'bg-cyan-500' },
                     { key: '2º Follow Up', label: '2º Follow Up', count: prospects.filter(p => p.status === '2º Follow Up').length, dotColor: 'bg-purple-500' },
                     { key: '3º+ Follow Up', label: '3º+ Follow Up', count: prospects.filter(p => p.status === '3º+ Follow Up').length, dotColor: 'bg-indigo-500' },
-                    { key: 'Cliente Respondeu', label: 'Cliente Respondeu', count: prospects.filter(p => p.status === 'Cliente Respondeu').length, dotColor: 'bg-pink-500' },
                     { key: 'Reunião Agendada', label: 'Reunião Agendada', count: prospects.filter(p => p.status === 'Reunião Agendada').length, dotColor: 'bg-orange-500' },
-                    { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.status === 'Cliente Fechado').length, dotColor: 'bg-emerald-600' },
-                    { key: 'Contrato Encerrado', label: 'Contrato Encerrado', count: prospects.filter(p => p.status === 'Contrato Encerrado').length, dotColor: 'bg-red-500' },
                     { key: 'Base de Recomeço', label: 'Base de Recomeço', count: prospects.filter(p => p.status === 'Base de Recomeço').length, dotColor: 'bg-slate-500' },
-                    { key: 'all', label: 'Mostrar Todos', count: prospects.length, dotColor: 'bg-gray-400' }
-                  ].map((f) => (
-                    <button
-                      key={f.key}
+                    
+                    { group: 'Status Geral' },
+                    { key: 'Entra em Contato', label: 'Entra em Contato', count: prospects.filter(p => p.statusGeral === 'Entra em Contato').length, dotColor: 'bg-teal-500' },
+                    { key: 'Negociando', label: 'Negociando', count: prospects.filter(p => p.statusGeral === 'Negociando').length, dotColor: 'bg-yellow-500' },
+                    { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.statusGeral === 'Cliente Fechado').length, dotColor: 'bg-emerald-600' },
+                    { key: 'Contrato Encerrado', label: 'Contrato Encerrado', count: prospects.filter(p => p.statusGeral === 'Contrato Encerrado').length, dotColor: 'bg-red-500' }
+                  ].map((f, i) => (
+                    f.group ? (
+                      <div key={`group-${i}`} className="text-[9px] font-black text-blue-900/60 uppercase tracking-widest px-4 mt-2.5 mb-1.5 border-b border-gray-100 pb-1">{f.group}</div>
+                    ) : (
+                      <button
+                        key={f.key}
                       onClick={() => {
                         setQuickFilter(f.key);
                         setIsProgressFilterOpen(false);
@@ -1075,6 +1187,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                         {f.count}
                       </span>
                     </button>
+                    )
                   ))}
                 </div>
               </div>
@@ -1114,7 +1227,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             <RotateCcw size={14} />
             Limpar
           </button>
-          
+        </div>
+        
+        {/* Separador */}
+        <div className="hidden md:block w-px h-8 bg-gray-200 mx-1"></div>
+        <div className="block md:hidden w-full h-px bg-gray-200 my-1"></div>
+
+        {/* Grupo 2: Ações */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button 
             onClick={startRemoveDuplicates}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shrink-0"
@@ -1182,34 +1302,28 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       }}
                     />
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-10">
-                    # {renderFilterDropdown('order', '#')}
-                  </th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
                     Líder {renderFilterDropdown('responsible', 'Líder')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-32">
-                    Cidade/UF {renderFilterDropdown('location', 'Localização')}
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[160px]">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[180px]">
                     Clínica {renderFilterDropdown('clinicName', 'Clínica')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-20 text-center">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24 text-center">
                     Links {renderFilterDropdown('clinicInstagram', 'Links')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[120px]">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 min-w-[140px]">
                     Dono {renderFilterDropdown('ownerName', 'Dono')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
-                    Estrutura {renderFilterDropdown('size', 'Tamanho')}
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-36">
+                    Cidade/UF {renderFilterDropdown('location', 'Localização')}
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-24">
                     Google {renderFilterDropdown('gmnRating', 'Nota GMN')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-44">
-                    Progresso {renderFilterDropdown('status', 'Progresso')}
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-56">
+                    Status {renderFilterDropdown('status', 'Progresso')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-36">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider border-r border-blue-800/30 w-28">
                     Datas {renderFilterDropdown('firstContactDate', 'Datas')}
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider w-14 text-center">
@@ -1236,24 +1350,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     </td>
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
-                      className="px-4 py-4 text-sm text-gray-600 font-medium border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-10"
-                    >
-                      {idx + 1}
-                    </td>
-  
-                    <td 
-                      onClick={() => !hasDragged && handleOpenModal(p, false)}
                       className="px-4 py-4 text-sm text-gray-600 font-semibold border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
                     >
                       {p.responsible || <span className="text-gray-400 italic">Sem Líder</span>}
                     </td>
   
-                    <td 
-                      onClick={() => !hasDragged && handleOpenModal(p, false)}
-                      className="px-4 py-4 text-sm text-gray-600 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-32"
-                    >
-                      {p.location}
-                    </td>
+
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
                       className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
@@ -1262,7 +1364,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     </td>
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
-                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-20"
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
                     >
                       <div className="flex gap-1.5 justify-center">
                         {p.clinicInstagram && (
@@ -1305,35 +1407,52 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     </td>
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
-                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors min-w-[120px]"
+                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors min-w-[140px] align-top"
                     >
-                      <div className="text-sm font-bold text-gray-800">{p.ownerName}</div>
-                      {p.ownerInstagram && (
-                        <a 
-                          href={p.ownerInstagram} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-1 uppercase"
-                        >
-                          <Instagram size={10} /> Perfil do Dono
-                        </a>
+                      {p.owners && p.owners.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                          {p.owners.map((owner, idx) => (
+                            <div key={idx} className="flex flex-col">
+                              {owner.name && <div className="text-sm font-bold text-gray-800">{owner.name}</div>}
+                              {owner.instagram && (
+                                <a 
+                                  href={owner.instagram} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[10px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-0.5 uppercase w-max"
+                                >
+                                  <Instagram size={10} /> {p.owners!.length > 1 ? `Perfil ${idx + 1}` : 'Perfil do Dono'}
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                          <div className="text-sm font-bold text-gray-800">{p.ownerName}</div>
+                          {p.ownerInstagram && (
+                            <a 
+                              href={p.ownerInstagram} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[10px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-1 uppercase w-max"
+                            >
+                              <Instagram size={10} /> Perfil do Dono
+                            </a>
+                          )}
+                        </div>
                       )}
                     </td>
+
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
-                      className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
+                      className="px-4 py-4 text-sm text-gray-600 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-36"
                     >
-                      <div className="flex flex-col gap-1">
-                        <div className="text-xs font-bold text-gray-700 bg-gray-100 inline-block px-2 py-0.5 rounded w-max">{p.size || 'Cadeiras: N/D'}</div>
-                        <div className="text-[10px] font-medium text-gray-500 uppercase">Idade: {p.age || 'N/D'}</div>
-                        {p.collaborators && (
-                          <div className="text-[10px] font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded-md w-max mt-0.5 flex items-center gap-1">
-                            👥 {p.collaborators} colab.
-                          </div>
-                        )}
-                      </div>
+                      {p.location}
                     </td>
+
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
                       className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors w-24"
@@ -1353,43 +1472,49 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                         <span className="text-xs text-gray-400">Sem avaliações</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 border-r border-gray-100 w-44">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter shrink-0">Seguiu:</span>
-                          <select 
-                            value={p.followedOwner}
-                            onChange={(e) => handleQuickUpdate(p.id, 'followedOwner', e.target.value)}
-                            className={`text-[9px] font-black px-2 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm uppercase tracking-tighter ${FOLLOWED_COLORS[p.followedOwner as keyof typeof FOLLOWED_COLORS]}`}
-                          >
-                            <option value="">Status</option>
-                            <option value="Sim">Sim</option>
-                            <option value="Solicitado">Sol.</option>
-                            <option value="Não">Não</option>
-                          </select>
-                        </div>
+                    <td className="px-4 py-4 border-r border-gray-100 w-56">
+                      <div className="flex flex-col gap-1.5">
+                        <select 
+                          value={p.reconhecimento || ''}
+                          onChange={(e) => handleQuickUpdate(p.id, 'reconhecimento', e.target.value)}
+                          className={`text-[10px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.reconhecimento ? STATUS_COLORS[p.reconhecimento as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
+                        >
+                          <option value="">Reconhecimento da Clínica</option>
+                          <option value="Verificar ICP">Verificar ICP</option>
+                          <option value="Fora de ICP">Fora de ICP</option>
+                          <option value="Cliente Pequeno">Cliente Pequeno</option>
+                          <option value="Cliente Ideal">Cliente Ideal</option>
+                        </select>
                         <select 
                           value={p.status}
                           onChange={(e) => handleQuickUpdate(p.id, 'status', e.target.value)}
-                          className={`text-[10px] font-black px-2 py-1.5 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-md w-full uppercase tracking-tighter transition-all hover:scale-[1.02] active:scale-95 ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
+                          className={`text-[10px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.status ? STATUS_COLORS[p.status as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
                         >
-                          <option value="">Definir Progresso</option>
-                          <option value="Fora de ICP">Fora de ICP</option>
+                          <option value="">Trajeto Online</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
+                          <option value="Cliente Respondeu">Cliente Respondeu</option>
                           <option value="1º Follow Up">1º Follow Up</option>
                           <option value="2º Follow Up">2º Follow Up</option>
                           <option value="3º+ Follow Up">3º+ Follow Up</option>
-                          <option value="Cliente Respondeu">Cliente Respondeu</option>
                           <option value="Reunião Agendada">Reunião Agendada</option>
+                          <option value="Base de Recomeço">Base de Recomeço</option>
+                        </select>
+                        <select 
+                          value={p.statusGeral || ''}
+                          onChange={(e) => handleQuickUpdate(p.id, 'statusGeral', e.target.value)}
+                          className={`text-[10px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.statusGeral ? STATUS_COLORS[p.statusGeral as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
+                        >
+                          <option value="">Status Geral</option>
+                          <option value="Entra em Contato">Entra em Contato</option>
+                          <option value="Negociando">Negociando</option>
                           <option value="Cliente Fechado">Cliente Fechado</option>
                           <option value="Contrato Encerrado">Contrato Encerrado</option>
-                          <option value="Base de Recomeço">Base de Recomeço</option>
                         </select>
                       </div>
                     </td>
   
-                    <td className="px-4 py-4 border-r border-gray-100 w-36">
+                    <td className="px-4 py-4 border-r border-gray-100 w-28">
                       <div className="flex flex-col gap-1 text-xs">
                         <div className="font-bold text-gray-600 flex items-center gap-1" title="Data do Primeiro Contato">
                           <Calendar size={12} className="text-blue-500" /> {p.firstContactDate || '1º: N/D'}
@@ -1522,24 +1647,48 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       )}
   
                       {/* Dono */}
-                      {p.ownerName && (
-                        <div className="flex items-start gap-2">
-                          <User size={13} className="text-pink-600 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold text-gray-800">{p.ownerName}</span>
-                            {p.ownerInstagram && (
-                              <a 
-                                href={p.ownerInstagram} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[9px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-0.5 uppercase tracking-wide"
-                              >
-                                <Instagram size={9} /> Perfil do Dono
-                              </a>
-                            )}
-                          </div>
+                      {(p.owners && p.owners.length > 0) ? (
+                        <div className="flex flex-col gap-2.5 mt-2">
+                          {p.owners.map((owner, idx) => (
+                            <div key={idx} className="flex items-start gap-2">
+                              <User size={13} className="text-pink-600 shrink-0 mt-0.5" />
+                              <div className="flex flex-col">
+                                {owner.name && <span className="font-semibold text-gray-800">{owner.name}</span>}
+                                {owner.instagram && (
+                                  <a 
+                                    href={owner.instagram} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[9px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-0.5 uppercase tracking-wide w-max"
+                                  >
+                                    <Instagram size={9} /> {p.owners!.length > 1 ? `Perfil ${idx + 1}` : 'Perfil do Dono'}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
+                      ) : (
+                        p.ownerName && (
+                          <div className="flex items-start gap-2 mt-2">
+                            <User size={13} className="text-pink-600 shrink-0 mt-0.5" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-800">{p.ownerName}</span>
+                              {p.ownerInstagram && (
+                                <a 
+                                  href={p.ownerInstagram} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[9px] font-bold text-pink-600 hover:underline flex items-center gap-1 mt-0.5 uppercase tracking-wide w-max"
+                                >
+                                  <Instagram size={9} /> Perfil do Dono
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )
                       )}
   
                       {/* Estrutura */}
@@ -1618,25 +1767,44 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       {/* Seletor de Progresso Rápido no Card */}
                       <div 
                         onClick={(e) => e.stopPropagation()}
-                        className="flex-1 max-w-[125px]"
+                        className="flex-1 max-w-[125px] flex flex-col gap-1.5"
                       >
+                        <select 
+                          value={p.reconhecimento || ''}
+                          onChange={(e) => handleQuickUpdate(p.id, 'reconhecimento', e.target.value)}
+                          className={`text-[9px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.reconhecimento ? STATUS_COLORS[p.reconhecimento as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
+                        >
+                          <option value="">Reconhecimento da Clínica</option>
+                          <option value="Verificar ICP">Verificar ICP</option>
+                          <option value="Fora de ICP">Fora de ICP</option>
+                          <option value="Cliente Pequeno">Cliente Pequeno</option>
+                          <option value="Cliente Ideal">Cliente Ideal</option>
+                        </select>
                         <select 
                           value={p.status}
                           onChange={(e) => handleQuickUpdate(p.id, 'status', e.target.value)}
-                          className={`text-[9px] font-black px-2 py-1 rounded-xl border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${STATUS_COLORS[p.status as keyof typeof STATUS_COLORS]}`}
+                          className={`text-[9px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.status ? STATUS_COLORS[p.status as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
                         >
-                          <option value="">Progresso</option>
-                          <option value="Fora de ICP">Fora de ICP</option>
+                          <option value="">Trajeto Online</option>
                           <option value="Mandar Mensagem">Mandar Mensagem</option>
                           <option value="Mensagem Enviada">Mensagem Enviada</option>
+                          <option value="Cliente Respondeu">Cliente Respondeu</option>
                           <option value="1º Follow Up">1º Follow Up</option>
                           <option value="2º Follow Up">2º Follow Up</option>
                           <option value="3º+ Follow Up">3º+ Follow Up</option>
-                          <option value="Cliente Respondeu">Cliente Respondeu</option>
                           <option value="Reunião Agendada">Reunião Agendada</option>
+                          <option value="Base de Recomeço">Base de Recomeço</option>
+                        </select>
+                        <select 
+                          value={p.statusGeral || ''}
+                          onChange={(e) => handleQuickUpdate(p.id, 'statusGeral', e.target.value)}
+                          className={`text-[9px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.statusGeral ? STATUS_COLORS[p.statusGeral as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
+                        >
+                          <option value="">Status Geral</option>
+                          <option value="Entra em Contato">Entra em Contato</option>
+                          <option value="Negociando">Negociando</option>
                           <option value="Cliente Fechado">Cliente Fechado</option>
                           <option value="Contrato Encerrado">Contrato Encerrado</option>
-                          <option value="Base de Recomeço">Base de Recomeço</option>
                         </select>
                       </div>
   
@@ -1687,6 +1855,16 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       )}
 
       {/* Modal para Adicionar/Editar */}
+
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="absolute bottom-6 right-6 p-3 bg-blue-900 text-white rounded-full shadow-xl hover:bg-blue-800 transition-all hover:-translate-y-1 z-50 group"
+          title="Voltar ao topo"
+        >
+          <ArrowUp size={24} className="group-hover:animate-bounce" />
+        </button>
+      )}
 
       {isModalOpen && (
         <div 
@@ -1963,48 +2141,89 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                            />
                         </div>
       
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Nome do Proprietário / Dono
-                            {renderAiReviewBadge('ownerName')}
-                          </label>
-                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
-                            placeholder="Nome completo do dono"
-                            value={formData.ownerName}
-                            onChange={(e) => handleFieldChange('ownerName', e.target.value)}
-                           />
-                        </div>
-      
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Instagram do Dono
-                            {renderAiReviewBadge('ownerInstagram')}
-                          </label>
-                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
-                            placeholder="Link ou @username"
-                            value={formData.ownerInstagram}
-                            onChange={(e) => handleFieldChange('ownerInstagram', e.target.value)}
-                           />
-                        </div>
+                        {(() => {
+                          let ownersList = formData.owners;
+                          if (!ownersList || ownersList.length === 0) {
+                            ownersList = [];
+                            const names = (formData.ownerName || '').split(',').map(s => s.trim());
+                            const instas = (formData.ownerInstagram || '').split(',').map(s => s.trim());
+                            const count = Math.max(names.length, instas.length, 1);
+                            for (let i = 0; i < count; i++) {
+                              ownersList.push({ name: names[i] || '', instagram: instas[i] || '' });
+                            }
+                          }
 
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Seguiu o Dono nas Redes?
-                            {renderAiReviewBadge('followedOwner')}
-                          </label>
-                          <select 
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium bg-white"
-                            value={formData.followedOwner}
-                            onChange={(e) => handleFieldChange('followedOwner', e.target.value)}
-                          >
-                            <option value="">Selecione...</option>
-                            <option value="Sim">Sim</option>
-                            <option value="Solicitado">Solicitado</option>
-                            <option value="Não">Não</option>
-                          </select>
-                        </div>
+                          return (
+                            <div className="md:col-span-2 space-y-4 border-l-2 border-pink-100 pl-4 py-1">
+                              {ownersList.map((owner, idx) => (
+                                <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start relative group">
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
+                                      Nome do Proprietário / Dono {ownersList!.length > 1 ? `#${idx + 1}` : ''}
+                                      {idx === 0 && renderAiReviewBadge('ownerName')}
+                                    </label>
+                                    <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
+                                      placeholder="Nome completo do dono"
+                                      value={owner.name}
+                                      onChange={(e) => {
+                                        const newOwners = [...ownersList!];
+                                        newOwners[idx] = { ...newOwners[idx], name: e.target.value };
+                                        const newName = newOwners.map(o => o.name).filter(Boolean).join(', ');
+                                        const newInsta = newOwners.map(o => o.instagram).filter(Boolean).join(', ');
+                                        setFormData({ ...formData, owners: newOwners, ownerName: newName, ownerInstagram: newInsta });
+                                      }}
+                                     />
+                                  </div>
+                                  <div className="space-y-1 relative">
+                                    <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
+                                      Instagram do Dono {ownersList!.length > 1 ? `#${idx + 1}` : ''}
+                                      {idx === 0 && renderAiReviewBadge('ownerInstagram')}
+                                    </label>
+                                    <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
+                                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
+                                      placeholder="Link ou @username"
+                                      value={owner.instagram}
+                                      onChange={(e) => {
+                                        const newOwners = [...ownersList!];
+                                        newOwners[idx] = { ...newOwners[idx], instagram: e.target.value };
+                                        const newName = newOwners.map(o => o.name).filter(Boolean).join(', ');
+                                        const newInsta = newOwners.map(o => o.instagram).filter(Boolean).join(', ');
+                                        setFormData({ ...formData, owners: newOwners, ownerName: newName, ownerInstagram: newInsta });
+                                      }}
+                                     />
+                                     {ownersList!.length > 1 && (
+                                       <button type="button" onClick={() => {
+                                         const newOwners = ownersList!.filter((_, i) => i !== idx);
+                                         const newName = newOwners.map(o => o.name).filter(Boolean).join(', ');
+                                         const newInsta = newOwners.map(o => o.instagram).filter(Boolean).join(', ');
+                                         setFormData({ ...formData, owners: newOwners, ownerName: newName, ownerInstagram: newInsta });
+                                       }} className="absolute -right-2 top-8 bg-red-100 text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Remover Dono">
+                                         <Trash2 size={14} />
+                                       </button>
+                                     )}
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newOwners = [...ownersList!, { name: '', instagram: '' }];
+                                    setFormData({ ...formData, owners: newOwners });
+                                  }}
+                                  className="text-xs font-bold text-pink-600 hover:text-pink-700 uppercase tracking-wider flex items-center gap-1 transition-colors mt-2"
+                                >
+                                  <Plus size={14} />
+                                  Adicionar Mais Um Dono
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+
 
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
@@ -2104,9 +2323,27 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         
-                        <div className="space-y-1 md:col-span-2">
+                        <div className="space-y-1">
                           <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
-                            Progresso
+                            Reconhecimento
+                            {renderAiReviewBadge('reconhecimento')}
+                          </label>
+                          <select 
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium bg-white"
+                            value={formData.reconhecimento || ''}
+                            onChange={(e) => handleFieldChange('reconhecimento', e.target.value as any)}
+                          >
+                            <option value="">Selecione...</option>
+                            <option value="Verificar ICP">Verificar ICP</option>
+                            <option value="Fora de ICP">Fora de ICP</option>
+                            <option value="Cliente Pequeno">Cliente Pequeno</option>
+                            <option value="Cliente Ideal">Cliente Ideal</option>
+                          </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
+                            Trajeto Online
                             {renderAiReviewBadge('status')}
                           </label>
                           <select 
@@ -2115,16 +2352,32 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             onChange={(e) => handleFieldChange('status', e.target.value as any)}
                           >
                             <option value="">Selecione...</option>
-                            <option value="Fora de ICP">0 - Fora de ICP</option>
-                            <option value="Mandar Mensagem">1 - Mandar Mensagem</option>
-                            <option value="Mensagem Enviada">2 - Mensagem Enviada</option>
-                            <option value="1º Follow Up">2.1 - 1º Follow Up</option>
-                            <option value="2º Follow Up">2.2 - 2º Follow Up</option>
-                            <option value="3º+ Follow Up">2.3 - 3º+ Follow Up</option>
-                            <option value="Reunião Agendada">3 - Reunião Agendada</option>
-                            <option value="Cliente Fechado">4 - Cliente Fechado</option>
-                            <option value="Contrato Encerrado">5 - Contrato Encerrado</option>
-                            <option value="Base de Recomeço">6 - Base de Recomeço</option>
+                            <option value="Mandar Mensagem">Mandar Mensagem</option>
+                            <option value="Mensagem Enviada">Mensagem Enviada</option>
+                            <option value="Cliente Respondeu">Cliente Respondeu</option>
+                            <option value="1º Follow Up">1º Follow Up</option>
+                            <option value="2º Follow Up">2º Follow Up</option>
+                            <option value="3º+ Follow Up">3º+ Follow Up</option>
+                            <option value="Reunião Agendada">Reunião Agendada</option>
+                            <option value="Base de Recomeço">Base de Recomeço</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 uppercase ml-1 flex items-center">
+                            Status Geral
+                            {renderAiReviewBadge('statusGeral')}
+                          </label>
+                          <select 
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium bg-white"
+                            value={formData.statusGeral || ''}
+                            onChange={(e) => handleFieldChange('statusGeral', e.target.value as any)}
+                          >
+                            <option value="">Selecione...</option>
+                            <option value="Entra em Contato">Entra em Contato</option>
+                            <option value="Negociando">Negociando</option>
+                            <option value="Cliente Fechado">Cliente Fechado</option>
+                            <option value="Contrato Encerrado">Contrato Encerrado</option>
                           </select>
                         </div>
 

@@ -1325,7 +1325,7 @@ export function App() {
           currentUserId={user?.uid}
         />
         
-        <main className={`flex-1 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
+        <main className={`flex-1 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-[280px]'} transition-all duration-300 font-nunito flex flex-col bg-stone-50 h-screen overflow-hidden`}>
           <header className="flex items-center justify-between px-4 md:px-6 py-2 shrink-0 bg-white border-b border-stone-100 relative z-20">
             <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0 mr-4">
               <button 
