@@ -312,9 +312,9 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
 
       <div className="bg-white border border-stone-200 rounded-3xl shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Filters Area */}
-        <div className="p-6 border-b border-stone-100 flex items-center justify-between gap-4">
-          <div className="flex-1 flex max-w-4xl gap-3">
-            <div className="relative flex-1">
+        <div className="p-6 border-b border-stone-100">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            <div className="relative w-full lg:w-96 shrink-0">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
               <input 
                 type="text" 
@@ -325,11 +325,11 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
               />
             </div>
             
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3 items-center flex-1">
               <select
                 value={sectorFilter}
                 onChange={(e) => setSectorFilter(e.target.value as any)}
-                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[150px]"
+                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[160px]"
               >
                 <option value="all">Todos os Setores</option>
                 <option value="commercial">Comercial</option>
@@ -344,7 +344,7 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
               <select
                 value={clientFilter}
                 onChange={(e) => setClientFilter(e.target.value)}
-                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[150px]"
+                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[160px] max-w-[250px] truncate"
               >
                 <option value="all">Filtrar por Cliente</option>
                 {clients.map(client => (
@@ -357,7 +357,7 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
                 onChange={(e) => setMonthFilter(e.target.value)}
                 className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[120px]"
               >
-                <option value="all">Mês</option>
+                <option value="all">Qualquer Mês</option>
                 {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                   <option key={m} value={i}>{m}</option>
                 ))}
@@ -366,10 +366,10 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
               <select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[100px]"
+                className="bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all cursor-pointer min-w-[120px]"
               >
-                <option value="all">Ano</option>
-                {['2024', '2025', '2026'].map(y => (
+                <option value="all">Qualquer Ano</option>
+                {['2024', '2025', '2026', '2027'].map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
