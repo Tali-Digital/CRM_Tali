@@ -75,17 +75,19 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             const parts = rawOwner.split(/,| e /i).map((s: string) => s.trim()).filter(Boolean);
             const options = Array.from(new Set([rawOwner, ...parts]));
             
-            if (prospeccaoParaEditar.clienteNome && !options.includes(prospeccaoParaEditar.clienteNome)) {
-              options.push(prospeccaoParaEditar.clienteNome);
-            }
-            
-            setOpcoesDono(options);
-
             if (prospeccaoParaEditar.clienteNome) {
-              setDonoClinica(prospeccaoParaEditar.clienteNome);
+              const existingOption = options.find(opt => opt.toLowerCase() === prospeccaoParaEditar.clienteNome.toLowerCase());
+              if (!existingOption) {
+                options.push(prospeccaoParaEditar.clienteNome);
+                setDonoClinica(prospeccaoParaEditar.clienteNome);
+              } else {
+                setDonoClinica(existingOption);
+              }
             } else {
               setDonoClinica(rawOwner);
             }
+            
+            setOpcoesDono(options);
           } else {
             if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
             if (prospeccaoParaEditar.fullAddress) setEnderecoCompleto(prospeccaoParaEditar.fullAddress);
