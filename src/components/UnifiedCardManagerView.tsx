@@ -257,21 +257,21 @@ export const UnifiedCardManagerView: React.FC<UnifiedCardManagerViewProps> = ({
         <div className="flex bg-stone-100 p-2 rounded-2xl min-w-[480px] gap-2 shadow-inner overflow-x-auto w-full xl:w-auto">
           <button 
             onClick={() => setActiveTab('active')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap rounded-xl transition-all ${activeTab === 'active' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
           >
             <Layers size={14} />
             Cards Ativos
           </button>
           <button 
             onClick={() => setActiveTab('completed')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap rounded-xl transition-all ${activeTab === 'completed' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
           >
             <History size={14} />
             Concluídos
           </button>
           <button 
             onClick={() => setActiveTab('deleted')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap rounded-xl transition-all ${activeTab === 'deleted' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
           >
             <Trash2 size={14} />
             Lixeira
