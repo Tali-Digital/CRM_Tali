@@ -192,13 +192,10 @@ export default function GestaoProspeccaoEditor() {
         display: 'flex',
         flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
         gap: window.innerWidth <= 768 ? '1.5rem' : '1rem',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: window.innerWidth <= 768 ? 'stretch' : 'center',
         marginBottom: '1rem'
       }}>
-        <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary-color)', margin: 0 }}>Gestão de Prospecções</h1>
-        </div>
         <div style={{
           display: 'flex',
           flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
