@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, FileText, CheckCircle, Clock, Settings, Bot, Copy } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, CheckCircle, Clock, Settings, Bot, Copy, Layers, RefreshCw } from 'lucide-react';
 import Swal from 'sweetalert2';
 import GeradorProspeccao from './GeradorProspeccao';
 import GerenciadorModelosModal from './GerenciadorModelosModal';
@@ -23,6 +23,7 @@ export default function GestaoProspeccaoEditor() {
   const [responsibleFilter, setResponsibleFilter] = useState('');
   const [periodType, setPeriodType] = useState('all');
   const [startDate, setStartDate] = useState('');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'lixeira'>('ativos');
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -63,11 +64,30 @@ export default function GestaoProspeccaoEditor() {
 
   const handleDelete = async () => {
     if (confirmDelete) {
-      await deleteProspeccaoDoc(confirmDelete.id);
-      if (confirmDelete.clienteId) {
-        await updateProspect(confirmDelete.clienteId, { hasPresencialFicha: false });
+      if (activeTab === 'lixeira') {
+        await deleteProspeccaoDoc(confirmDelete.id);
+      } else {
+        await updateProspeccaoDoc(confirmDelete.id, { isDeleted: true });
+        if (confirmDelete.clienteId) {
+          await updateProspect(confirmDelete.clienteId, { hasPresencialFicha: false });
+        }
       }
       setConfirmDelete(null);
+    }
+  };
+
+  const handleRestore = async (prospeccao: EditorProspeccaoDoc) => {
+    await updateProspeccaoDoc(prospeccao.id, { isDeleted: false });
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Restaurado!', showConfirmButton: false, timer: 1500 });
+  };
+  
+  const handleEmptyTrash = async () => {
+    if (window.confirm('Deseja apagar TOTALMENTE todas as prospecções da lixeira? Esta ação não pode ser desfeita.')) {
+      const deletedDocs = prospeccoes.filter(c => c.isDeleted === true);
+      for (const doc of deletedDocs) {
+        await deleteProspeccaoDoc(doc.id);
+      }
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Lixeira Esvaziada', showConfirmButton: false, timer: 1500 });
     }
   };
 
@@ -197,6 +217,35 @@ export default function GestaoProspeccaoEditor() {
         </div>
       </div>
 
+      <div className="flex bg-stone-100 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner">
+        <button 
+          onClick={() => setActiveTab('ativos')}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+        >
+          <Layers size={14} />
+          Prospecções Ativas
+        </button>
+        <button 
+          onClick={() => setActiveTab('lixeira')}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+        >
+          <Trash2 size={14} />
+          Lixeira
+        </button>
+      </div>
+
+      {activeTab === 'lixeira' && (
+        <div className="mb-4">
+          <button 
+            onClick={handleEmptyTrash}
+            className="flex items-center justify-center gap-2 py-2 px-4 text-xs font-bold uppercase tracking-wider rounded-lg transition-all text-red-500 border border-red-200 hover:bg-red-50"
+          >
+            <Trash2 size={14} />
+            Esvaziar Lixeira
+          </button>
+        </div>
+      )}
+
       <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div className="search-input-wrapper" style={{ flex: 1, maxWidth: '400px', position: 'relative', display: 'block' }}>
@@ -289,6 +338,10 @@ export default function GestaoProspeccaoEditor() {
             <tbody>
               {prospeccoes
                 .filter(c => {
+                  if (activeTab === 'ativos') return c.isDeleted !== true;
+                  return c.isDeleted === true;
+                })
+                .filter(c => {
                   const clienteNome = c.clienteNome || (c.clienteId && prospectsMap[c.clienteId]?.ownerName) || '';
                   const titulo = c.titulo || (c.clienteId && prospectsMap[c.clienteId]?.clinicName) || '';
                   return clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) || titulo.toLowerCase().includes(searchTerm.toLowerCase());
@@ -371,10 +424,19 @@ export default function GestaoProspeccaoEditor() {
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                      <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><Copy size={18} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                      {activeTab === 'lixeira' ? (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); handleRestore(prospeccao) }} title="Restaurar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><RefreshCw size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir Permanentemente" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><Copy size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -393,7 +455,9 @@ export default function GestaoProspeccaoEditor() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', color: '#1e293b' }}>Confirmar Exclusão</h3>
-            <p style={{ color: '#475569', marginBottom: '1.5rem' }}>Tem certeza que deseja excluir a prospecção com <strong>{confirmDelete.clienteNome}</strong>?</p>
+            <p style={{ color: '#475569', marginBottom: '1.5rem' }}>
+              Tem certeza que deseja {activeTab === 'lixeira' ? 'excluir PERMANENTEMENTE' : 'mover para a lixeira'} a prospecção com <strong>{confirmDelete.clienteNome}</strong>?
+            </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirmDelete(null)} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer', fontWeight: '500' }}>Cancelar</button>
               <button onClick={handleDelete} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '500' }}>Excluir</button>
