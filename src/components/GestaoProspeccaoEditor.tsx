@@ -194,11 +194,10 @@ export default function GestaoProspeccaoEditor() {
         gap: window.innerWidth <= 768 ? '1.5rem' : '1rem',
         justifyContent: 'space-between',
         alignItems: window.innerWidth <= 768 ? 'stretch' : 'center',
-        marginBottom: '2rem'
+        marginBottom: '1rem'
       }}>
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary-color)', margin: 0 }}>Gestão de Prospecções</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>Gerencie prospecções integradas com o banco de clientes.</p>
         </div>
         <div style={{
           display: 'flex',
@@ -217,17 +216,17 @@ export default function GestaoProspeccaoEditor() {
         </div>
       </div>
 
-      <div className="flex bg-stone-100 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner">
+      <div className="flex bg-[#5271FF]/10 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner border border-[#5271FF]/20">
         <button 
           onClick={() => setActiveTab('ativos')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-stone-900 border border-stone-200' : 'text-stone-500 hover:text-stone-700'}`}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-[#5271FF] border border-[#5271FF]/20' : 'text-[#5271FF]/60 hover:text-[#5271FF]'}`}
         >
           <Layers size={14} />
           Prospecções Ativas
         </button>
         <button 
           onClick={() => setActiveTab('lixeira')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-[#5271FF]/60 hover:text-red-500'}`}
         >
           <Trash2 size={14} />
           Lixeira
