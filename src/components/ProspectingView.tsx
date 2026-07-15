@@ -1881,13 +1881,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             onClick={(e) => e.stopPropagation()}
             className={`bg-white rounded-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 ${!editingProspect ? 'max-w-7xl' : 'max-w-4xl'}`}
           >
-            <div className="px-8 py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-4">
+            <div className="px-4 py-3 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-2 sm:gap-4">
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
                   {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
                   {formData.isInPerson && (
-                    <span className="text-xs font-black bg-blue-800 text-blue-100 px-2 py-1 rounded-lg uppercase tracking-wide border border-blue-700">
-                      (Prospecção Presencial)
+                    <span className="text-[10px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
+                      (Presencial)
                     </span>
                   )}
                 </h2>
@@ -1898,7 +1898,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               
               {/* Exibição do Progresso Atual grande e em destaque */}
               <div className="flex items-center">
-                <div className={`px-4 py-2 rounded-2xl text-xs font-black tracking-wide shadow-sm flex items-center gap-2 uppercase border ${
+                <div className={`px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black tracking-wide shadow-sm flex items-center gap-1 sm:gap-2 uppercase border ${
                   formData.status === 'Base de Recomeço'
                     ? 'bg-red-500 border-red-400 text-white animate-pulse'
                     : 'bg-white border-blue-200 text-blue-900'
@@ -1929,11 +1929,11 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
             {/* Tabs for Editing - Design Pills Premium */}
             {editingProspect && (
-              <div className="flex flex-wrap border-b border-gray-100 bg-gray-50/50 p-4 gap-3 justify-start">
+              <div className="flex flex-nowrap overflow-x-auto border-b border-gray-100 bg-gray-50/50 p-2 sm:p-4 gap-2 sm:gap-3 justify-start" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('dados')}
-                  className={`px-5 py-2.5 text-xs font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'dados'
                       ? 'bg-blue-900 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1944,7 +1944,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <button
                   type="button"
                   onClick={() => setActiveTab('ia')}
-                  className={`px-5 py-2.5 text-xs font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'ia'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1955,7 +1955,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <button
                   type="button"
                   onClick={() => setActiveTab('instagram')}
-                  className={`px-5 py-2.5 text-xs font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'instagram'
                       ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1986,7 +1986,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     }
                     setActiveTab('calculadora');
                   }}
-                  className={`px-5 py-2.5 text-xs font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'calculadora'
                       ? 'bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1997,7 +1997,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               </div>
             )}
             
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8">
+            <style>{`
+              .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
+            
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-8">
               {duplicateWarning && (
                 <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl shadow-sm animate-in fade-in duration-300">
                   <div className="flex items-start gap-3">
