@@ -88,6 +88,9 @@ export default function GestaoProspeccaoEditor() {
     if (confirmDelete) {
       if (activeTab === 'lixeira') {
         await deleteProspeccaoDoc(confirmDelete.id);
+        if (confirmDelete.clienteId) {
+          await updateProspect(confirmDelete.clienteId, { isInPerson: false });
+        }
       } else {
         await updateProspeccaoDoc(confirmDelete.id, { isDeleted: true });
         if (confirmDelete.clienteId) {
@@ -100,6 +103,9 @@ export default function GestaoProspeccaoEditor() {
 
   const handleRestore = async (prospeccao: EditorProspeccaoDoc) => {
     await updateProspeccaoDoc(prospeccao.id, { isDeleted: false });
+    if (prospeccao.clienteId) {
+      await updateProspect(prospeccao.clienteId, { hasPresencialFicha: true });
+    }
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Restaurado!', showConfirmButton: false, timer: 1500 });
   };
   
@@ -108,6 +114,9 @@ export default function GestaoProspeccaoEditor() {
       const deletedDocs = prospeccoes.filter(c => c.isDeleted === true);
       for (const doc of deletedDocs) {
         await deleteProspeccaoDoc(doc.id);
+        if (doc.clienteId) {
+          await updateProspect(doc.clienteId, { isInPerson: false });
+        }
       }
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Lixeira Esvaziada', showConfirmButton: false, timer: 1500 });
     }
@@ -208,16 +217,91 @@ export default function GestaoProspeccaoEditor() {
     }
   };
 
+  const countAtivos = prospeccoes.filter(c => c.isDeleted !== true).length;
+  const countLixeira = prospeccoes.filter(c => c.isDeleted === true).length;
+
+  const filteredProspeccoes = prospeccoes
+    .filter(c => {
+      if (activeTab === 'ativos') return c.isDeleted !== true;
+      return c.isDeleted === true;
+    })
+    .filter(c => {
+      const clienteNome = c.clienteNome || (c.clienteId && prospectsMap[c.clienteId]?.ownerName) || '';
+      const titulo = c.titulo || (c.clienteId && prospectsMap[c.clienteId]?.clinicName) || '';
+      return clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) || titulo.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .filter(c => {
+      if (!responsibleFilter) return true;
+      const resp = c.clienteId ? prospectsMap[c.clienteId]?.responsible : null;
+      return resp === responsibleFilter;
+    })
+    .filter(c => {
+      if (periodType === 'all') return true;
+      const cDateStr = c.dataAssinatura ? c.dataAssinatura.substring(0, 10) : '';
+      if (!cDateStr) return false;
+
+      const parts = cDateStr.split('-');
+      if (parts.length !== 3) return false;
+      
+      const cYear = parseInt(parts[0], 10);
+      const cMonth = parseInt(parts[1], 10);
+
+      const today = new Date();
+      const tYear = today.getFullYear();
+      const tMonth = today.getMonth() + 1;
+
+      if (periodType === 'this_month') {
+        return cYear === tYear && cMonth === tMonth;
+      }
+      if (periodType === 'last_month') {
+        const lYear = tMonth === 1 ? tYear - 1 : tYear;
+        const lMonth = tMonth === 1 ? 12 : tMonth - 1;
+        return cYear === lYear && cMonth === lMonth;
+      }
+      if (periodType === 'this_year') {
+        return cYear === tYear;
+      }
+      if (periodType === 'custom') {
+        if (startDate && cDateStr < startDate) return false;
+        if (endDate && cDateStr > endDate) return false;
+        return true;
+      }
+
+      return true;
+    })
+    .filter(c => {
+      if (!statusFilter) return true;
+      if (statusFilter === 'entregue') return c.isEntregue === true;
+      if (statusFilter === 'pendente') return !c.isEntregue;
+      return true;
+    });
+
   return (
     <div style={{ padding: window.innerWidth <= 768 ? '1rem' : '2rem' }}>
       <div style={{
         display: 'flex',
         flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
         gap: window.innerWidth <= 768 ? '1.5rem' : '1rem',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         alignItems: window.innerWidth <= 768 ? 'stretch' : 'center',
-        marginBottom: '1rem'
+        marginBottom: '1.5rem'
       }}>
+        <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10">
+          <button 
+            onClick={() => setActiveTab('ativos')}
+            className={`flex items-center justify-center px-4 gap-2 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
+          >
+            <Layers size={14} />
+            Prospecções Ativas ({countAtivos})
+          </button>
+          <button 
+            onClick={() => setActiveTab('lixeira')}
+            className={`flex items-center justify-center px-4 gap-2 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
+          >
+            <Trash2 size={14} />
+            Lixeira ({countLixeira})
+          </button>
+        </div>
         <div style={{
           display: 'flex',
           flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
@@ -226,30 +310,13 @@ export default function GestaoProspeccaoEditor() {
           alignItems: 'center'
         }}>
 
-          <button onClick={() => setIsGerenciadorOpen(true)} className="btn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
-            <Settings size={18} /> Gerenciar Modelos
+          <button onClick={() => setIsGerenciadorOpen(true)} className="btn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', fontSize: '0.9rem' }}>
+            <Settings size={16} /> Gerenciar Modelos
           </button>
-          <button onClick={() => setIsGeradorOpen(true)} className="btn btn-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
-            <Plus size={18} /> Nova Prospecção
+          <button onClick={() => setIsGeradorOpen(true)} className="btn btn-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.2rem', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', fontSize: '0.9rem' }}>
+            <Plus size={16} /> Nova Prospecção
           </button>
         </div>
-      </div>
-
-      <div className="flex bg-[#1e3a8a]/5 p-2 rounded-2xl mb-8 self-start w-fit gap-2 shadow-inner border border-[#1e3a8a]/10">
-        <button 
-          onClick={() => setActiveTab('ativos')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'ativos' ? 'bg-white shadow-md text-[#1e3a8a] border border-[#1e3a8a]/20' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
-        >
-          <Layers size={14} />
-          Prospecções Ativas
-        </button>
-        <button 
-          onClick={() => setActiveTab('lixeira')}
-          className={`flex items-center justify-center px-6 gap-2 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-lg shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
-        >
-          <Trash2 size={14} />
-          Lixeira
-        </button>
       </div>
 
       {activeTab === 'lixeira' && (
@@ -340,6 +407,10 @@ export default function GestaoProspeccaoEditor() {
               Limpar Filtros
             </button>
           )}
+          
+          <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500', backgroundColor: '#f8fafc', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+            Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -354,62 +425,7 @@ export default function GestaoProspeccaoEditor() {
               </tr>
             </thead>
             <tbody>
-              {prospeccoes
-                .filter(c => {
-                  if (activeTab === 'ativos') return c.isDeleted !== true;
-                  return c.isDeleted === true;
-                })
-                .filter(c => {
-                  const clienteNome = c.clienteNome || (c.clienteId && prospectsMap[c.clienteId]?.ownerName) || '';
-                  const titulo = c.titulo || (c.clienteId && prospectsMap[c.clienteId]?.clinicName) || '';
-                  return clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) || titulo.toLowerCase().includes(searchTerm.toLowerCase());
-                })
-                .filter(c => {
-                  if (!responsibleFilter) return true;
-                  const resp = c.clienteId ? prospectsMap[c.clienteId]?.responsible : null;
-                  return resp === responsibleFilter;
-                })
-                .filter(c => {
-                  if (periodType === 'all') return true;
-                  const cDateStr = c.dataAssinatura ? c.dataAssinatura.substring(0, 10) : '';
-                  if (!cDateStr) return false;
-
-                  const parts = cDateStr.split('-');
-                  if (parts.length !== 3) return false;
-                  
-                  const cYear = parseInt(parts[0], 10);
-                  const cMonth = parseInt(parts[1], 10);
-
-                  const today = new Date();
-                  const tYear = today.getFullYear();
-                  const tMonth = today.getMonth() + 1;
-
-                  if (periodType === 'this_month') {
-                    return cYear === tYear && cMonth === tMonth;
-                  }
-                  if (periodType === 'last_month') {
-                    const lYear = tMonth === 1 ? tYear - 1 : tYear;
-                    const lMonth = tMonth === 1 ? 12 : tMonth - 1;
-                    return cYear === lYear && cMonth === lMonth;
-                  }
-                  if (periodType === 'this_year') {
-                    return cYear === tYear;
-                  }
-                  if (periodType === 'custom') {
-                    if (startDate && cDateStr < startDate) return false;
-                    if (endDate && cDateStr > endDate) return false;
-                    return true;
-                  }
-
-                  return true;
-                })
-                .filter(c => {
-                  if (!statusFilter) return true;
-                  if (statusFilter === 'entregue') return c.isEntregue === true;
-                  if (statusFilter === 'pendente') return !c.isEntregue;
-                  return true;
-                })
-                .map(prospeccao => (
+              {filteredProspeccoes.map(prospeccao => (
                 <tr key={prospeccao.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => handleOpenGerador(prospeccao)} className="prospeccao-row-hover">
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
@@ -459,9 +475,9 @@ export default function GestaoProspeccaoEditor() {
                   </td>
                 </tr>
               ))}
-              {prospeccoes.length === 0 && (
+              {filteredProspeccoes.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhuma prospecção encontrada.</td>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhuma prospecção encontrada.</td>
                 </tr>
               )}
             </tbody>

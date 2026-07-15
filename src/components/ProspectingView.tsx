@@ -44,6 +44,7 @@ import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
 import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
+import { geocodeAndSaveProspect } from '../utils/geocode';
 
 interface ProspectingViewProps {
   companyId: CompanyType;
@@ -620,6 +621,11 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       } else {
         const docRef = await addProspect(dataToSave);
         savedId = docRef.id;
+      }
+      
+      // Assincronamente busca latitude e longitude em background
+      if (savedId) {
+        geocodeAndSaveProspect(savedId, dataToSave.fullAddress, dataToSave.location);
       }
 
       if (formData.isInPerson && (!formData.hasPresencialFicha || !editingProspect?.isInPerson) && savedId) {

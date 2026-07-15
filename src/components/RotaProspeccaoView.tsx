@@ -7,6 +7,7 @@ import { Prospect } from '../types';
 import { Map as MapIcon, Search, User, Navigation, CheckCircle2, Copy, RefreshCw, Filter, MapPin, X, Route } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { auth } from '../firebase';
+import { geocodeAndSaveProspect } from '../utils/geocode';
 // Custom Icons
 const pendingIcon = new Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -84,103 +85,8 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
 
   const geocodingRef = useRef(false);
 
-  // Background geocoding for prospects without lat/lng
-  useEffect(() => {
-    const geocodeMissing = async () => {
-      if (geocodingRef.current) return;
-      
-      const missing = prospects.filter(p => p.fullAddress && p.fullAddress.trim() !== '' && !p.geocodeFailed && (!p.lat || !p.lng || p.lng > 0));
-      if (missing.length === 0) return;
-      
-      geocodingRef.current = true;
-      setGeocodingProgress({ current: 0, total: missing.length });
-      
-      let processed = 0;
-      for (const p of missing) {
-        processed++;
-        setGeocodingProgress({ current: processed, total: missing.length });
-        try {
-          await new Promise(r => setTimeout(r, 2000));
-          
-          const tryGeocode = async (query: string) => {
-            try {
-              const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(query)}&maxLocations=1`);
-              const data = await response.json();
-              if (data && data.candidates && data.candidates.length > 0) {
-                return {
-                  lat: data.candidates[0].location.y,
-                  lng: data.candidates[0].location.x
-                };
-              }
-            } catch (e) {
-              console.error("Geocode error", e);
-            }
-            return null;
-          };
-
-          let coords = null;
-          
-          if (p.fullAddress && p.fullAddress.trim() !== '') {
-            coords = await tryGeocode(p.fullAddress);
-            
-            // Clean Brazilian complex addresses (Quadra, Lote, Lt, Qd, etc)
-            // e.g., "Avenida Comercial, Quadra 06 - Lote 28 - Valparaizo II, Valparaíso de Goiás - GO"
-            if (!coords) {
-              const cleanedAddress = p.fullAddress
-                .replace(/(?:Quadra|Qd|Q\.|Lote|Lt|L\.|Bloco|Bl|Sala|Sl|Loja|Lg|Conjunto|Cj)[^\,\-]+(?:,|-)?/gi, '')
-                .replace(/\s{2,}/g, ' ') // remove extra spaces
-                .replace(/,\s*,/g, ',') // remove empty commas
-                .replace(/-\s*-/g, '-') // remove double dashes
-                .replace(/,\s*-/g, ' -')
-                .trim();
-                
-              // Only try again if the address was actually changed
-              if (cleanedAddress !== p.fullAddress.trim()) {
-                await new Promise(r => setTimeout(r, 1500));
-                coords = await tryGeocode(cleanedAddress);
-              }
-            }
-          }
-          
-          if (!coords && p.location) {
-            // Fallback to simpler location if full address fails
-            await new Promise(r => setTimeout(r, 1500));
-            coords = await tryGeocode(p.location);
-
-            // Third fallback: Regex to extract just City and State (e.g. "Valparaíso de Goiás, GO")
-            if (!coords) {
-              const match = p.location.match(/([^,]+)\s*-\s*([A-Z]{2})/i);
-              if (match) {
-                await new Promise(r => setTimeout(r, 1500));
-                const cityState = `${match[1].trim()}, ${match[2]}`;
-                coords = await tryGeocode(cityState);
-              }
-            }
-          }
-
-          if (coords) {
-            await updateProspect(p.id, { lat: coords.lat, lng: coords.lng, geocodeFailed: false });
-          } else {
-            // Mark as failed so it doesn't loop forever
-            await updateProspect(p.id, { geocodeFailed: true });
-          }
-
-          // Small delay to respect API limits
-          await new Promise(r => setTimeout(r, 1000));
-        } catch (error) {
-          console.error('Erro ao geocodificar', p.fullAddress, error);
-        }
-      }
-      
-      geocodingRef.current = false;
-      setGeocodingProgress(null);
-    };
-    
-    // Only run if we have missing prospects and not currently geocoding
-    if (prospects.some(p => p.fullAddress && p.fullAddress.trim() !== '' && !p.geocodeFailed && (!p.lat || !p.lng || p.lng > 0))) {
-      geocodeMissing();
-    }
-  }, [prospects, isRetrying]);
+  // A geocodificação em lote foi movida para ProspectingView.tsx
+  // para ser executada individualmente ao criar/editar uma ficha.
 
   const responsibles = useMemo(() => {
     const resps = new Set(prospects.map(p => p.responsible).filter(Boolean));
@@ -225,7 +131,9 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
         matchCity = normalizedSelectedCities.includes(pCityNorm);
       }
       
-      return matchDelivery && matchLocation && matchResponsible && matchCity && p.lat && p.lng && p.lng < 0;
+      // Use explicitly hasPresencialFicha so it perfectly matches the Gestão Prospecções screen
+      const matchInPerson = !!p.hasPresencialFicha;
+      return matchDelivery && matchLocation && matchResponsible && matchCity && matchInPerson && p.lat && p.lng && p.lng < 0;
     });
 
     // Add tiny jitter to identical coordinates so they spread out slightly instead of perfectly overlapping
@@ -261,14 +169,24 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
       showConfirmButton: false 
     });
     
-    // Process in batches of 10 to avoid hanging the browser
-    const prospectsToUpdate = prospects.filter(p => !p.isEntregue);
-    for (let i = 0; i < prospectsToUpdate.length; i += 10) {
-      const batch = prospectsToUpdate.slice(i, i + 10);
-      await Promise.all(batch.map(p => updateProspect(p.id, { geocodeFailed: false, lat: null, lng: null })));
-    }
+    // Filter only those that have ficha, as they are the ones on the map
+    const prospectsToUpdate = prospects.filter(p => !p.isEntregue && p.hasPresencialFicha);
     
-    setIsRetrying(false);
+    setIsRetrying(true);
+    setGeocodingProgress({ current: 0, total: prospectsToUpdate.length });
+    
+    // Roda no background de forma sequencial para não estourar os limites da API
+    (async () => {
+      let processed = 0;
+      for (const p of prospectsToUpdate) {
+        processed++;
+        setGeocodingProgress({ current: processed, total: prospectsToUpdate.length });
+        await geocodeAndSaveProspect(p.id, p.fullAddress, p.location);
+        await new Promise(r => setTimeout(r, 1000)); // Sleep de segurança
+      }
+      setIsRetrying(false);
+      setGeocodingProgress(null);
+    })();
   };
 
   const handleCopyAddress = (address: string) => {
