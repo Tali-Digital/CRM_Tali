@@ -1881,46 +1881,45 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             onClick={(e) => e.stopPropagation()}
             className={`bg-white rounded-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 ${!editingProspect ? 'max-w-7xl' : 'max-w-4xl'}`}
           >
-            <div className="px-3 py-2 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-2 sm:gap-4">
-              <div>
-                <h2 className="text-base sm:text-xl font-bold flex items-center gap-2 leading-tight">
-                  {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
-                  {formData.isInPerson && (
-                    <span className="text-[9px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
-                      (Presencial)
-                    </span>
-                  )}
-                </h2>
-                <p className="text-blue-100 text-sm hidden sm:block mt-1">
-                  {editingProspect ? `Editando: ${formData.clinicName}` : 'Preencha os dados da clínica para prospecção'}
-                </p>
-              </div>
-              
-              {/* Exibição do Progresso Atual grande e em destaque */}
-              <div className="flex items-center">
-                <div className={`px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black tracking-wide shadow-sm flex items-center gap-1 sm:gap-2 uppercase border ${
+            <div className="px-4 py-3 sm:px-8 sm:py-6 border-b border-gray-100 bg-blue-900 text-white flex flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <h2 className="text-base sm:text-xl font-bold flex items-center gap-2 leading-tight">
+                    {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
+                    {formData.isInPerson && (
+                      <span className="text-[9px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
+                        (Presencial)
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-blue-100 text-sm hidden sm:block mt-1">
+                    {editingProspect ? `Editando: ${formData.clinicName}` : 'Preencha os dados da clínica para prospecção'}
+                  </p>
+                </div>
+                
+                {/* Exibição do Progresso Atual */}
+                <div className={`w-fit px-2 py-1 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black tracking-wide shadow-sm flex items-center gap-1 sm:gap-2 uppercase border ${
                   formData.status === 'Base de Recomeço'
                     ? 'bg-red-500 border-red-400 text-white animate-pulse'
                     : 'bg-white border-blue-200 text-blue-900'
                 }`}>
                   {formData.status === 'Base de Recomeço' ? (
                     <>
-                      <RotateCcw size={12} className="animate-spin" />
+                      <RotateCcw size={12} className="animate-spin sm:hidden" />
+                      <RotateCcw size={16} className="animate-spin hidden sm:block" />
                       Base de Recomeço
                     </>
                   ) : (
-                    <>
-                      <span className="uppercase font-bold text-blue-950">
-                        Progresso: {formData.status || 'Não Iniciado'}
-                      </span>
-                    </>
+                    <span className="uppercase font-bold text-blue-950">
+                      Progresso: {formData.status || 'Não Iniciado'}
+                    </span>
                   )}
                 </div>
               </div>
 
               <button 
                 onClick={handleCloseAndSave}
-                className="p-2 hover:bg-white/20 rounded-full transition-colors self-end sm:self-auto"
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors shrink-0"
                 title="Salvar e Fechar"
               >
                 <ChevronDown className="rotate-180" size={24} />
@@ -1929,39 +1928,39 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
             {/* Tabs for Editing - Design Pills Premium */}
             {editingProspect && (
-              <div className="flex flex-nowrap overflow-x-auto border-b border-gray-100 bg-gray-50/50 p-2 sm:p-4 gap-2 sm:gap-3 justify-start" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="flex flex-nowrap overflow-x-auto border-b border-gray-100 bg-gray-50/50 p-2 sm:p-4 gap-2 sm:gap-3 justify-start items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('dados')}
-                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-5 py-3 sm:px-6 sm:py-3 text-[12px] sm:text-sm font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     activeTab === 'dados'
                       ? 'bg-blue-900 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                   }`}
                 >
-                  <User size={14} /> Dados de Prospecção
+                  <User size={16} /> Dados de Prospecção
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('ia')}
-                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-5 py-3 sm:px-6 sm:py-3 text-[12px] sm:text-sm font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     activeTab === 'ia'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                   }`}
                 >
-                  <Sparkles size={14} className={activeTab === 'ia' ? 'text-yellow-300 animate-pulse' : 'text-indigo-600'} /> Inteligência Artificial (Gemini)
+                  <Sparkles size={16} className={activeTab === 'ia' ? 'text-yellow-300 animate-pulse' : 'text-indigo-600'} /> Inteligência Artificial (Gemini)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('instagram')}
-                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-5 py-3 sm:px-6 sm:py-3 text-[12px] sm:text-sm font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     activeTab === 'instagram'
                       ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                   }`}
                 >
-                  <Instagram size={14} className={activeTab === 'instagram' ? 'text-white' : 'text-pink-600'} /> Mensagem Instagram (IA)
+                  <Instagram size={16} className={activeTab === 'instagram' ? 'text-white' : 'text-pink-600'} /> Mensagem Instagram (IA)
                 </button>
                 <button
                   type="button"
@@ -1986,13 +1985,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     }
                     setActiveTab('calculadora');
                   }}
-                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-5 py-3 sm:px-6 sm:py-3 text-[12px] sm:text-sm font-bold rounded-2xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     activeTab === 'calculadora'
                       ? 'bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                   }`}
                 >
-                  <Calculator size={14} className={activeTab === 'calculadora' ? 'text-white' : 'text-amber-600'} /> Dinheiro Escondido
+                  <Calculator size={16} className={activeTab === 'calculadora' ? 'text-white' : 'text-amber-600'} /> Dinheiro Escondido
                 </button>
               </div>
             )}
