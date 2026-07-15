@@ -277,7 +277,7 @@ export default function GestaoProspeccaoEditor() {
     });
 
   return (
-    <div className="p-4 sm:p-8 bg-slate-50 min-h-full">
+    <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-y-auto custom-scrollbar">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-4 mb-6">
         <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <button 
@@ -317,9 +317,9 @@ export default function GestaoProspeccaoEditor() {
         </div>
       )}
 
-      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm mb-6 border border-slate-200">
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-center">
-          <div className="relative w-full sm:flex-1 sm:max-w-[400px]">
+      <div className="bg-white p-3 sm:p-6 rounded-xl shadow-sm mb-6 border border-slate-200">
+        <div className="grid grid-cols-2 sm:flex sm:flex-row flex-wrap gap-2 sm:gap-4 items-center">
+          <div className="col-span-2 sm:flex-1 sm:max-w-[400px] relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
@@ -330,27 +330,38 @@ export default function GestaoProspeccaoEditor() {
             />
           </div>
           
-          <div className="w-full sm:w-auto relative">
+          <div className="col-span-1 sm:w-auto relative">
             <select
               value={responsibleFilter}
               onChange={(e) => setResponsibleFilter(e.target.value)}
               className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Todos os Responsáveis</option>
+              <option value="">Líder: Todos</option>
               {uniqueResponsibles.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
           </div>
           
-          <div className="w-full sm:w-auto flex flex-wrap sm:flex-nowrap gap-2 items-center">
-            <span className="text-sm text-slate-500 font-medium w-full sm:w-auto">Período:</span>
+          <div className="col-span-1 sm:w-auto relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Status: Todos</option>
+              <option value="entregue">Entregues</option>
+              <option value="pendente">Não Entregues</option>
+            </select>
+          </div>
+
+          <div className="col-span-2 sm:col-span-1 sm:w-auto flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <select
               value={periodType}
               onChange={(e) => setPeriodType(e.target.value)}
-              className="flex-1 sm:flex-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:w-auto pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">Qualquer Período</option>
+              <option value="all">Período: Qualquer</option>
               <option value="this_month">Este Mês</option>
               <option value="last_month">Mês Passado</option>
               <option value="this_year">Este Ano</option>
@@ -377,28 +388,18 @@ export default function GestaoProspeccaoEditor() {
             )}
           </div>
           
-          <div className="w-full sm:w-auto relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos os Status</option>
-              <option value="entregue">Entregues</option>
-              <option value="pendente">Não Entregues</option>
-            </select>
-          </div>
-          
           {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm) && (
-            <button 
-              onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); }} 
-              className="text-sm text-slate-500 underline hover:text-slate-700 w-full sm:w-auto text-center sm:text-left py-2 sm:py-0"
-            >
-              Limpar Filtros
-            </button>
+            <div className="col-span-2 sm:col-span-1 sm:w-auto text-center sm:text-left">
+              <button 
+                onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); }} 
+                className="text-sm text-slate-500 underline hover:text-slate-700 py-1"
+              >
+                Limpar Filtros
+              </button>
+            </div>
           )}
           
-          <div className="w-full sm:w-auto mt-2 sm:mt-0 sm:ml-auto text-sm text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 text-center sm:text-left">
+          <div className="col-span-2 sm:col-span-1 sm:w-auto mt-2 sm:mt-0 sm:ml-auto text-sm text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 text-center sm:text-left">
             Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
           </div>
         </div>
