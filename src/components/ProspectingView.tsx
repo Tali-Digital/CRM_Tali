@@ -1881,17 +1881,17 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             onClick={(e) => e.stopPropagation()}
             className={`bg-white rounded-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 ${!editingProspect ? 'max-w-7xl' : 'max-w-4xl'}`}
           >
-            <div className="px-4 py-3 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-2 sm:gap-4">
+            <div className="px-3 py-2 sm:px-8 sm:py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between bg-blue-900 text-white gap-2 sm:gap-4">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                <h2 className="text-base sm:text-xl font-bold flex items-center gap-2 leading-tight">
                   {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
                   {formData.isInPerson && (
-                    <span className="text-[10px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
+                    <span className="text-[9px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
                       (Presencial)
                     </span>
                   )}
                 </h2>
-                <p className="text-blue-100 text-sm">
+                <p className="text-blue-100 text-sm hidden sm:block mt-1">
                   {editingProspect ? `Editando: ${formData.clinicName}` : 'Preencha os dados da clínica para prospecção'}
                 </p>
               </div>
@@ -1933,7 +1933,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <button
                   type="button"
                   onClick={() => setActiveTab('dados')}
-                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'dados'
                       ? 'bg-blue-900 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1944,7 +1944,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <button
                   type="button"
                   onClick={() => setActiveTab('ia')}
-                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'ia'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1955,7 +1955,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 <button
                   type="button"
                   onClick={() => setActiveTab('instagram')}
-                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'instagram'
                       ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -1986,7 +1986,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                     }
                     setActiveTab('calculadora');
                   }}
-                  className={`shrink-0 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                  className={`shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-bold rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                     activeTab === 'calculadora'
                       ? 'bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-md'
                       : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
