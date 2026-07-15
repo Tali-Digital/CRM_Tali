@@ -295,12 +295,12 @@ export default function GestaoProspeccaoEditor() {
             Lixeira ({countLixeira})
           </button>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
-          <button onClick={() => setIsGerenciadorOpen(true)} className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50 shadow-sm text-sm">
-            <Settings size={16} /> Gerenciar Modelos
+        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto items-center">
+          <button onClick={() => setIsGerenciadorOpen(true)} className="flex items-center justify-center gap-1.5 sm:gap-2 bg-white border border-slate-200 text-slate-700 px-2 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50 shadow-sm text-[11px] sm:text-sm text-center">
+            <Settings size={14} className="shrink-0" /> <span className="truncate">Modelos</span>
           </button>
-          <button onClick={() => setIsGeradorOpen(true)} className="flex items-center justify-center gap-2 bg-blue-600 text-white border-none px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-blue-700 shadow-sm text-sm">
-            <Plus size={16} /> Nova Prospecção
+          <button onClick={() => setIsGeradorOpen(true)} className="flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-600 text-white border-none px-2 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-blue-700 shadow-sm text-[11px] sm:text-sm text-center">
+            <Plus size={14} className="shrink-0" /> <span className="truncate">Nova Prospecção</span>
           </button>
         </div>
       </div>
@@ -388,19 +388,21 @@ export default function GestaoProspeccaoEditor() {
             )}
           </div>
           
-          {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm) && (
-            <div className="col-span-2 sm:col-span-1 sm:w-auto text-center sm:text-left">
+          <div className="col-span-1 flex items-center justify-start sm:w-auto">
+            {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm) && (
               <button 
                 onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); }} 
-                className="text-sm text-slate-500 underline hover:text-slate-700 py-1"
+                className="text-xs sm:text-sm text-slate-500 underline hover:text-slate-700 py-1"
               >
                 Limpar Filtros
               </button>
-            </div>
-          )}
+            )}
+          </div>
           
-          <div className="col-span-2 sm:col-span-1 sm:w-auto mt-2 sm:mt-0 sm:ml-auto text-sm text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 text-center sm:text-left">
-            Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
+          <div className="col-span-1 flex items-center justify-end sm:w-auto sm:ml-auto">
+            <div className="text-xs sm:text-sm text-slate-500 font-medium bg-slate-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border border-slate-200 text-center whitespace-nowrap">
+              Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
+            </div>
           </div>
         </div>
       </div>
