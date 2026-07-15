@@ -6,7 +6,7 @@ import { subscribeToProspects, updateProspect } from '../services/firestoreServi
 import { Prospect } from '../types';
 import { Map as MapIcon, Search, User, Navigation, CheckCircle2, Copy, RefreshCw, Filter, MapPin, X, Route } from 'lucide-react';
 import Swal from 'sweetalert2';
-
+import { auth } from '../firebase';
 // Custom Icons
 const pendingIcon = new Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -41,18 +41,37 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
   const [geocodingProgress, setGeocodingProgress] = useState<{current: number, total: number} | null>(null);
   
   // Filters
-  const [searchLocation, setSearchLocation] = useState('');
-  const [selectedResponsible, setSelectedResponsible] = useState('');
-  const [showDelivered, setShowDelivered] = useState(false);
+  const getSavedFilter = (key: string, defaultValue: any) => {
+    try {
+      const uid = auth?.currentUser?.uid || 'guest';
+      const saved = localStorage.getItem(`rota_filters_${uid}_${key}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultValue;
+  };
+
+  const [searchLocation, setSearchLocation] = useState<string>(() => getSavedFilter('searchLocation', ''));
+  const [selectedResponsible, setSelectedResponsible] = useState<string>(() => getSavedFilter('selectedResponsible', ''));
+  const [showDelivered, setShowDelivered] = useState<boolean>(() => getSavedFilter('showDelivered', false));
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>(() => getSavedFilter('selectedCities', []));
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [citySearchTerm, setCitySearchTerm] = useState('');
   
   // Route Selection
   const [isRouteSelectionMode, setIsRouteSelectionMode] = useState(false);
   const [selectedRoutePoints, setSelectedRoutePoints] = useState<Prospect[]>([]);
+
+  useEffect(() => {
+    const uid = auth?.currentUser?.uid || 'guest';
+    localStorage.setItem(`rota_filters_${uid}_searchLocation`, JSON.stringify(searchLocation));
+    localStorage.setItem(`rota_filters_${uid}_selectedResponsible`, JSON.stringify(selectedResponsible));
+    localStorage.setItem(`rota_filters_${uid}_showDelivered`, JSON.stringify(showDelivered));
+    localStorage.setItem(`rota_filters_${uid}_selectedCities`, JSON.stringify(selectedCities));
+  }, [searchLocation, selectedResponsible, showDelivered, selectedCities]);
 
   useEffect(() => {
     if (!companyId) return;

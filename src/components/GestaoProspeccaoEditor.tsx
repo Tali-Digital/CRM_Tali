@@ -9,23 +9,45 @@ import GerenciadorModelosModal from './GerenciadorModelosModal';
 import { subscribeToProspeccaoDocs, deleteProspeccaoDoc, addProspeccaoDoc, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
 import { EditorProspeccaoDoc } from '../types';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 
 export default function GestaoProspeccaoEditor() {
   const [prospeccoes, setProspeccoes] = useState<EditorProspeccaoDoc[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  const getSavedFilter = (key: string, defaultValue: any) => {
+    try {
+      const uid = auth?.currentUser?.uid || 'guest';
+      const saved = localStorage.getItem(`gestao_filters_${uid}_${key}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultValue;
+  };
+
+  const [searchTerm, setSearchTerm] = useState<string>(() => getSavedFilter('searchTerm', ''));
 
   const [isGeradorOpen, setIsGeradorOpen] = useState(false);
   const [isGerenciadorOpen, setIsGerenciadorOpen] = useState(false);
   const [editingEditorProspeccaoDoc, setEditingEditorProspeccaoDoc] = useState<EditorProspeccaoDoc | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<EditorProspeccaoDoc | null>(null);
   const [prospectsMap, setProspectsMap] = useState<Record<string, { responsible: string; ownerName: string; clinicName: string; }>>({});
-  const [responsibleFilter, setResponsibleFilter] = useState('');
-  const [periodType, setPeriodType] = useState('all');
-  const [startDate, setStartDate] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState<string>(() => getSavedFilter('responsibleFilter', ''));
+  const [periodType, setPeriodType] = useState<string>(() => getSavedFilter('periodType', 'all'));
+  const [startDate, setStartDate] = useState<string>(() => getSavedFilter('startDate', ''));
   const [activeTab, setActiveTab] = useState<'ativos' | 'lixeira'>('ativos');
-  const [endDate, setEndDate] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [endDate, setEndDate] = useState<string>(() => getSavedFilter('endDate', ''));
+  const [statusFilter, setStatusFilter] = useState<string>(() => getSavedFilter('statusFilter', ''));
+
+  useEffect(() => {
+    const uid = auth?.currentUser?.uid || 'guest';
+    localStorage.setItem(`gestao_filters_${uid}_searchTerm`, JSON.stringify(searchTerm));
+    localStorage.setItem(`gestao_filters_${uid}_responsibleFilter`, JSON.stringify(responsibleFilter));
+    localStorage.setItem(`gestao_filters_${uid}_periodType`, JSON.stringify(periodType));
+    localStorage.setItem(`gestao_filters_${uid}_startDate`, JSON.stringify(startDate));
+    localStorage.setItem(`gestao_filters_${uid}_endDate`, JSON.stringify(endDate));
+    localStorage.setItem(`gestao_filters_${uid}_statusFilter`, JSON.stringify(statusFilter));
+  }, [searchTerm, responsibleFilter, periodType, startDate, endDate, statusFilter]);
 
   useEffect(() => {
     const unsubscribe = subscribeToProspeccaoDocs(docs => setProspeccoes(docs));
@@ -49,7 +71,7 @@ export default function GestaoProspeccaoEditor() {
     };
   }, []);
 
-  const uniqueResponsibles = Array.from(new Set(Object.values(prospectsMap).map(p => p.responsible).filter(Boolean))).sort() as string[];
+  const uniqueResponsibles = Array.from(new Set(Object.values(prospectsMap).map((p: any) => p.responsible).filter(Boolean))).sort() as string[];
 
   const handleOpenGerador = (prospeccao?: EditorProspeccaoDoc) => {
     if (prospeccao) {
@@ -468,7 +490,7 @@ export default function GestaoProspeccaoEditor() {
           prospeccaoParaEditar={editingEditorProspeccaoDoc}
           onSaveProspeccao={async (prospeccao) => {
             try {
-              const sanitizedData = Object.fromEntries(
+              const sanitizedData: any = Object.fromEntries(
                 Object.entries(prospeccao).filter(([_, v]) => v !== undefined)
               );
 

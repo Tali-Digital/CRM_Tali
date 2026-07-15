@@ -1464,7 +1464,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           </div>
                           {p.gmnReviewsCount && (
                             <div className="text-[10px] text-gray-500 font-medium">
-                              ({p.gmnReviewsCount} avaliações)
+                              ({String(p.gmnReviewsCount).replace(/\D/g, '')} avaliações)
                             </div>
                           )}
                         </div>
@@ -1709,7 +1709,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           <span className="text-amber-500 font-bold">★</span>
                           <span className="font-bold text-gray-800">{p.gmnRating}</span>
                           {p.gmnReviewsCount && (
-                            <span className="text-[10px] text-gray-400 font-semibold">({p.gmnReviewsCount} avaliações)</span>
+                            <span className="text-[10px] text-gray-400 font-semibold">({String(p.gmnReviewsCount).replace(/\D/g, '')} avaliações)</span>
                           )}
                         </div>
                       )}
@@ -2293,9 +2293,9 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           </label>
                           <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}  
                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
-                            placeholder="Ex: 140 avaliações"
-                            value={formData.gmnReviewsCount}
-                            onChange={(e) => handleFieldChange('gmnReviewsCount', e.target.value)}
+                            placeholder="Ex: 140"
+                            value={formData.gmnReviewsCount ? String(formData.gmnReviewsCount).replace(/\D/g, '') : ''}
+                            onChange={(e) => handleFieldChange('gmnReviewsCount', e.target.value.replace(/\D/g, ''))}
                            />
                         </div>
 
@@ -3134,7 +3134,7 @@ A IA vai interpretar e preencher a ficha! 🤖`}
                         <div className="text-xs space-y-1 mb-4 text-gray-700">
                           <p><span className="font-semibold">Responsável:</span> {item.responsible}</p>
                           <p><span className="font-semibold">Dono:</span> {item.ownerName}</p>
-                          <p><span className="font-semibold">Nota/GMN:</span> {item.gmnRating} / {item.gmnReviewsCount}</p>
+                          <p><span className="font-semibold">Nota/GMN:</span> {item.gmnRating} / {item.gmnReviewsCount ? String(item.gmnReviewsCount).replace(/\D/g, '') + ' avaliações' : ''}</p>
                           <p><span className="font-semibold">Estrutura:</span> {item.size}</p>
                           <p><span className="font-semibold">Status:</span> {item.status}</p>
                         </div>
