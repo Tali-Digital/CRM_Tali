@@ -277,43 +277,29 @@ export default function GestaoProspeccaoEditor() {
     });
 
   return (
-    <div style={{ padding: window.innerWidth <= 768 ? '1rem' : '2rem' }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
-        gap: window.innerWidth <= 768 ? '1.5rem' : '1rem',
-        justifyContent: 'space-between',
-        alignItems: window.innerWidth <= 768 ? 'stretch' : 'center',
-        marginBottom: '1.5rem'
-      }}>
-        <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10">
+    <div className="p-4 sm:p-8 bg-slate-50 min-h-full">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-4 mb-6">
+        <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <button 
             onClick={() => setActiveTab('ativos')}
-            className={`flex items-center justify-center px-4 gap-2 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
+            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
           >
             <Layers size={14} />
             Prospecções Ativas ({countAtivos})
           </button>
           <button 
             onClick={() => setActiveTab('lixeira')}
-            className={`flex items-center justify-center px-4 gap-2 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
+            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
           >
             <Trash2 size={14} />
             Lixeira ({countLixeira})
           </button>
         </div>
-        <div style={{
-          display: 'flex',
-          flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
-          gap: '1rem',
-          width: window.innerWidth <= 768 ? '100%' : 'auto',
-          alignItems: 'center'
-        }}>
-
-          <button onClick={() => setIsGerenciadorOpen(true)} className="btn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', fontSize: '0.9rem' }}>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
+          <button onClick={() => setIsGerenciadorOpen(true)} className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50 shadow-sm text-sm">
             <Settings size={16} /> Gerenciar Modelos
           </button>
-          <button onClick={() => setIsGeradorOpen(true)} className="btn btn-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.2rem', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '500', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', fontSize: '0.9rem' }}>
+          <button onClick={() => setIsGeradorOpen(true)} className="flex items-center justify-center gap-2 bg-blue-600 text-white border-none px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-blue-700 shadow-sm text-sm">
             <Plus size={16} /> Nova Prospecção
           </button>
         </div>
@@ -331,23 +317,24 @@ export default function GestaoProspeccaoEditor() {
         </div>
       )}
 
-      <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="search-input-wrapper" style={{ flex: 1, maxWidth: '400px', position: 'relative', display: 'block' }}>
-            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm mb-6 border border-slate-200">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-center">
+          <div className="relative w-full sm:flex-1 sm:max-w-[400px]">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
               placeholder="Buscar por Clínica ou cliente..." 
-              style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div style={{ position: 'relative' }}>
+          
+          <div className="w-full sm:w-auto relative">
             <select
               value={responsibleFilter}
               onChange={(e) => setResponsibleFilter(e.target.value)}
-              style={{ padding: '0.6rem 2rem 0.6rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'white', appearance: 'none', minWidth: '150px' }}
+              className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos os Responsáveis</option>
               {uniqueResponsibles.map(r => (
@@ -355,12 +342,13 @@ export default function GestaoProspeccaoEditor() {
               ))}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Período:</span>
+          
+          <div className="w-full sm:w-auto flex flex-wrap sm:flex-nowrap gap-2 items-center">
+            <span className="text-sm text-slate-500 font-medium w-full sm:w-auto">Período:</span>
             <select
               value={periodType}
               onChange={(e) => setPeriodType(e.target.value)}
-              style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'white' }}
+              className="flex-1 sm:flex-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Qualquer Período</option>
               <option value="this_month">Este Mês</option>
@@ -369,106 +357,171 @@ export default function GestaoProspeccaoEditor() {
               <option value="custom">Personalizado</option>
             </select>
             {periodType === 'custom' && (
-              <>
+              <div className="flex gap-2 w-full sm:w-auto items-center mt-2 sm:mt-0">
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'white', maxWidth: '140px' }}
+                  className="flex-1 sm:w-[140px] px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   title="Data Inicial"
                 />
-                <span style={{ color: 'var(--text-secondary)' }}>até</span>
+                <span className="text-slate-500 text-sm">até</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'white', maxWidth: '140px' }}
+                  className="flex-1 sm:w-[140px] px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   title="Data Final"
                 />
-              </>
+              </div>
             )}
           </div>
-          <div style={{ position: 'relative' }}>
+          
+          <div className="w-full sm:w-auto relative">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '0.6rem 2rem 0.6rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'white', appearance: 'none', minWidth: '150px' }}
+              className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos os Status</option>
               <option value="entregue">Entregues</option>
               <option value="pendente">Não Entregues</option>
             </select>
           </div>
+          
           {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm) && (
             <button 
               onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); }} 
-              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline', padding: '0.5rem' }}
+              className="text-sm text-slate-500 underline hover:text-slate-700 w-full sm:w-auto text-center sm:text-left py-2 sm:py-0"
             >
               Limpar Filtros
             </button>
           )}
           
-          <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500', backgroundColor: '#f8fafc', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+          <div className="w-full sm:w-auto mt-2 sm:mt-0 sm:ml-auto text-sm text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 text-center sm:text-left">
             Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
           </div>
         </div>
+      </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        {/* MOBILE VIEW (CARDS) */}
+        <div className="flex flex-col gap-3 sm:hidden mb-4">
+          {filteredProspeccoes.map(prospeccao => (
+             <div key={prospeccao.id} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex flex-col gap-3 relative" onClick={() => handleOpenGerador(prospeccao)}>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-800 text-base leading-tight truncate">
+                      {prospeccao.titulo || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.clinicName) || 'Prospecção'}
+                    </h3>
+                    <p className="text-slate-500 text-sm mt-0.5 truncate">
+                      {prospeccao.clienteNome || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.ownerName)}
+                    </p>
+                  </div>
+                  {prospeccao.isEntregue && (
+                    <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap shrink-0 mt-0.5">
+                      ENTREGUE
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex justify-between items-center text-sm border-t border-slate-100 pt-3">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Responsável</span>
+                    {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.responsible ? (
+                      <span className="text-slate-700 font-medium truncate">
+                        {prospectsMap[prospeccao.clienteId].responsible}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Sem Líder</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 items-end shrink-0 pl-2 border-l border-slate-100">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Data</span>
+                    <span className="text-slate-700 font-medium">
+                      {(() => { try { return new Date(prospeccao.dataAssinatura).toLocaleDateString('pt-BR', { timeZone: 'UTC' }); } catch { return '—'; } })()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 justify-end border-t border-slate-100 pt-3 mt-1">
+                    {activeTab === 'lixeira' ? (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); handleRestore(prospeccao) }} title="Restaurar" className="p-2 text-green-600 hover:bg-green-50 rounded"><RefreshCw size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir Permanentemente" className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" className={`p-2 rounded ${prospeccao.documentoId || prospeccao.link ? 'text-blue-600 hover:bg-blue-50' : 'text-slate-300'}`} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-2 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" className="p-2 text-slate-500 hover:bg-slate-100 rounded"><Edit2 size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
+                      </>
+                    )}
+                </div>
+             </div>
+          ))}
+          {filteredProspeccoes.length === 0 && (
+            <div className="text-center p-8 text-slate-500 bg-white rounded-lg border border-slate-200">Nenhuma prospecção encontrada.</div>
+          )}
+        </div>
+
+        {/* DESKTOP VIEW (TABLE) */}
+        <div className="hidden sm:block overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '500' }}>Clínica</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '500' }}>Cliente</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '500' }}>Responsável</th>
-                <th style={{ padding: '1rem' }}>Data da Prospecção</th>
-                <th style={{ padding: '1rem', textAlign: 'center' }}>Ações</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                <th className="p-4 font-semibold">Clínica</th>
+                <th className="p-4 font-semibold">Cliente</th>
+                <th className="p-4 font-semibold">Responsável</th>
+                <th className="p-4 font-semibold">Data da Prospecção</th>
+                <th className="p-4 font-semibold text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredProspeccoes.map(prospeccao => (
-                <tr key={prospeccao.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => handleOpenGerador(prospeccao)} className="prospeccao-row-hover">
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
+                <tr key={prospeccao.id} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => handleOpenGerador(prospeccao)}>
+                  <td className="p-4">
+                    <div className="font-semibold text-slate-800">
                       {prospeccao.titulo || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.clinicName) || 'Prospecção'}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: '500' }}>
+                  <td className="p-4 font-medium text-slate-600">
                     {prospeccao.clienteNome || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.ownerName)}
                   </td>
-                  <td style={{ padding: '1rem' }}>
+                  <td className="p-4">
                     {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.responsible ? (
-                      <span style={{ backgroundColor: '#f1f5f9', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.85rem', color: '#475569', fontWeight: '500' }}>
+                      <span className="bg-slate-100 px-2.5 py-1 rounded-md text-sm text-slate-700 font-medium">
                         {prospectsMap[prospeccao.clienteId].responsible}
                       </span>
                     ) : (
-                      <span style={{ color: '#cbd5e1', fontStyle: 'italic', fontSize: '0.85rem' }}>Sem Líder</span>
+                      <span className="text-slate-400 italic text-sm">Sem Líder</span>
                     )}
                   </td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ whiteSpace: 'nowrap' }}>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="whitespace-nowrap font-medium text-slate-700">
                         {(() => { try { return new Date(prospeccao.dataAssinatura).toLocaleDateString('pt-BR', { timeZone: 'UTC' }); } catch { return '—'; } })()}
                       </span>
                       {prospeccao.isEntregue && (
-                        <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
                           ENTREGUE
                         </span>
                       )}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                  <td className="p-4 text-center">
+                    <div className="flex gap-2 justify-center">
                       {activeTab === 'lixeira' ? (
                         <>
-                          <button onClick={(e) => { e.stopPropagation(); handleRestore(prospeccao) }} title="Restaurar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><RefreshCw size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir Permanentemente" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleRestore(prospeccao) }} title="Restaurar" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><RefreshCw size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Excluir Permanentemente" className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
                         </>
                       ) : (
                         <>
-                          <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" style={{ background: 'none', border: 'none', color: (prospeccao.documentoId || prospeccao.link) ? 'var(--accent-color)' : '#cbd5e1', cursor: (prospeccao.documentoId || prospeccao.link) ? 'pointer' : 'not-allowed' }} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}><Copy size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit2 size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" className={`p-1.5 rounded ${prospeccao.documentoId || prospeccao.link ? 'text-blue-600 hover:bg-blue-50' : 'text-slate-300'}`} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded"><Edit2 size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
                         </>
                       )}
                     </div>
@@ -477,13 +530,12 @@ export default function GestaoProspeccaoEditor() {
               ))}
               {filteredProspeccoes.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhuma prospecção encontrada.</td>
+                  <td colSpan={5} className="p-8 text-center text-slate-500">Nenhuma prospecção encontrada.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
 
       {confirmDelete && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
