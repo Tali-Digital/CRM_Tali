@@ -240,153 +240,164 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 relative z-0">
-      <div className="bg-white border-b border-slate-200 px-6 py-4 relative z-[10]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-              <MapIcon size={20} />
+      <div className="bg-white border-b border-slate-200 px-3 py-3 sm:px-6 sm:py-4 relative z-[10]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <MapIcon size={18} className="sm:hidden" />
+              <MapIcon size={20} className="hidden sm:block" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-800">Rota de Prospecção</h1>
-              <p className="text-sm font-medium text-slate-500">Visualização no mapa dos clientes para visita presencial</p>
+              <h1 className="text-lg sm:text-xl font-black text-slate-800 leading-tight">Rota de Prospecção</h1>
+              <p className="text-[10px] sm:text-sm font-medium text-slate-500 leading-tight">Visualização no mapa para visita</p>
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                setIsRouteSelectionMode(!isRouteSelectionMode);
-                if (isRouteSelectionMode) {
-                  setSelectedRoutePoints([]);
-                }
-              }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold shadow-sm ${
-                isRouteSelectionMode 
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              <MapPin size={16} />
-              {isRouteSelectionMode ? 'Cancelar Rota' : 'Definir Entrega'}
-            </button>
-            
-            <button
-              onClick={handleForceRetry}
-              disabled={isRetrying}
-              className={`flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors text-sm font-semibold shadow-sm ${isRetrying ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <RefreshCw size={16} className={isRetrying ? 'animate-spin' : ''} />
-              {isRetrying ? 'Buscando...' : 'Recalcular Rotas'}
-            </button>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Filtrar por endereço..."
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-48"
-              />
-            </div>
-            
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={selectedResponsible}
-                onChange={(e) => setSelectedResponsible(e.target.value)}
-                className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+            {/* Primeira Linha: Botões de Ação */}
+            <div className="flex w-full gap-2 sm:w-auto">
+              <button
+                onClick={() => {
+                  setIsRouteSelectionMode(!isRouteSelectionMode);
+                  if (isRouteSelectionMode) {
+                    setSelectedRoutePoints([]);
+                  }
+                }}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm font-semibold shadow-sm ${
+                  isRouteSelectionMode 
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                <option value="">Todos os Responsáveis</option>
-                {responsibles.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                className="flex items-center justify-between gap-2 pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white w-[200px] text-left hover:bg-slate-50 transition-colors"
-              >
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <span className="truncate">
-                  {selectedCities.length === 0 ? 'Todas as Cidades' : `${selectedCities.length} selecionada(s)`}
-                </span>
-                <Filter size={14} className="text-slate-400 flex-shrink-0" />
+                <MapPin size={14} className="shrink-0" />
+                <span className="truncate">{isRouteSelectionMode ? 'Cancelar' : 'Definir Entrega'}</span>
               </button>
               
-              {isCityDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsCityDropdownOpen(false)}></div>
-                  <div className="absolute top-full left-0 mt-1 w-[280px] bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-[22rem] overflow-y-auto flex flex-col">
-                    <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10 flex flex-col gap-2 shadow-sm">
-                      <div className="flex justify-between items-center px-1">
-                        <span className="text-xs font-semibold text-slate-500">Filtrar Cidades</span>
-                        <button 
-                          onClick={() => setSelectedCities([])}
-                          className="text-xs text-blue-600 font-semibold hover:underline"
-                        >
-                          Limpar
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        <input
-                          type="text"
-                          placeholder="Buscar cidade..."
-                          value={citySearchTerm}
-                          onChange={(e) => setCitySearchTerm(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto">
-                      {availableCities
-                        .filter(city => {
-                          const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                          return normalize(city).includes(normalize(citySearchTerm));
-                        })
-                        .map(city => {
-                          const isSelected = selectedCities.includes(city);
-                          return (
-                            <label key={city} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
-                              <input 
-                                type="checkbox" 
-                                checked={isSelected}
-                                onChange={() => {
-                                  if (isSelected) {
-                                    setSelectedCities(prev => prev.filter(c => c !== city));
-                                  } else {
-                                    setSelectedCities(prev => [...prev, city]);
-                                  }
-                                }}
-                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                              />
-                              <span className="text-sm text-slate-700 font-medium truncate" title={city}>{city}</span>
-                            </label>
-                          );
-                      })}
-                      {availableCities.filter(city => {
-                          const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                          return normalize(city).includes(normalize(citySearchTerm));
-                        }).length === 0 && (
-                        <div className="p-4 text-center text-xs text-slate-400">Nenhuma cidade encontrada</div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              <button
+                onClick={handleForceRetry}
+                disabled={isRetrying}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors text-xs sm:text-sm font-semibold shadow-sm ${isRetrying ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <RefreshCw size={14} className={`shrink-0 ${isRetrying ? 'animate-spin' : ''}`} />
+                <span className="truncate">{isRetrying ? 'Buscando...' : 'Recalcular'}</span>
+              </button>
+            </div>
+
+            {/* Segunda Linha: Busca e Checkbox */}
+            <div className="flex w-full gap-2 sm:w-auto">
+              <div className="relative flex-[2] sm:flex-none sm:w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  placeholder="Endereço..."
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <label className="flex-[1] sm:flex-none flex items-center justify-center gap-1.5 cursor-pointer bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
+                <input
+                  type="checkbox"
+                  checked={showDelivered}
+                  onChange={(e) => setShowDelivered(e.target.checked)}
+                  className="rounded text-blue-600 w-3.5 h-3.5 shrink-0"
+                />
+                <span className="text-[11px] sm:text-sm font-semibold text-slate-700 truncate">Entregues</span>
+              </label>
             </div>
             
-            <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
-              <input
-                type="checkbox"
-                checked={showDelivered}
-                onChange={(e) => setShowDelivered(e.target.checked)}
-                className="rounded text-blue-600 w-4 h-4"
-              />
-              <span className="text-sm font-semibold text-slate-700">Mostrar Entregues</span>
-            </label>
+            {/* Terceira Linha: Filtros de Select */}
+            <div className="flex w-full gap-2 sm:w-auto">
+              <div className="relative flex-1 sm:flex-none sm:w-40 min-w-0">
+                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <select
+                  value={selectedResponsible}
+                  onChange={(e) => setSelectedResponsible(e.target.value)}
+                  className="w-full pl-8 pr-6 py-1.5 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white truncate"
+                >
+                  <option value="">Todos Resp.</option>
+                  {responsibles.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="relative flex-1 sm:flex-none sm:w-[200px] min-w-0">
+                <button 
+                  onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                  className="w-full flex items-center justify-between gap-1 pl-8 pr-2 py-1.5 sm:py-2 border border-slate-200 rounded-lg text-xs sm:text-sm bg-white text-left hover:bg-slate-50 transition-colors"
+                >
+                  <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <span className="truncate flex-1">
+                    {selectedCities.length === 0 ? 'Cidades' : `${selectedCities.length} cid.`}
+                  </span>
+                  <Filter size={12} className="text-slate-400 shrink-0" />
+                </button>
+                
+                {isCityDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsCityDropdownOpen(false)}></div>
+                    <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-1 w-[260px] sm:w-[280px] bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-[22rem] overflow-y-auto flex flex-col">
+                      <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10 flex flex-col gap-2 shadow-sm">
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-xs font-semibold text-slate-500">Filtrar Cidades</span>
+                          <button 
+                            onClick={() => setSelectedCities([])}
+                            className="text-xs text-blue-600 font-semibold hover:underline"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          <input
+                            type="text"
+                            placeholder="Buscar cidade..."
+                            value={citySearchTerm}
+                            onChange={(e) => setCitySearchTerm(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto">
+                        {availableCities
+                          .filter(city => {
+                            const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            return normalize(city).includes(normalize(citySearchTerm));
+                          })
+                          .map(city => {
+                            const isSelected = selectedCities.includes(city);
+                            return (
+                              <label key={city} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    if (isSelected) {
+                                      setSelectedCities(prev => prev.filter(c => c !== city));
+                                    } else {
+                                      setSelectedCities(prev => [...prev, city]);
+                                    }
+                                  }}
+                                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                />
+                                <span className="text-sm text-slate-700 font-medium truncate" title={city}>{city}</span>
+                              </label>
+                            );
+                        })}
+                        {availableCities.filter(city => {
+                            const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            return normalize(city).includes(normalize(citySearchTerm));
+                          }).length === 0 && (
+                          <div className="p-4 text-center text-xs text-slate-400">Nenhuma cidade encontrada</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -459,7 +470,7 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
         
         {/* Route Panel */}
         {isRouteSelectionMode && (
-          <div className="absolute top-4 right-4 z-[1000] w-80 bg-white rounded-xl shadow-xl border border-slate-200 flex flex-col max-h-[80%]">
+          <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000] w-[calc(100vw-1rem)] sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 flex flex-col max-h-[70%] sm:max-h-[80%]">
             <div className="p-4 border-b border-slate-100 bg-slate-50 rounded-t-xl flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -553,7 +564,7 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
         
         {/* Summary Legend (when finished/always showing) */}
         {!geocodingProgress && filteredProspects.length > 0 && (
-          <div className="absolute bottom-6 right-6 z-[1000] bg-white p-4 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-3 max-h-[16rem] w-72">
+          <div className="hidden sm:flex absolute bottom-6 right-6 z-[1000] bg-white p-4 rounded-xl shadow-lg border border-slate-200 flex-col gap-3 max-h-[16rem] w-72">
             <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-2">
               <MapPin size={16} className="text-blue-600" /> Resumo das Rotas
             </h4>
@@ -579,7 +590,7 @@ export const RotaProspeccaoView = ({ companyId }: { companyId: string }) => {
         )}
         
         {/* Info Legend */}
-        <div className="absolute bottom-6 left-6 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-2">
+        <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 z-[1000] bg-white/90 backdrop-blur-sm p-2 sm:p-3 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-1.5 sm:gap-2">
           <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">Legenda</h4>
           <div className="flex items-center gap-2">
             <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" alt="Pendente" className="w-4 h-6 object-contain" />
