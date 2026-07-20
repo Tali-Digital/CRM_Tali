@@ -35,9 +35,10 @@ export default function GestaoProspeccaoEditor() {
   const [responsibleFilter, setResponsibleFilter] = useState<string>(() => getSavedFilter('responsibleFilter', ''));
   const [periodType, setPeriodType] = useState<string>(() => getSavedFilter('periodType', 'all'));
   const [startDate, setStartDate] = useState<string>(() => getSavedFilter('startDate', ''));
-  const [activeTab, setActiveTab] = useState<'ativos' | 'lixeira'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'lixeira' | 'entregues'>('ativos');
   const [endDate, setEndDate] = useState<string>(() => getSavedFilter('endDate', ''));
   const [statusFilter, setStatusFilter] = useState<string>(() => getSavedFilter('statusFilter', ''));
+  const [locationFilter, setLocationFilter] = useState<string>(() => getSavedFilter('locationFilter', ''));
 
   useEffect(() => {
     const uid = auth?.currentUser?.uid || 'guest';
@@ -47,19 +48,21 @@ export default function GestaoProspeccaoEditor() {
     localStorage.setItem(`gestao_filters_${uid}_startDate`, JSON.stringify(startDate));
     localStorage.setItem(`gestao_filters_${uid}_endDate`, JSON.stringify(endDate));
     localStorage.setItem(`gestao_filters_${uid}_statusFilter`, JSON.stringify(statusFilter));
-  }, [searchTerm, responsibleFilter, periodType, startDate, endDate, statusFilter]);
+    localStorage.setItem(`gestao_filters_${uid}_locationFilter`, JSON.stringify(locationFilter));
+  }, [searchTerm, responsibleFilter, periodType, startDate, endDate, statusFilter, locationFilter]);
 
   useEffect(() => {
     const unsubscribe = subscribeToProspeccaoDocs(docs => setProspeccoes(docs));
     
     const unsubscribeProspects = onSnapshot(collection(db, 'prospects'), (snapshot) => {
-      const map: Record<string, { responsible: string; ownerName: string; clinicName: string; }> = {};
+      const map: Record<string, { responsible: string; ownerName: string; clinicName: string; location: string; }> = {};
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         map[doc.id] = {
           responsible: data.responsible || '',
           ownerName: data.ownerName || '',
-          clinicName: data.clinicName || ''
+          clinicName: data.clinicName || '',
+          location: data.location || ''
         };
       });
       setProspectsMap(map);
@@ -71,7 +74,19 @@ export default function GestaoProspeccaoEditor() {
     };
   }, []);
 
-  const uniqueResponsibles = Array.from(new Set(Object.values(prospectsMap).map((p: any) => p.responsible).filter(Boolean))).sort() as string[];
+  const activeProspeccoes = prospeccoes.filter(c => {
+    if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true;
+    if (activeTab === 'entregues') return c.isDeleted !== true && c.isEntregue === true;
+    return c.isDeleted === true;
+  });
+
+  const uniqueResponsibles = Array.from(new Set(
+    activeProspeccoes.map(c => c.clienteId ? prospectsMap[c.clienteId]?.responsible : null).filter(Boolean)
+  )).sort() as string[];
+  
+  const uniqueLocations = Array.from(new Set(
+    activeProspeccoes.map(c => c.clienteId ? prospectsMap[c.clienteId]?.location : null).filter(Boolean)
+  )).sort() as string[];
 
   const handleOpenGerador = (prospeccao?: EditorProspeccaoDoc) => {
     if (prospeccao) {
@@ -217,12 +232,14 @@ export default function GestaoProspeccaoEditor() {
     }
   };
 
-  const countAtivos = prospeccoes.filter(c => c.isDeleted !== true).length;
+  const countAtivos = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue !== true).length;
+  const countEntregues = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue === true).length;
   const countLixeira = prospeccoes.filter(c => c.isDeleted === true).length;
 
   const filteredProspeccoes = prospeccoes
     .filter(c => {
-      if (activeTab === 'ativos') return c.isDeleted !== true;
+      if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true;
+      if (activeTab === 'entregues') return c.isDeleted !== true && c.isEntregue === true;
       return c.isDeleted === true;
     })
     .filter(c => {
@@ -234,6 +251,11 @@ export default function GestaoProspeccaoEditor() {
       if (!responsibleFilter) return true;
       const resp = c.clienteId ? prospectsMap[c.clienteId]?.responsible : null;
       return resp === responsibleFilter;
+    })
+    .filter(c => {
+      if (!locationFilter) return true;
+      const loc = c.clienteId ? prospectsMap[c.clienteId]?.location : null;
+      return loc === locationFilter;
     })
     .filter(c => {
       if (periodType === 'all') return true;
@@ -277,7 +299,7 @@ export default function GestaoProspeccaoEditor() {
     });
 
   return (
-    <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-y-auto custom-scrollbar">
+    <div className="p-4 sm:p-8 pb-32 bg-slate-50 h-full overflow-y-auto custom-scrollbar">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-4 mb-6">
         <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <button 
@@ -285,7 +307,14 @@ export default function GestaoProspeccaoEditor() {
             className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
           >
             <Layers size={14} />
-            Prospecções Ativas ({countAtivos})
+            Ativas ({countAtivos})
+          </button>
+          <button 
+            onClick={() => setActiveTab('entregues')}
+            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'entregues' ? 'bg-green-500 shadow-sm shadow-green-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-green-500'}`}
+          >
+            <CheckCircle size={14} />
+            Entregues ({countEntregues})
           </button>
           <button 
             onClick={() => setActiveTab('lixeira')}
@@ -354,6 +383,19 @@ export default function GestaoProspeccaoEditor() {
               <option value="pendente">Não Entregues</option>
             </select>
           </div>
+          
+          <div className="col-span-1 sm:w-auto relative">
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="w-full sm:min-w-[150px] pl-3 pr-8 py-2 rounded-lg border border-slate-200 outline-none bg-white appearance-none text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Local: Todos</option>
+              {uniqueLocations.map(l => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="col-span-2 sm:col-span-1 sm:w-auto flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <select
@@ -389,9 +431,9 @@ export default function GestaoProspeccaoEditor() {
           </div>
           
           <div className="col-span-1 flex items-center justify-start sm:w-auto">
-            {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm) && (
+            {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm || locationFilter) && (
               <button 
-                onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); }} 
+                onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); setLocationFilter(''); }} 
                 className="text-xs sm:text-sm text-slate-500 underline hover:text-slate-700 py-1"
               >
                 Limpar Filtros
@@ -426,6 +468,13 @@ export default function GestaoProspeccaoEditor() {
                     </span>
                   )}
                 </div>
+                
+                {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.location && (
+                  <div className="text-sm text-slate-500 truncate mt-1">
+                    <span className="font-semibold text-slate-600 mr-1">Local:</span>
+                    {prospectsMap[prospeccao.clienteId].location}
+                  </div>
+                )}
                 
                 <div className="flex justify-between items-center text-sm border-t border-slate-100 pt-3">
                   <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
@@ -475,6 +524,7 @@ export default function GestaoProspeccaoEditor() {
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                 <th className="p-4 font-semibold">Clínica</th>
                 <th className="p-4 font-semibold">Cliente</th>
+                <th className="p-4 font-semibold">Local</th>
                 <th className="p-4 font-semibold">Responsável</th>
                 <th className="p-4 font-semibold">Data da Prospecção</th>
                 <th className="p-4 font-semibold text-center">Ações</th>
@@ -490,6 +540,15 @@ export default function GestaoProspeccaoEditor() {
                   </td>
                   <td className="p-4 font-medium text-slate-600">
                     {prospeccao.clienteNome || (prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.ownerName)}
+                  </td>
+                  <td className="p-4">
+                    {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.location ? (
+                      <span className="text-slate-600 text-sm">
+                        {prospectsMap[prospeccao.clienteId].location}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic text-sm">—</span>
+                    )}
                   </td>
                   <td className="p-4">
                     {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.responsible ? (
@@ -533,7 +592,7 @@ export default function GestaoProspeccaoEditor() {
               ))}
               {filteredProspeccoes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500">Nenhuma prospecção encontrada.</td>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">Nenhuma prospecção encontrada.</td>
                 </tr>
               )}
             </tbody>

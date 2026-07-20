@@ -451,10 +451,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const processedProspects = useMemo(() => {
     let result = prospects.filter(p => {
       const matchesSearch = 
-        p.clinicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.responsible && p.responsible.toLowerCase().includes(searchTerm.toLowerCase()));
+        (p.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ((p.responsible || '').toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesFilters = Object.entries(filters).every(([key, value]) => {
         if (!value) return true;
@@ -490,6 +490,33 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
     return result;
   }, [prospects, searchTerm, filters, sortConfig, quickFilter]);
+
+  const duplicateIds = useMemo(() => {
+    const ids = new Set<string>();
+    const groups = new Map<string, Prospect[]>();
+    prospects.forEach(p => {
+      if (!p.clinicName) return;
+      const normalizedName = p.clinicName.toLowerCase().trim().replace(/\s+/g, ' ');
+      if (!groups.has(normalizedName)) groups.set(normalizedName, []);
+      groups.get(normalizedName)!.push(p);
+    });
+    groups.forEach(items => {
+      if (items.length > 1) {
+        const locGroups = new Map<string, Prospect[]>();
+        items.forEach(item => {
+           const loc = (item.location || '').toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').split(' ')[0] || 'unknown';
+           if (!locGroups.has(loc)) locGroups.set(loc, []);
+           locGroups.get(loc)!.push(item);
+        });
+        locGroups.forEach(subItems => {
+          if (subItems.length > 1) {
+            subItems.forEach(s => ids.add(s.id));
+          }
+        });
+      }
+    });
+    return ids;
+  }, [prospects]);
 
   const handleOpenModal = (prospect?: Prospect, startInAITab = false) => {
     setActiveTab(startInAITab ? 'ia' : 'dados');
@@ -664,38 +691,45 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     const groups = new Map<string, Prospect[]>();
 
     prospects.forEach(p => {
+      if (!p.clinicName) return;
       const normalizedName = p.clinicName.toLowerCase().trim().replace(/\s+/g, ' ');
-      const normalizedLocation = (p.location || '').toLowerCase().trim().replace(/\s+/g, ' ');
-      const key = `${normalizedName}|${normalizedLocation}`;
-      
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(p);
+      if (!groups.has(normalizedName)) groups.set(normalizedName, []);
+      groups.get(normalizedName)!.push(p);
     });
 
     const duplicates: {key: string; items: Prospect[]; hasDifferences: boolean}[] = [];
 
-    groups.forEach((items, key) => {
+    groups.forEach((items, normalizedName) => {
       if (items.length > 1) {
-        let hasDifferences = false;
-        const baseItem = items[0];
-        for (let i = 1; i < items.length; i++) {
-          const item = items[i];
-          if (
-            item.gmnRating !== baseItem.gmnRating ||
-            item.gmnReviewsCount !== baseItem.gmnReviewsCount ||
-            item.clinicInstagram !== baseItem.clinicInstagram ||
-            item.ownerName !== baseItem.ownerName ||
-            item.site !== baseItem.site ||
-            item.responsible !== baseItem.responsible ||
-            item.size !== baseItem.size
-          ) {
-            hasDifferences = true;
-            break;
-          }
-        }
-        duplicates.push({ key, items, hasDifferences });
+        const locGroups = new Map<string, Prospect[]>();
+        items.forEach(item => {
+           const loc = (item.location || '').toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').split(' ')[0] || 'unknown';
+           if (!locGroups.has(loc)) locGroups.set(loc, []);
+           locGroups.get(loc)!.push(item);
+        });
+        
+        locGroups.forEach((subItems, locKey) => {
+           if (subItems.length > 1) {
+             let hasDifferences = false;
+             const baseItem = subItems[0];
+             for (let i = 1; i < subItems.length; i++) {
+               const item = subItems[i];
+               if (
+                 item.gmnRating !== baseItem.gmnRating ||
+                 item.gmnReviewsCount !== baseItem.gmnReviewsCount ||
+                 item.clinicInstagram !== baseItem.clinicInstagram ||
+                 item.ownerName !== baseItem.ownerName ||
+                 item.site !== baseItem.site ||
+                 item.responsible !== baseItem.responsible ||
+                 item.size !== baseItem.size
+               ) {
+                 hasDifferences = true;
+                 break;
+               }
+             }
+             duplicates.push({ key: `${normalizedName} (${locKey})`, items: subItems, hasDifferences });
+           }
+        });
       }
     });
 
@@ -1366,7 +1400,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
                       className="px-4 py-4 border-r border-gray-100 cursor-pointer hover:bg-blue-50/40 transition-colors"
                     >
-                      <div className="font-bold text-gray-900">{p.clinicName}</div>
+                      <div className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+                        {p.clinicName}
+                        {duplicateIds.has(p.id) && (
+                          <span className="bg-red-100 text-red-700 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-red-200 shadow-sm flex items-center gap-1 shrink-0" title="Possível prospecto duplicado (Nome e Bairro parecidos)">
+                            <AlertTriangle size={10} /> DUPLICADO
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td 
                       onClick={() => !hasDragged && handleOpenModal(p, false)}
@@ -1637,8 +1678,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           </span>
                         )}
                       </div>
-                      <h3 className="font-black text-gray-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
+                      <h3 className="font-black text-gray-900 text-base leading-tight group-hover:text-blue-900 transition-colors flex items-center gap-2 flex-wrap">
                         {p.clinicName}
+                        {duplicateIds.has(p.id) && (
+                          <span className="bg-red-100 text-red-700 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-red-200 shadow-sm flex items-center gap-1 shrink-0" title="Possível prospecto duplicado (Nome e Bairro parecidos)">
+                            <AlertTriangle size={10} /> DUPLICADO
+                          </span>
+                        )}
                       </h3>
                     </div>
   
