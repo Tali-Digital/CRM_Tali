@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2 } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface GeradorProspeccaoProps {
@@ -28,6 +28,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [viewHtml, setViewHtml] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [totalPages, setTotalPages] = useState(1);
+  const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [estilos, setEstilos] = useState({
     h1: { size: 16, bold: true, uppercase: true, indent: 0 },
     h2: { size: 14, bold: true, uppercase: true, indent: 0 },
@@ -70,6 +71,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             setCidadeBairro(data.location || '');
             setEnderecoCompleto(data.fullAddress || '');
             setClinica(data.clinicName || '');
+            if (data.marketingDiagnostic) setDiagnosticData(data.marketingDiagnostic);
             
             const rawOwner = data.ownerName || '';
             const parts = rawOwner.split(/,| e /i).map((s: string) => s.trim()).filter(Boolean);
@@ -142,6 +144,124 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleEditorInput = () => {
     if (editorRef.current) setPreviewHtml(editorRef.current.innerHTML);
+  };
+
+  const handleInjectDiagnostic = () => {
+    if (!diagnosticData) {
+      Swal.fire('Diagnóstico ausente', 'Esta clínica ainda não possui um diagnóstico de IA gerado.', 'warning');
+      return;
+    }
+    if (!editorRef.current) return;
+    
+    const { resumo1, resumo2, resumo3, planoAcao, concorrentes, placar, site, anuncios, gmn } = diagnosticData;
+    
+    const resumoHtml = `
+      <div style="background-color: #f8fafc; border-left: 4px solid #6366f1; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Resumo Executivo (IA)</h3>
+        <p style="margin-bottom: 10px;">${resumo1}</p>
+        <p style="margin-bottom: 10px;">${resumo2}</p>
+        <p style="margin-bottom: 0;">${resumo3}</p>
+      </div>
+    `;
+
+    const placarHtml = placar ? `
+      <div style="background-color: #f8fafc; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Placar de Presença (IA)</h3>
+        <ul style="padding-left: 20px;">
+          <li>Google: ${placar.google}/100</li>
+          <li>Reputação: ${placar.reputacao}/100</li>
+          <li>Instagram: ${placar.instagram}/100</li>
+          <li>Site: ${placar.site}/100</li>
+          <li>Ads: ${placar.ads}/100</li>
+        </ul>
+      </div>
+    ` : '';
+
+    const gmnHtml = gmn ? `
+      <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Google Meu Negócio (IA)</h3>
+        <p>Você aparece no Top 3 em <strong>${gmn.top3Percent}%</strong> da região, e está invisível em <strong>${gmn.foraTop20Percent}%</strong>.</p>
+        <ul style="padding-left: 20px;">
+          <li>${gmn.oportunidade1}</li>
+          <li>${gmn.oportunidade2}</li>
+        </ul>
+      </div>
+    ` : '';
+
+    const siteHtml = site ? `
+      <div style="background-color: #f8fafc; border-left: 4px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Site e Performance (IA)</h3>
+        <p>Velocidade: <strong>${site.velocidade}/100</strong>. Possui botão WhatsApp: <strong>${site.whatsapp ? 'Sim' : 'Não'}</strong>.</p>
+        <ul style="padding-left: 20px;">
+          <li>${site.oportunidade1}</li>
+          <li>${site.oportunidade2}</li>
+        </ul>
+      </div>
+    ` : '';
+
+    const anunciosHtml = anuncios ? `
+      <div style="background-color: #f8fafc; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Tráfego Pago (IA)</h3>
+        <p>Anuncia no Google: ${anuncios.clienteAnunciaGoogle ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesGoogle}.</p>
+        <p>Anuncia no Meta: ${anuncios.clienteAnunciaMeta ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesMeta}.</p>
+        <ul style="padding-left: 20px;">
+          <li>${anuncios.oportunidade1}</li>
+          <li>${anuncios.oportunidade2}</li>
+        </ul>
+      </div>
+    ` : '';
+
+    const cData = prospect?.calculatorData || {};
+    const ticketMedio = cData.ticketMedio || 1500;
+    const buscasMes = 500;
+    const agr = Math.round(buscasMes * 0.06 * ticketMedio);
+
+    const dinheiroMesaHtml = `
+      <div style="background-color: #f8fafc; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Dinheiro na Mesa (Estimativa)</h3>
+        <p>Com um ticket médio de R$ ${ticketMedio.toLocaleString('pt-BR')} e 500 buscas mensais estimadas na região, uma campanha agressiva captando 6% das buscas pode gerar até <strong>R$ ${agr.toLocaleString('pt-BR')} de faturamento extra por mês.</strong></p>
+      </div>
+    `;
+    
+    const planoHtml = `
+      <div style="background-color: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Plano de Ação de 30 Dias (IA)</h3>
+        <ul style="padding-left: 20px;">
+          ${planoAcao.map((acao: any) => `<li style="margin-bottom: 8px;"><strong>${acao.titulo}</strong>: ${acao.descricao}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+    
+    const concorrentesHtml = `
+      <div style="background-color: #f8fafc; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Análise de Concorrentes (IA)</h3>
+        <ul style="padding-left: 20px;">
+          ${concorrentes.map((c: any) => `<li style="margin-bottom: 8px;"><strong>${c.nome}</strong>: Nota ${c.nota} (${c.avaliacoes} avaliações). Anuncia no Google: ${c.anunciaGoogle ? 'Sim' : 'Não'}.</li>`).join('')}
+        </ul>
+      </div>
+    `;
+    
+    let html = editorRef.current.innerHTML;
+    let appended = '';
+    
+    if (html.includes('{{IA_RESUMO}}')) html = html.replace(/{{IA_RESUMO}}/g, resumoHtml); else appended += resumoHtml;
+    if (html.includes('{{IA_PLACAR}}')) html = html.replace(/{{IA_PLACAR}}/g, placarHtml); else appended += placarHtml;
+    if (html.includes('{{IA_GMN}}')) html = html.replace(/{{IA_GMN}}/g, gmnHtml); else appended += gmnHtml;
+    if (html.includes('{{IA_SITE}}')) html = html.replace(/{{IA_SITE}}/g, siteHtml); else appended += siteHtml;
+    if (html.includes('{{IA_ANUNCIOS}}')) html = html.replace(/{{IA_ANUNCIOS}}/g, anunciosHtml); else appended += anunciosHtml;
+    if (html.includes('{{IA_DINHEIRO}}')) html = html.replace(/{{IA_DINHEIRO}}/g, dinheiroMesaHtml); else appended += dinheiroMesaHtml;
+    if (html.includes('{{IA_PLANO_ACAO}}')) html = html.replace(/{{IA_PLANO_ACAO}}/g, planoHtml); else appended += planoHtml;
+    if (html.includes('{{IA_CONCORRENTES}}')) html = html.replace(/{{IA_CONCORRENTES}}/g, concorrentesHtml); else appended += concorrentesHtml;
+    
+    if (appended) {
+      editorRef.current.innerHTML = html + '<br><br>' + appended;
+      handleEditorInput();
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dados inseridos (alguns no final)!', showConfirmButton: false, timer: 2000 });
+    } else {
+      editorRef.current.innerHTML = html;
+      handleEditorInput();
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dados da IA Injetados!', showConfirmButton: false, timer: 2000 });
+    }
   };
 
   const handleMarcarEntregue = async () => {
@@ -796,6 +916,23 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.2rem 0' }} />
+              
+              {/* Diagnóstico IA */}
+              {diagnosticData && (
+                <div style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Brain size={16} /> Dados da IA
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+                    Escreva <b>{"{{IA_RESUMO}}"}</b>, <b>{"{{IA_PLANO_ACAO}}"}</b> ou <b>{"{{IA_CONCORRENTES}}"}</b> no texto e clique abaixo para injetar, ou apenas clique para inserir no final.
+                  </p>
+                  <button onClick={handleInjectDiagnostic} style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 'bold' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#4f46e5'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#6366f1'}>
+                    <Wand2 size={16} /> Injetar Diagnóstico
+                  </button>
+                </div>
+              )}
+              
+              {diagnosticData && <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.2rem 0' }} />}
 
               {/* Data da Prospecção - Único campo editável */}
               <div>

@@ -285,6 +285,7 @@ export interface Prospect {
   clinicInstagram: string;
   gmn: string;
   site: string;
+  cnpj?: string;
   ownerName: string;
   ownerInstagram: string;
   size: string;
@@ -296,6 +297,7 @@ export interface Prospect {
   lastFollowUp: string;
   observations: string;
   firstContactDate: string;
+  marketingDiagnostic?: any;
   week: string;
   companyId: CompanyType;
   createdAt?: any;
@@ -327,7 +329,7 @@ export interface Prospect {
   lng?: number;
   geocodeFailed?: boolean;
   isEntregue?: boolean;
-  owners?: { name: string; instagram: string }[];
+  owners?: { name: string; instagram: string; role?: string }[];
 }
 
 export interface EditorProspeccaoDoc {

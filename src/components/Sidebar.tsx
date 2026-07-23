@@ -19,7 +19,8 @@ import {
   Search,
   FileText,
   Lock,
-  Map
+  Map,
+  Wand2, Activity
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -99,9 +100,11 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
     {
       id: 'vendas', icon: Search, label: 'Vendas & Prospecção', isGroup: true,
       children: [
-        { id: 'prospeccao', icon: Search, label: 'Prospecção online' },
-        { id: 'editor_prospeccao', icon: FileText, label: 'Prospecção Presencial' },
-        { id: 'rota_prospeccao', icon: Map, label: 'Rota de Prospecção' },
+        { id: 'lead_generator', icon: Wand2, iconColor: 'text-purple-400', label: 'Gerador de Leads (IA)' },
+        { id: 'prospeccao', icon: Search, iconColor: 'text-blue-400', label: 'Prospecção online' },
+        { id: 'marketing_diagnostic', icon: Activity, iconColor: 'text-orange-400', label: 'Diagnóstico de Marketing' },
+        { id: 'editor_prospeccao', icon: FileText, iconColor: 'text-emerald-400', label: 'Prospecção Presencial' },
+        { id: 'rota_prospeccao', icon: Map, iconColor: 'text-stone-400', label: 'Rota de Prospecção' },
       ]
     },
     {
@@ -192,7 +195,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
                    >
                       <div className="flex items-center space-x-3 min-w-0">
                         {isActive && <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full bg-[#5271FF]" />}
-                        <ChildIcon size={16} className={`shrink-0 ${isActive ? 'text-white' : 'text-white/60'}`} />
+                        <ChildIcon size={16} className={`shrink-0 ${isActive ? 'text-white' : (child.iconColor || 'text-white/60')}`} />
                         <span className={`text-sm truncate ${isActive ? 'font-bold' : 'font-medium text-white/80'}`}>{child.label}</span>
                       </div>
                       {child.onEdit && (

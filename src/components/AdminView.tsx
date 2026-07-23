@@ -5,14 +5,18 @@ import { getGlobalSettings, updateGlobalSettings } from '../services/firestoreSe
 
 export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile }) => {
   const [geminiKey, setGeminiKey] = useState('');
+  const [outscraperKey, setOutscraperKey] = useState('');
+  const [localFalconKey, setLocalFalconKey] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getGlobalSettings('gemini');
-      if (settings && settings.key) {
-        setGeminiKey(settings.key);
+      if (settings) {
+        if (settings.key) setGeminiKey(settings.key);
+        if (settings.outscraperKey) setOutscraperKey(settings.outscraperKey);
+        if (settings.localFalconKey) setLocalFalconKey(settings.localFalconKey);
       }
       setIsLoading(false);
     };
@@ -24,7 +28,11 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   }, [userProfile]);
 
   const handleSaveKey = async () => {
-    await updateGlobalSettings('gemini', { key: geminiKey });
+    await updateGlobalSettings('gemini', { 
+      key: geminiKey,
+      outscraperKey,
+      localFalconKey
+    });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -67,7 +75,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Configurações de API */}
-          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group">
+          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col h-full">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-50" />
             
             <div className="flex items-center gap-3 mb-6">
@@ -75,7 +83,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
               <h2 className="text-xl font-bold">Chave da API do Gemini</h2>
             </div>
             
-            <p className="text-white/60 text-sm mb-6">
+            <p className="text-white/60 text-sm mb-6 flex-1">
               Esta chave é utilizada para gerar as análises de IA e sugestões de mensagens. Certifique-se de usar uma chave válida do Google AI Studio.
             </p>
 
@@ -99,17 +107,87 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
                 </p>
                 <button
                   onClick={handleSaveKey}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 text-sm"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all"
                 >
-                  <Save size={16} />
-                  {saveSuccess ? 'Salvo!' : 'Salvar Chave'}
+                  <Save className="w-4 h-4" />
+                  Salvar Chaves
                 </button>
               </div>
+
+              {saveSuccess && (
+                <div className="mt-4 bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl flex items-center justify-center gap-2">
+                  <span>Chaves salvas com sucesso!</span>
+                </div>
+              )}
             </div>
           </div>
+          
+          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col h-full">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#5271FF] to-[#38bdf8] opacity-50" />
+            
+            <div className="flex items-center gap-3 mb-6">
+              <Database className="text-[#5271FF]" />
+              <h2 className="text-xl font-bold">Chaves de Integração (Gerador de Leads)</h2>
+            </div>
+            
+            <p className="text-white/60 text-sm mb-6 flex-1">
+              Insira abaixo as chaves necessárias para as integrações de prospecção digital (Outscraper, Local Falcon, etc).
+            </p>
+
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-white/80 mb-2">
+                    API Key Outscraper (Google Maps)
+                  </label>
+                  <input
+                    type="password"
+                    value={outscraperKey}
+                    onChange={(e) => setOutscraperKey(e.target.value)}
+                    placeholder="Cole sua API Key do Outscraper"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                  />
+                  <p className="text-xs text-white/40 mt-1">Usada no Gerador Inteligente de Leads.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-white/80 mb-2">
+                    API Key Local Falcon (Análise de SEO)
+                  </label>
+                  <input
+                    type="password"
+                    value={localFalconKey}
+                    onChange={(e) => setLocalFalconKey(e.target.value)}
+                    placeholder="Cole sua API Key do Local Falcon"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                  />
+                  <p className="text-xs text-white/40 mt-1">Usada na etapa de verificação de ICP para gerar raio-X.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-white/40">
+                  Estas chaves ficam salvas junto com a configuração global.
+                </p>
+                <button
+                  onClick={handleSaveKey}
+                  className="flex items-center gap-2 bg-[#5271FF] hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar Chaves
+                </button>
+              </div>
+
+              {saveSuccess && (
+                <div className="mt-2 bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl flex items-center justify-center gap-2">
+                  <span>Chaves salvas com sucesso!</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
           {/* Sugestões de Ferramentas Administrativas */}
-          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10">
+          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 mt-8">
             <div className="flex items-center gap-3 mb-6">
               <AlertTriangle className="text-orange-400" />
               <h2 className="text-xl font-bold">Zona de Perigo & Ferramentas</h2>
@@ -182,7 +260,6 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

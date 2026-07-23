@@ -18,6 +18,8 @@ import { ProspectingView } from './components/ProspectingView';
 import { RotaProspeccaoView } from './components/RotaProspeccaoView';
 import { UnifiedCardManagerView } from './components/UnifiedCardManagerView';
 import { UserMenu } from './components/UserMenu';
+import { LeadGeneratorView } from './components/LeadGeneratorView';
+import { MarketingDiagnosticView } from './components/MarketingDiagnosticView';
 import { UserProfileModal } from './components/UserProfileModal';
 import { UserManagementModal } from './components/UserManagementModal';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -1087,6 +1089,10 @@ export function App() {
         return <QuickLinksView links={quickLinks} companyId={selectedCompanyId} />;
       case 'admin':
         return <AdminView userProfile={userProfile} />;
+      case 'lead_generator':
+        return <LeadGeneratorView />;
+      case 'marketing_diagnostic':
+        return <MarketingDiagnosticView companyId={selectedCompanyId} />;
       case 'prospeccao':
         return <ProspectingView companyId={selectedCompanyId} />;
       case 'rota_prospeccao':
