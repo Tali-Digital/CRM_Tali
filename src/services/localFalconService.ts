@@ -29,14 +29,35 @@ export interface LocalFalconResult {
   error?: string;
 }
 
+// Helper: fetch com timeout (padrão 60s)
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 60000): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+// Helper: garante que data_points seja SEMPRE retornado como Array mesmo se for um Objeto {"0": {...}} ou undefined
+const extractDataPointsArray = (dataObj: any): any[] => {
+  if (!dataObj) return [];
+  const raw = dataObj.data_points || dataObj.dataPoints || dataObj.scan_data || dataObj.grid_points || dataObj.points || [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'object' && raw !== null) return Object.values(raw);
+  return [];
+};
+
 // Faz uma requisição POST com corpo x-www-form-urlencoded (formato exigido pela API do Local Falcon)
-const postForm = async (path: string, params: Record<string, string>) => {
+const postForm = async (path: string, params: Record<string, string>, timeoutMs = 60000) => {
   const body = new URLSearchParams(params).toString();
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
-  });
+  }, timeoutMs);
   return res;
 };
 
@@ -52,7 +73,7 @@ export const checkLocalFalconStatus = async (): Promise<{ configured: boolean; c
   }
 
   try {
-    const res = await fetch(`/api-proxy/localfalcon/v1/account/?api_key=${encodeURIComponent(key)}`).catch(() => null);
+    const res = await fetchWithTimeout(`/api-proxy/localfalcon/v1/account/?api_key=${encodeURIComponent(key)}`, {}, 15000).catch(() => null);
     if (res && res.ok) {
       const data = await res.json();
       return {
@@ -239,66 +260,216 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 
     console.log('[LocalFalcon] Rodando scan v2/run-scan com params:', { ...formParams, api_key: '***' });
 
-    const res = await postForm('/api-proxy/localfalcon/v2/run-scan/', formParams);
+    let scanErrorMsg = '';
+    try {
+      // Timeout de 75s para a conexão direta
+      const res = await postForm('/api-proxy/localfalcon/v2/run-scan/', formParams, 75000);
+      console.log('[LocalFalcon] Status do scan:', res.status, res.statusText);
 
-    console.log('[LocalFalcon] Status do scan:', res.status, res.statusText);
+      if (res.ok || res.status === 202) {
+        const data = await res.json();
+        console.log('[LocalFalcon] Resposta do scan:', JSON.stringify(data, null, 2));
 
-    if (res.ok || res.status === 202) {
-      const data = await res.json();
-      console.log('[LocalFalcon] Resposta do scan:', JSON.stringify(data, null, 2));
+        const scanData = data?.data || {};
+        const reportKey = scanData.report_key;
+        const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
+        const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
+        const solv = parseFloat(scanData.solv || '0');
+        const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
 
-      const scanData = data?.data || {};
-      const reportKey = scanData.report_key;
-      const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
-      const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
-      const solv = parseFloat(scanData.solv || '0');
-      const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
-
-      // Extrair concorrentes únicos dos data_points
-      const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
-      for (const pt of (scanData.data_points || [])) {
-        for (const result of (pt.results || [])) {
-          if (!result.place_id || !result.name) continue;
-          if (!competitorMap[result.place_id]) {
-            competitorMap[result.place_id] = { nome: result.name, totalRank: 0, count: 0 };
+        const dataPoints = extractDataPointsArray(scanData);
+        if (dataPoints.length > 0) {
+          const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
+          for (const pt of dataPoints) {
+            const results = Array.isArray(pt.results) ? pt.results : typeof pt.results === 'object' && pt.results !== null ? Object.values(pt.results) : [];
+            for (const result of (results as any[])) {
+              if (!result.place_id || !result.name) continue;
+              if (!competitorMap[result.place_id]) {
+                competitorMap[result.place_id] = { nome: result.name, totalRank: 0, count: 0 };
+              }
+              competitorMap[result.place_id].totalRank += result.rank || 0;
+              competitorMap[result.place_id].count += 1;
+            }
           }
-          competitorMap[result.place_id].totalRank += result.rank || 0;
-          competitorMap[result.place_id].count += 1;
+
+          const competitors = Object.entries(competitorMap)
+            .map(([cPlaceId, v]) => ({
+              placeId: cPlaceId,
+              nome: v.nome,
+              posicao: Math.round(v.totalRank / v.count),
+              aparecimentos: v.count
+            }))
+            .sort((a, b) => a.posicao - b.posicao)
+            .slice(0, 10);
+
+          return {
+            success: true,
+            solv: isNaN(solv) ? 0 : solv,
+            avgRank: isNaN(avgRank) ? 0 : avgRank,
+            gridPoints: dataPoints.map((pt: any) => ({
+              lat: parseFloat(pt.lat),
+              lng: parseFloat(pt.lng),
+              rank: pt.rank
+            })),
+            scanId: reportKey,
+            mapImageUrl,
+            heatmapUrl,
+            creditsUsed,
+            competitors
+          };
         }
+      } else {
+        const errTxt = await res.text();
+        scanErrorMsg = `API Status ${res.status}: ${errTxt}`;
       }
-
-      const competitors = Object.entries(competitorMap)
-        .map(([cPlaceId, v]) => ({
-          placeId: cPlaceId,
-          nome: v.nome,
-          posicao: Math.round(v.totalRank / v.count),
-          aparecimentos: v.count
-        }))
-        .sort((a, b) => a.posicao - b.posicao)
-        .slice(0, 10);
-
-      return {
-        success: true,
-        solv: isNaN(solv) ? 0 : solv,
-        avgRank: isNaN(avgRank) ? 0 : avgRank,
-        gridPoints: (scanData.data_points || []).map((pt: any) => ({
-          lat: parseFloat(pt.lat),
-          lng: parseFloat(pt.lng),
-          rank: pt.rank
-        })),
-        scanId: reportKey,
-        mapImageUrl,
-        heatmapUrl,
-        creditsUsed,
-        competitors
-      };
-    } else {
-      const errTxt = await res.text();
-      console.error('[LocalFalcon] Erro no scan:', res.status, errTxt);
-      return { success: false, error: `Local Falcon API: ${res.status} - ${errTxt}` };
+    } catch (e: any) {
+      console.warn('[LocalFalcon] Conexão direta v2/run-scan expirou/falhou:', e.message);
+      scanErrorMsg = e.message;
     }
-  } catch (e: any) {
-    console.error('[LocalFalcon] Exceção no scan:', e);
-    return { success: false, error: e.message || 'Erro de conexão com Local Falcon' };
+
+    // 4. FALLBACK AUTOMÁTICO VIA HISTÓRICO DA CONTA:
+    // O Local Falcon agenda e gera o relatório no servidor mesmo se o socket HTTP expirar no proxy.
+    // Tenta recuperar o relatório recém-gerado via histórico.
+    console.log('[LocalFalcon] Conexão direta não retornou pontos. Verificando histórico da conta...');
+    await new Promise(r => setTimeout(r, 4000));
+    let historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
+    if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
+      console.log('[LocalFalcon] Recupetado com SUCESSO via histórico do Local Falcon!');
+      return historyCheck;
+    }
+
+    console.log('[LocalFalcon] Segunda tentativa de busca no histórico...');
+    await new Promise(r => setTimeout(r, 6000));
+    historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
+    if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
+      console.log('[LocalFalcon] Recuperado com SUCESSO na segunda tentativa de histórico!');
+      return historyCheck;
+    }
+
+    return {
+      success: false,
+      error: `A API do Local Falcon não concluiu a resposta a tempo. (${scanErrorMsg})`
+    };
+  } catch (err: any) {
+    console.error('[LocalFalcon] Erro geral no scan:', err);
+    return { success: false, error: err.message || 'Erro de conexão com o Local Falcon' };
   }
 };
+
+/**
+ * Busca no histórico do Local Falcon uma varredura já realizada para esta empresa,
+ * obtendo os resultados SEM gastar novos créditos de busca.
+ */
+export const fetchLocalFalconReportHistory = async (params: {
+  locationName: string;
+  keyword?: string;
+}): Promise<LocalFalconResult> => {
+  const settings = await getGlobalSettings('gemini');
+  const key = settings?.localFalconKey || '';
+
+  if (!key) {
+    return { success: false, error: 'Chave API do Local Falcon não configurada.' };
+  }
+
+  try {
+    // 1. Tentar encontrar local registrado
+    const savedLoc = await findSavedLocation(key, params.locationName);
+    const placeId = savedLoc?.placeId || '';
+
+    // 2. Buscar relatórios existentes na conta
+    const formBody: Record<string, string> = { api_key: key, limit: '30' };
+    if (placeId) formBody.place_id = placeId;
+
+    console.log('[LocalFalcon History] Consultando lista de relatórios anteriores:', params.locationName, '| placeId:', placeId);
+    const res = await postForm('/api-proxy/localfalcon/v1/reports/', formBody, 30000);
+
+    if (!res.ok) {
+      const errTxt = await res.text();
+      console.error('[LocalFalcon History] Erro ao listar relatórios:', res.status, errTxt);
+      return { success: false, error: `Local Falcon API (${res.status}): ${errTxt}` };
+    }
+
+    const data = await res.json();
+    const reports = data?.data?.reports || data?.reports || data?.data || [];
+    if (!Array.isArray(reports) || reports.length === 0) {
+      return {
+        success: false,
+        error: `Nenhum relatório anterior encontrado na sua conta do Local Falcon para "${params.locationName}".`
+      };
+    }
+
+    // Normalização para comparar palavra-chave ou nome
+    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    let matchedReport = reports[0];
+    if (params.keyword) {
+      const targetKw = norm(params.keyword);
+      const found = reports.find((r: any) => norm(r.keyword || r.name || '').includes(targetKw));
+      if (found) matchedReport = found;
+    }
+
+    const reportKey = matchedReport.report_key || matchedReport.scan_id || matchedReport.id;
+    if (!reportKey) {
+      return { success: false, error: 'Relatório encontrado no histórico, mas sem chave única de visualização.' };
+    }
+
+    // 3. Obter dados detalhados do relatório já gerado via /v1/report/
+    console.log('[LocalFalcon History] Carregando dados do report_key:', reportKey);
+    const detailRes = await postForm('/api-proxy/localfalcon/v1/report/', { api_key: key, report_key: reportKey }, 30000);
+
+    let detailData: any = matchedReport;
+    if (detailRes.ok) {
+      const json = await detailRes.json();
+      detailData = json?.data?.report || json?.data?.scan || json?.data || json || matchedReport;
+    }
+
+    const mapImageUrl = detailData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
+    const heatmapUrl = detailData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
+    const solv = parseFloat(detailData.solv || detailData.share_of_local_voice || matchedReport.solv || '0');
+    const avgRank = parseFloat(detailData.arp || detailData.atrp || detailData.average_rank || matchedReport.arp || '0');
+
+    // Concorrentes extraídos dos data_points se disponíveis
+    const dataPoints = extractDataPointsArray(detailData);
+    const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
+    for (const pt of dataPoints) {
+      const results = Array.isArray(pt.results) ? pt.results : typeof pt.results === 'object' && pt.results !== null ? Object.values(pt.results) : [];
+      for (const result of (results as any[])) {
+        if (!result.place_id || !result.name) continue;
+        if (!competitorMap[result.place_id]) {
+          competitorMap[result.place_id] = { nome: result.name, totalRank: 0, count: 0 };
+        }
+        competitorMap[result.place_id].totalRank += result.rank || 0;
+        competitorMap[result.place_id].count += 1;
+      }
+    }
+
+    const competitors = Object.entries(competitorMap)
+      .map(([cPlaceId, v]) => ({
+        placeId: cPlaceId,
+        nome: v.nome,
+        posicao: Math.round(v.totalRank / v.count),
+        aparecimentos: v.count
+      }))
+      .sort((a, b) => a.posicao - b.posicao)
+      .slice(0, 10);
+
+    return {
+      success: true,
+      solv: isNaN(solv) ? 0 : solv,
+      avgRank: isNaN(avgRank) ? 0 : avgRank,
+      gridPoints: dataPoints.map((pt: any) => ({
+        lat: parseFloat(pt.lat || 0),
+        lng: parseFloat(pt.lng || 0),
+        rank: pt.rank
+      })),
+      scanId: reportKey,
+      mapImageUrl,
+      heatmapUrl,
+      creditsUsed: 0, // 0 créditos consumidos
+      competitors
+    };
+  } catch (e: any) {
+    console.error('[LocalFalcon History] Exceção ao consultar relatório existente:', e);
+    return { success: false, error: e.message || 'Erro ao consultar relatórios existentes do Local Falcon' };
+  }
+};
+

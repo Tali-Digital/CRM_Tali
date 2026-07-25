@@ -1356,6 +1356,13 @@ export const subscribeToModelosProspeccao = (callback: (modelos: import('../type
       id: doc.id,
       ...doc.data()
     })) as import('../types').ModeloProspeccao[];
+
+    modelos.sort((a, b) => {
+      const orderA = typeof a.ordem === 'number' ? a.ordem : (typeof a.order === 'number' ? a.order : 9999);
+      const orderB = typeof b.ordem === 'number' ? b.ordem : (typeof b.order === 'number' ? b.order : 9999);
+      return orderA - orderB;
+    });
+
     callback(modelos);
   });
 };

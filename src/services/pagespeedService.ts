@@ -42,7 +42,14 @@ export const runPageSpeedAnalysis = async (url: string): Promise<PageSpeedResult
     const apiUrl = `/api-proxy/pagespeed/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=mobile&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${keyParam}`;
 
     console.log('[PageSpeed] Chamando com URL:', formattedUrl, '| API Key configurada:', !!apiKey);
-    const res = await fetch(apiUrl);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000); // 90s timeout
+    let res: Response;
+    try {
+      res = await fetch(apiUrl, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     console.log('[PageSpeed] Status:', res.status, res.statusText);
 
     if (!res.ok) {
@@ -83,7 +90,7 @@ export const runPageSpeedAnalysis = async (url: string): Promise<PageSpeedResult
       acessibilidade: 'sem dados',
       praticas: 'sem dados',
       seo: 'sem dados',
-      error: err.message || 'Erro de conexão com PageSpeed API'
+      error: err.name === 'AbortError' ? 'Tempo limite excedido (60s) — tente novamente' : (err.message || 'Erro de conexão com PageSpeed API')
     };
   }
 };

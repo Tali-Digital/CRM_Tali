@@ -44,6 +44,7 @@ interface Props {
 }
 
 interface SortableItemProps {
+  key?: React.Key;
   link: QuickLink;
   viewMode: 'grid' | 'list';
   onEdit: (link: QuickLink) => void;

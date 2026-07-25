@@ -1,19 +1,37 @@
-import {StrictMode, Component, ErrorInfo, ReactNode} from 'react';
-import {createRoot} from 'react-dom/client';
+import React, { StrictMode, ErrorInfo, ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null, info: ErrorInfo | null}> {
-  constructor(props: {children: ReactNode}) {
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  info: ErrorInfo | null;
+}
+
+class ErrorBoundary extends React.Component<Props, State> {
+  state: State = {
+    hasError: false,
+    error: null,
+    info: null,
+  };
+
+  constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null, info: null };
   }
-  static getDerivedStateFromError(error: Error) {
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     this.setState({ info });
   }
+
   render() {
     if (this.state.hasError) {
       return (

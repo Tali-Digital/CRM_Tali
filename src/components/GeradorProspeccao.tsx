@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
@@ -12,9 +12,11 @@ interface GeradorProspeccaoProps {
   onClose: () => void;
   onSaveProspeccao?: (prospeccao: any) => Promise<void>;
   prospeccaoParaEditar?: any;
+  isModeloOnlyMode?: boolean;
+  modeloIdParaEditar?: string;
 }
 
-export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospeccaoParaEditar }: GeradorProspeccaoProps) {
+export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospeccaoParaEditar, isModeloOnlyMode, modeloIdParaEditar }: GeradorProspeccaoProps) {
   const [donoClinica, setDonoClinica] = useState('');
   const [opcoesDono, setOpcoesDono] = useState<string[]>([]);
   const [clinica, setClinica] = useState('');
@@ -26,6 +28,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [showVariableModal, setShowVariableModal] = useState(false);
 
   const [selectedModeloId, setSelectedModeloId] = useState('');
+  const [nomeModeloState, setNomeModeloState] = useState('');
+  const [descricaoModeloState, setDescricaoModeloState] = useState('');
   const [modelos, setModelos] = useState<ModeloProspeccao[]>([]);
   const [showPreview, setShowPreview] = useState(true);
   const [viewHtml, setViewHtml] = useState(false);
@@ -294,34 +298,34 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       ['Google', placar?.google], ['Reputação', placar?.reputacao], ['Instagram', placar?.instagram], ['Site', placar?.site], ['Ads', placar?.ads]
     ];
     const placarPilaresHtml = placar ? `
-      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
-        <h3 style="margin:0 0 16px; font-size:15pt;">Placar por pilar</h3>
+      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Placar por pilar</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
-          ${pillarItems.map(([label, value]) => `<div style="flex:1; min-width:90px; border:1px solid #334155; border-radius:12px; padding:12px; text-align:center;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'N/A'}</div><div style="font-size:9pt; font-weight:700; margin-top:6px;">${label}</div></div>`).join('')}
+          ${pillarItems.map(([label, value]) => `<div style="flex:1; min-width:90px; border:1px solid #334155; background:#1e293b; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'N/A'}</div><div style="font-size:9pt; font-weight:700; color:#ffffff; margin-top:6px;">${label}</div></div>`).join('')}
         </div>
       </div>
     ` : '';
     const rankingHtml = concorrentes.length ? `
-      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
-        <h3 style="margin:0 0 16px; font-size:15pt;">Quem aparece na frente de você</h3>
-        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #334155; border-radius:10px; padding:12px; margin:8px 0;"><strong>${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#cbd5e1;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes !== undefined ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
-        <div style="border:2px solid #f59e0b; background:#422006; border-radius:10px; padding:12px; margin-top:12px; color:#fef3c7;"><strong>${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt;">Posição média no Google (Local Falcon)</span></div>
+      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Quem aparece na frente de você</h3>
+        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #334155; background:#1e293b; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#ffffff; font-size:10pt;">${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#cbd5e1;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
+        <div style="border:2px solid #f59e0b; background:#422006; border-radius:10px; padding:12px; margin-top:12px; color:#fef3c7; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#ffffff; font-size:10pt;">${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#fef3c7;">Posição média no Google (Local Falcon)</span></div>
       </div>
     ` : '';
     const pageSpeedHtml = site ? `
-      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
-        <h3 style="margin:0 0 16px; font-size:15pt;">Velocidade e SEO</h3>
+      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Velocidade e SEO</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
-          ${[['Desempenho', site.velocidade], ['Acessibilidade', site.acessibilidade], ['Práticas recomendadas', site.praticas], ['SEO', site.seo]].map(([label, value]) => `<div style="flex:1; min-width:100px; border:1px solid #334155; border-radius:12px; padding:12px; text-align:center;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'Sem dados'}</div><div style="font-size:9pt; font-weight:700; margin-top:6px;">${label}</div></div>`).join('')}
+          ${[['Desempenho', site.velocidade], ['Acessibilidade', site.acessibilidade], ['Práticas recomendadas', site.praticas], ['SEO', site.seo]].map(([label, value]) => `<div style="flex:1; min-width:100px; border:1px solid #334155; background:#1e293b; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'Sem dados'}</div><div style="font-size:9pt; font-weight:700; color:#ffffff; margin-top:6px;">${label}</div></div>`).join('')}
         </div>
       </div>
     ` : '';
     const dinheiroMesaVisualHtml = `
-      <div style="background:#172033; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
-        <h3 style="margin:0 0 6px; font-size:15pt;">Dinheiro na mesa</h3><p style="margin:0 0 16px; color:#cbd5e1; font-size:10pt;">Estimativa da receita que deixa de entrar por mês.</p>
-        <div style="margin:12px 0;"><strong>Conservador</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${cons.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:33%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
-        <div style="margin:12px 0;"><strong>Moderado</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${mod.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:50%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
-        <div style="margin:12px 0;"><strong>Agressivo</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${agr.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:100%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
+      <div style="background:#172033; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 6px; font-size:15pt; color:#ffffff;">Dinheiro na mesa</h3><p style="margin:0 0 16px; color:#cbd5e1; font-size:10pt;">Estimativa da receita que deixa de entrar por mês.</p>
+        <div style="margin:12px 0;"><strong style="color:#ffffff;">Conservador</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${cons.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:33%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
+        <div style="margin:12px 0;"><strong style="color:#ffffff;">Moderado</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${mod.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:50%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
+        <div style="margin:12px 0;"><strong style="color:#ffffff;">Agressivo</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${agr.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:100%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
       </div>
     `;
 
@@ -386,7 +390,91 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     }
   };
 
+  useEffect(() => {
+    if (isModeloOnlyMode && modeloIdParaEditar && modelos.length > 0) {
+      const mod = modelos.find(m => m.id === modeloIdParaEditar);
+      if (mod) {
+        setSelectedModeloId(mod.id);
+        setNomeModeloState(mod.nome);
+        setDescricaoModeloState(mod.descricao || '');
+        if (editorRef.current) {
+          editorRef.current.innerHTML = mod.conteudo;
+          setPreviewHtml(mod.conteudo);
+        }
+      }
+    } else if (isModeloOnlyMode && !modeloIdParaEditar && !selectedModeloId) {
+      setNomeModeloState('Novo Modelo');
+      setDescricaoModeloState('');
+    }
+  }, [isModeloOnlyMode, modeloIdParaEditar, modelos]);
+
   // ── Modelos ──────────────────────────────────────────────────────────────
+  const handleSelectModeloInMode = (modeloId: string) => {
+    setSelectedModeloId(modeloId);
+    if (!modeloId) {
+      setNomeModeloState('Novo Modelo');
+      setDescricaoModeloState('');
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '<p>Escreva aqui o conteúdo do novo modelo...</p>';
+        setPreviewHtml('<p>Escreva aqui o conteúdo do novo modelo...</p>');
+      }
+      return;
+    }
+    const mod = modelos.find(m => m.id === modeloId);
+    if (mod) {
+      setNomeModeloState(mod.nome);
+      setDescricaoModeloState(mod.descricao || '');
+      if (editorRef.current) {
+        editorRef.current.innerHTML = mod.conteudo;
+        setPreviewHtml(mod.conteudo);
+      }
+    }
+  };
+
+  const handleSaveModeloOnly = async () => {
+    if (!editorRef.current) return;
+    const html = editorRef.current.innerHTML;
+
+    if (!nomeModeloState.trim()) {
+      Swal.fire('Nome Obrigatório', 'Por favor, informe o nome do modelo.', 'warning');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (selectedModeloId) {
+        await updateModeloProspeccao(selectedModeloId, {
+          nome: nomeModeloState.trim(),
+          descricao: descricaoModeloState.trim(),
+          conteudo: html
+        });
+      } else {
+        const newId = await addModeloProspeccao({
+          nome: nomeModeloState.trim(),
+          descricao: descricaoModeloState.trim(),
+          conteudo: html,
+          ordem: modelos.length
+        });
+        setSelectedModeloId(newId);
+      }
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Modelo salvo com sucesso!',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      });
+    } catch (e: any) {
+      console.error('Erro ao salvar modelo:', e);
+      Swal.fire('Erro', e.message || String(e), 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveModelo = async () => {
     if (!editorRef.current) return;
     const html = editorRef.current.innerHTML;
@@ -424,7 +512,15 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       newSelectedId = await addModeloProspeccao({ nome, conteudo: html });
     }
 
-    Swal.fire({ title: 'Sucesso!', text: 'Modelo salvo!', icon: 'success', timer: 1500, showConfirmButton: false });
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Modelo salvo com sucesso!',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true
+    });
     setSelectedModeloId(newSelectedId);
   };
 
@@ -964,6 +1060,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             <head>
               <title>${clinica || 'Prospecção'}</title>
               <style>
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
                 @page { size: A4; margin: ${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm; }
                 body { margin: 0; font-family: Arial, sans-serif; background: white; }
                 .content-cell { font-size: 11pt; line-height: 1.5; text-align: justify; }
@@ -975,6 +1076,18 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 .content-cell ol { padding-left: 20px !important; list-style-type: decimal !important; }
                 .content-cell li { margin-bottom: 5px !important; }
                 .content-cell img { max-width: 100% !important; height: auto !important; }
+                .page-break, hr.page-break, hr[title="Quebra de Página"], hr {
+                  page-break-after: always !important;
+                  break-after: page !important;
+                  border: none !important;
+                  border-top: none !important;
+                  visibility: hidden !important;
+                  height: 0 !important;
+                  min-height: 0 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  opacity: 0 !important;
+                }
               </style>
             </head>
             <body>
@@ -1017,110 +1130,179 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               {/* Modelos */}
               <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'white' }}>Seus Modelos</h3>
-                <select className="input" style={{ marginBottom: '0.5rem', fontSize: '0.9rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }} value={selectedModeloId} onChange={e => handleLoadModelo(e.target.value)}>
-                  <option value="">-- Prospecção em Branco --</option>
+                <select
+                  className="input"
+                  style={{ marginBottom: isModeloOnlyMode ? '0' : '0.5rem', fontSize: '0.9rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
+                  value={selectedModeloId}
+                  onChange={e => isModeloOnlyMode ? handleSelectModeloInMode(e.target.value) : handleLoadModelo(e.target.value)}
+                >
+                  <option value="">-- Novo Modelo --</option>
                   {modelos.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
                 </select>
-                <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.25)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>
-                  Salvar Atual como Modelo
-                </button>
-              </div>
-
-              {/* Data da Prospecção */}
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
-                <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
-              </div>
-
-              {/* Informações da Clínica - Visualização */}
-              <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
-                  <a
-                    href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
-                    onClick={(e) => {
-                      if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
-                        e.preventDefault();
-                        Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
-                      }
-                    }}
-                    style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'none' }}
-                  >
-                    <Edit2 size={12} /> Editar Ficha Completa
-                  </a>
-                </div>
-
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: 'white' }}>Dono da Clínica:</strong>
-                  {opcoesDono.length > 1 ? (
-                    <select
-                      className="input"
-                      style={{ marginTop: '0.3rem', fontSize: '0.85rem', padding: '0.4rem', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '4px', width: '100%' }}
-                      value={donoClinica}
-                      onChange={(e) => setDonoClinica(e.target.value)}
-                    >
-                      {opcoesDono.map(op => <option key={op} value={op}>{op}</option>)}
-                    </select>
-                  ) : (
-                    <div style={{ marginTop: '0.2rem' }}>{donoClinica || '-'}</div>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: 'white' }}>Nome da Clínica:</strong> {clinica || '-'}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: 'white' }}>Cidade/Bairro:</strong> {cidadeBairro || '-'}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
-                  <strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}
-                </div>
-              </div>
-
-              <div style={{ flex: 1 }}></div>
-
-              {/* Botões de ação */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <button
-                  disabled={isSaving}
-                  onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'white', border: '2px solid white', color: isSaving ? 'white' : 'var(--secondary-color)', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
-                >
-                  <FileText size={18} /> {isSaving ? 'Salvando...' : 'Salvar no Sistema'}
-                </button>
-                <button
-                  disabled={isSaving}
-                  onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', border: `2px solid ${isSaving ? '#94a3b8' : 'var(--primary-color)'}`, color: 'white', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
-                >
-                  <Printer size={18} /> {isSaving ? 'Processando...' : 'Imprimir / Salvar PDF'}
-                </button>
-
-                {prospeccaoParaEditar && (
-                  <button
-                    disabled={isSaving}
-                    onClick={handleMarcarEntregue}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.75rem',
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      backgroundColor: isEntregue ? '#22c55e' : '#ef4444',
-                      border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`,
-                      color: 'white',
-                      borderRadius: '8px',
-                      cursor: isSaving ? 'not-allowed' : 'pointer',
-                      opacity: isSaving ? 0.7 : 1,
-                      marginTop: '0.5rem'
-                    }}
-                  >
-                    <Check size={18} /> {isEntregue ? 'Endereço Entregue' : 'Marcar como Entregue'}
+                {!isModeloOnlyMode && (
+                  <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.25)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>
+                    Salvar Atual como Modelo
                   </button>
                 )}
               </div>
+
+              {isModeloOnlyMode ? (
+                <>
+                  {/* Nome do Modelo */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>
+                      Nome do Modelo
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }}
+                      value={nomeModeloState}
+                      onChange={e => setNomeModeloState(e.target.value)}
+                      placeholder="Ex: 01 - Confronto por Demanda"
+                    />
+                  </div>
+
+                  {/* Descrição do Modelo */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>
+                      Descrição do Modelo
+                    </label>
+                    <textarea
+                      rows={10}
+                      style={{ fontSize: '0.85rem', padding: '0.65rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px', resize: 'vertical', lineHeight: '1.4' }}
+                      value={descricaoModeloState}
+                      onChange={e => setDescricaoModeloState(e.target.value)}
+                      placeholder={'Apresenta nota 0–100 com gauge visual e 6 categorias...\n\nPara: Dono analítico, nicho B2B local...'}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}></div>
+
+                  {/* Botão Salvar Modelo */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button
+                      disabled={isSaving}
+                      onClick={handleSaveModeloOnly}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.75rem',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)',
+                        border: 'none',
+                        color: 'white',
+                        borderRadius: '8px',
+                        cursor: isSaving ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Save size={18} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Data da Prospecção */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
+                    <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
+                  </div>
+
+                  {/* Informações da Clínica - Visualização */}
+                  <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
+                      <a
+                        href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
+                        onClick={(e) => {
+                          if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
+                            e.preventDefault();
+                            Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
+                          }
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'none' }}
+                      >
+                        <Edit2 size={12} /> Editar Ficha Completa
+                      </a>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                      <strong style={{ color: 'white' }}>Dono da Clínica:</strong>
+                      {opcoesDono.length > 1 ? (
+                        <select
+                          className="input"
+                          style={{ marginTop: '0.3rem', fontSize: '0.85rem', padding: '0.4rem', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '4px', width: '100%' }}
+                          value={donoClinica}
+                          onChange={(e) => setDonoClinica(e.target.value)}
+                        >
+                          {opcoesDono.map(op => <option key={op} value={op}>{op}</option>)}
+                        </select>
+                      ) : (
+                        <div style={{ marginTop: '0.2rem' }}>{donoClinica || '-'}</div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                      <strong style={{ color: 'white' }}>Nome da Clínica:</strong> {clinica || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
+                      <strong style={{ color: 'white' }}>Cidade/Bairro:</strong> {cidadeBairro || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
+                      <strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1 }}></div>
+
+                  {/* Botões de ação */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
+                      style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'white', border: '2px solid white', color: isSaving ? 'white' : 'var(--secondary-color)', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
+                    >
+                      <FileText size={18} /> {isSaving ? 'Salvando...' : 'Salvar no Sistema'}
+                    </button>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
+                      style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', border: `2px solid ${isSaving ? '#94a3b8' : 'var(--primary-color)'}`, color: 'white', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
+                    >
+                      <Printer size={18} /> {isSaving ? 'Processando...' : 'Imprimir / Salvar PDF'}
+                    </button>
+
+                    {prospeccaoParaEditar && (
+                      <button
+                        disabled={isSaving}
+                        onClick={handleMarcarEntregue}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.75rem',
+                          fontSize: '1rem',
+                          fontWeight: 'bold',
+                          backgroundColor: isEntregue ? '#22c55e' : '#ef4444',
+                          border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`,
+                          color: 'white',
+                          borderRadius: '8px',
+                          cursor: isSaving ? 'not-allowed' : 'pointer',
+                          opacity: isSaving ? 0.7 : 1,
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        <Check size={18} /> {isEntregue ? 'Endereço Entregue' : 'Marcar como Entregue'}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

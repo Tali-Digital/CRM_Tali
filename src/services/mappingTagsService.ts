@@ -128,6 +128,44 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     exampleValue: (p) => '38.78%'
   },
   {
+    code: '{{TERMO_PESQUISADO}}',
+    category: 'SEO & Google Maps',
+    description: 'Palavra-chave ou termo pesquisado na região (ex: "dentista")',
+    exampleValue: (p, d) => (p as any)?.keyword || d?.termoPesquisado || 'dentista'
+  },
+  {
+    code: '{{NOMES_CONCORRENTES}}',
+    category: 'SEO & Google Maps',
+    description: 'Lista formatada em texto com o nome dos concorrentes diretos da região',
+    exampleValue: (p, d) => d?.concorrentes && d.concorrentes.length > 0
+      ? d.concorrentes.map((c: any) => c.nome).join(', ')
+      : 'Odonto Premier - Dentista Lago Sul, Blanc Odontologia e Conic Odontologia'
+  },
+  {
+    code: '{{POSICAO_GERAL}}',
+    category: 'SEO & Google Maps',
+    description: 'Posição aproximada da clínica no ranking geral (ex: 7ª posição)',
+    exampleValue: (p, d) => d?.posicaoGeral ? `${d.posicaoGeral}ª posição` : '7ª posição'
+  },
+  {
+    code: '{{PONTOS_PRESENCA}}',
+    category: 'SEO & Google Maps',
+    description: 'Quantidade de pontos da malha onde a clínica aparece (ex: 19 pontos do mapa)',
+    exampleValue: (p, d) => d?.pontosPresenca ? `${d.pontosPresenca} pontos do mapa` : '19 pontos do mapa'
+  },
+  {
+    code: '{{PERCENT_RESULTADOS}}',
+    category: 'SEO & Google Maps',
+    description: 'Porcentagem de presença calculada nos resultados analisados (ex: 38,78%)',
+    exampleValue: (p, d) => d?.solvPercent ? `${d.solvPercent}%` : '38,78%'
+  },
+  {
+    code: '{{POSICAO_FORA_TOP20_TEXTO}}',
+    category: 'SEO & Google Maps',
+    description: 'Indicador de pontos onde a clínica está invisível (ex: 20+)',
+    exampleValue: () => '20+'
+  },
+  {
     code: '{{TERMO_BUSCA}}',
     category: 'SEO & Google Maps',
     description: 'Palavra-chave analisada na região (ex: "dentista em Asa Norte")',

@@ -290,9 +290,9 @@ export interface Prospect {
   ownerInstagram: string;
   size: string;
   age: string;
-  reconhecimento?: 'Verificar ICP' | 'Fora de ICP' | 'Cliente Pequeno' | 'Cliente Ideal' | '';
-  status: 'Fora de ICP' | 'Cliente Pequeno' | 'Cliente Ideal' | 'Mandar Mensagem' | 'Mensagem Enviada' | 'Cliente Respondeu' | '1º Follow Up' | '2º Follow Up' | '3º+ Follow Up' | 'Reunião Agendada' | 'Base de Recomeço' | 'Entra em Contato' | 'Negociando' | 'Cliente Fechado' | 'Contrato Encerrado' | 'VERIFICAR ICP' | '';
-  statusGeral?: 'Entra em Contato' | 'Negociando' | 'Cliente Fechado' | 'Contrato Encerrado' | '';
+  reconhecimento?: string;
+  status: string;
+  statusGeral?: string;
   hasAnswered: boolean;
   lastFollowUp: string;
   observations: string;
@@ -318,6 +318,7 @@ export interface Prospect {
   aiReport?: string;
   instagramMessage?: string;
   isRestartBase?: boolean;
+  followedOwner?: boolean | string;
   keyword?: string;
   ticketMedio?: string;
   stateUf?: string;
@@ -359,6 +360,8 @@ export interface ModeloProspeccao {
   id: string;
   nome: string;
   conteudo: string;
+  descricao?: string;
+  ordem?: number;
   createdAt?: any;
   [key: string]: any;
 }

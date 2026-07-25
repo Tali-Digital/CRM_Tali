@@ -1306,7 +1306,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           <div className="flex flex-wrap items-center gap-2 flex-1">
             <div className="relative flex-1 min-w-[280px] max-w-xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '38px'; }} style={{ minHeight: '38px', fieldSizing: 'content' }}
+              <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '38px'; }} style={{ minHeight: '38px', fieldSizing: 'content' }}
                 placeholder="Buscar clínica, dono, local ou líder..."
                 className="pl-10 pr-4 py-1.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none w-full transition-all resize-none overflow-hidden custom-scrollbar text-sm"
                 value={searchTerm}
@@ -1885,7 +1885,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-blue-800 text-[9px] font-black uppercase tracking-wider">
                             {p.responsible || 'Sem Líder'}
                           </span>
-                          {p.followedOwner === 'Sim' && (
+                          {(p.followedOwner === 'Sim' || p.followedOwner === true) && (
                             <span className="px-2 py-0.5 rounded-md bg-green-50 border border-green-100 text-green-700 text-[9px] font-black uppercase tracking-wider">
                               Seguiu Dono
                             </span>
@@ -2329,7 +2329,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Nome da Clínica *
                                   {renderAiReviewBadge('clinicName')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   required
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Nome comercial da clínica"
@@ -2360,7 +2360,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Cidade/Bairro - UF
                                   {renderAiReviewBadge('location')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: Águas Claras - DF"
                                   value={formData.location}
@@ -2373,7 +2373,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Endereço Completo
                                   {renderAiReviewBadge('fullAddress')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-900 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Endereço completo (Rua, Número, Bairro, CEP)"
                                   value={formData.fullAddress || ''}
@@ -2442,7 +2442,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Instagram da Clínica
                                   {renderAiReviewBadge('clinicInstagram')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Link ou @username"
                                   value={formData.clinicInstagram}
@@ -2480,7 +2480,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                             Nome do Proprietário / Dono {ownersList!.length > 1 ? `#${idx + 1}` : ''}
                                             {idx === 0 && renderAiReviewBadge('ownerName')}
                                           </label>
-                                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                          <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                             placeholder="Nome completo do dono"
                                             value={owner.name}
@@ -2503,7 +2503,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                             Instagram do Dono {ownersList!.length > 1 ? `#${idx + 1}` : ''}
                                             {idx === 0 && renderAiReviewBadge('ownerInstagram')}
                                           </label>
-                                          <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                          <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                             placeholder="Link ou @username"
                                             value={owner.instagram}
@@ -2553,7 +2553,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Nº de Colaboradores
                                   {renderAiReviewBadge('collaborators')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: 8 colaboradores"
                                   value={formData.collaborators}
@@ -2566,7 +2566,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Tamanho da Clínica (Cadeiras)
                                   {renderAiReviewBadge('size')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: 3 consultórios"
                                   value={formData.size}
@@ -2579,7 +2579,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Idade da Empresa
                                   {renderAiReviewBadge('age')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: 4 anos"
                                   value={formData.age}
@@ -2601,7 +2601,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Nota do GMN
                                   {renderAiReviewBadge('gmnRating')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: 4.9"
                                   value={formData.gmnRating}
@@ -2614,7 +2614,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Qtd. Avaliações do Google
                                   {renderAiReviewBadge('gmnReviewsCount')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: 140"
                                   value={formData.gmnReviewsCount ? String(formData.gmnReviewsCount).replace(/\D/g, '') : ''}
@@ -2753,7 +2753,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   Abordagem Comercial Utilizada
                                   {renderAiReviewBadge('approachUsed')}
                                 </label>
-                                <textarea rows={1} onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 2 + 'px'; }} onBlur={(e) => { e.target.style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
+                                <textarea rows={1} onFocus={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onInput={(e) => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }} onBlur={(e) => { (e.target as HTMLTextAreaElement).style.height = '44px'; }} style={{ minHeight: '44px', fieldSizing: 'content' }}
                                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm font-medium resize-none overflow-hidden custom-scrollbar"
                                   placeholder="Ex: Abordagem consultiva sobre pontos cegos do GMN / Parceria..."
                                   value={formData.approachUsed}

@@ -89,3 +89,18 @@
   --success-color: #10b981;
   --warning-color: #f59e0b;
 }
+
+@media print {
+  .page-break, hr.page-break, hr[title="Quebra de Página"] {
+    page-break-after: always !important;
+    break-after: page !important;
+    border: none !important;
+    border-top: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+  }
+}
