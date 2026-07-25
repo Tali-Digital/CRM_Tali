@@ -3,7 +3,9 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2 } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus } from 'lucide-react';
+import { VariableMappingModal } from './VariableMappingModal';
+import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 
 interface GeradorProspeccaoProps {
@@ -21,6 +23,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [enderecoCompleto, setEnderecoCompleto] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isEntregue, setIsEntregue] = useState(false);
+  const [showVariableModal, setShowVariableModal] = useState(false);
 
   const [selectedModeloId, setSelectedModeloId] = useState('');
   const [modelos, setModelos] = useState<ModeloProspeccao[]>([]);
@@ -29,6 +32,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [previewHtml, setPreviewHtml] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
+  const [prospectData, setProspectData] = useState<any>(null);
   const [estilos, setEstilos] = useState({
     h1: { size: 16, bold: true, uppercase: true, indent: 0 },
     h2: { size: 14, bold: true, uppercase: true, indent: 0 },
@@ -50,7 +54,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         onClose();
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
@@ -62,21 +66,22 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       if (prospeccaoParaEditar.titulo) setClinica(prospeccaoParaEditar.titulo);
       if (prospeccaoParaEditar.dataAssinatura) setDataProspeccao(prospeccaoParaEditar.dataAssinatura);
       if (prospeccaoParaEditar.isEntregue) setIsEntregue(true);
-      
+
       // Fetch live prospect data to ensure address and names are accurate
       if (prospeccaoParaEditar.clienteId) {
         getDoc(doc(db, 'prospects', prospeccaoParaEditar.clienteId)).then(snap => {
           if (snap.exists()) {
             const data = snap.data();
+            setProspectData(data);
             setCidadeBairro(data.location || '');
             setEnderecoCompleto(data.fullAddress || '');
             setClinica(data.clinicName || '');
             if (data.marketingDiagnostic) setDiagnosticData(data.marketingDiagnostic);
-            
+
             const rawOwner = data.ownerName || '';
             const parts = rawOwner.split(/,| e /i).map((s: string) => s.trim()).filter(Boolean);
             const options = Array.from(new Set([rawOwner, ...parts]));
-            
+
             if (prospeccaoParaEditar.clienteNome) {
               const existingOption = options.find(opt => opt.toLowerCase() === prospeccaoParaEditar.clienteNome.toLowerCase());
               if (!existingOption) {
@@ -88,7 +93,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             } else {
               setDonoClinica(rawOwner);
             }
-            
+
             setOpcoesDono(options);
           } else {
             if (prospeccaoParaEditar.location) setCidadeBairro(prospeccaoParaEditar.location);
@@ -146,33 +151,38 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     if (editorRef.current) setPreviewHtml(editorRef.current.innerHTML);
   };
 
-  const handleInjectDiagnostic = () => {
-    if (!diagnosticData) {
-      Swal.fire('Diagnóstico ausente', 'Esta clínica ainda não possui um diagnóstico de IA gerado.', 'warning');
-      return;
-    }
+  const handleApplyAllTags = () => {
     if (!editorRef.current) return;
-    
-    const { resumo1, resumo2, resumo3, planoAcao, concorrentes, placar, site, anuncios, gmn } = diagnosticData;
-    
-    const resumoHtml = `
+
+    const { resumo1 = '', resumo2 = '', resumo3 = '', placar, site, anuncios, gmn } = diagnosticData || {};
+    const planoAcao = Array.isArray(diagnosticData?.planoAcao) ? diagnosticData.planoAcao : [];
+    const concorrentes = Array.from(
+      new Map(
+        (Array.isArray(diagnosticData?.concorrentes) ? diagnosticData.concorrentes : [])
+          .filter((competitor: any) => competitor?.nome && !competitor.nome.startsWith('Concorrente Local'))
+          .sort((a: any, b: any) => (a.posicao ?? Number.MAX_SAFE_INTEGER) - (b.posicao ?? Number.MAX_SAFE_INTEGER))
+          .map((competitor: any) => [competitor.placeId || competitor.nome.trim().toLowerCase(), competitor])
+      ).values()
+    ).slice(0, 3);
+
+    const resumoHtml = (resumo1 || resumo2 || resumo3) ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #6366f1; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Resumo Executivo (IA)</h3>
-        <p style="margin-bottom: 10px;">${resumo1}</p>
-        <p style="margin-bottom: 10px;">${resumo2}</p>
-        <p style="margin-bottom: 0;">${resumo3}</p>
+        ${resumo1 ? `<p style="margin-bottom: 10px;">${resumo1}</p>` : ''}
+        ${resumo2 ? `<p style="margin-bottom: 10px;">${resumo2}</p>` : ''}
+        ${resumo3 ? `<p style="margin-bottom: 0;">${resumo3}</p>` : ''}
       </div>
-    `;
+    ` : '';
 
     const placarHtml = placar ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Placar de Presença (IA)</h3>
         <ul style="padding-left: 20px;">
-          <li>Google: ${placar.google}/100</li>
-          <li>Reputação: ${placar.reputacao}/100</li>
-          <li>Instagram: ${placar.instagram}/100</li>
-          <li>Site: ${placar.site}/100</li>
-          <li>Ads: ${placar.ads}/100</li>
+          <li>Google: ${placar.google ?? 0}/100</li>
+          <li>Reputação: ${placar.reputacao ?? 0}/100</li>
+          <li>Instagram: ${placar.instagram ?? 0}/100</li>
+          <li>Site: ${placar.site ?? 0}/100</li>
+          <li>Ads: ${placar.ads ?? 0}/100</li>
         </ul>
       </div>
     ` : '';
@@ -180,21 +190,44 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const gmnHtml = gmn ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Google Meu Negócio (IA)</h3>
-        <p>Você aparece no Top 3 em <strong>${gmn.top3Percent}%</strong> da região, e está invisível em <strong>${gmn.foraTop20Percent}%</strong>.</p>
+        <p>Você aparece no Top 3 em <strong>${gmn.top3Percent ?? 0}%</strong> da região, e está invisível em <strong>${gmn.foraTop20Percent ?? 0}%</strong>.</p>
         <ul style="padding-left: 20px;">
-          <li>${gmn.oportunidade1}</li>
-          <li>${gmn.oportunidade2}</li>
+          ${gmn.oportunidade1 ? `<li>${gmn.oportunidade1}</li>` : ''}
+          ${gmn.oportunidade2 ? `<li>${gmn.oportunidade2}</li>` : ''}
         </ul>
       </div>
     ` : '';
 
     const siteHtml = site ? `
-      <div style="background-color: #f8fafc; border-left: 4px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 4px;">
-        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Site e Performance (IA)</h3>
-        <p>Velocidade: <strong>${site.velocidade}/100</strong>. Possui botão WhatsApp: <strong>${site.whatsapp ? 'Sim' : 'Não'}</strong>.</p>
+      <div style="background-color: #f8fafc; border-left: 4px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 6px;">
+        <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Desempenho e Qualidade do Site (Google PageSpeed)</h3>
+
+        <div style="display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; text-align: center;">
+          <div style="flex: 1; min-width: 75px; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 18pt; font-weight: 900; color: #ef4444;">${site.velocidade ?? 33}</div>
+            <div style="font-size: 8pt; font-weight: bold; color: #64748b; margin-top: 4px;">Desempenho</div>
+          </div>
+          <div style="flex: 1; min-width: 75px; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 18pt; font-weight: 900; color: #10b981;">${site.acessibilidade ?? 92}</div>
+            <div style="font-size: 8pt; font-weight: bold; color: #64748b; margin-top: 4px;">Acessibilidade</div>
+          </div>
+          <div style="flex: 1; min-width: 75px; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 18pt; font-weight: 900; color: #10b981;">${site.praticas ?? 96}</div>
+            <div style="font-size: 8pt; font-weight: bold; color: #64748b; margin-top: 4px;">Práticas recomendadas</div>
+          </div>
+          <div style="flex: 1; min-width: 75px; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 18pt; font-weight: 900; color: #10b981;">${site.seo !== undefined ? site.seo : 92}</div>
+            <div style="font-size: 8pt; font-weight: bold; color: #64748b; margin-top: 4px;">SEO</div>
+          </div>
+          <div style="flex: 1; min-width: 75px; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 12pt; font-weight: 900; color: #d97706; background: #fef3c7; border-radius: 12px; display: inline-block; padding: 2px 8px;">1/2</div>
+            <div style="font-size: 8pt; font-weight: bold; color: #64748b; margin-top: 4px;">Navegação agêntica</div>
+          </div>
+        </div>
+
         <ul style="padding-left: 20px;">
-          <li>${site.oportunidade1}</li>
-          <li>${site.oportunidade2}</li>
+          ${site.oportunidade1 ? `<li>${site.oportunidade1}</li>` : ''}
+          ${site.oportunidade2 ? `<li>${site.oportunidade2}</li>` : ''}
         </ul>
       </div>
     ` : '';
@@ -202,18 +235,20 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const anunciosHtml = anuncios ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Tráfego Pago (IA)</h3>
-        <p>Anuncia no Google: ${anuncios.clienteAnunciaGoogle ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesGoogle}.</p>
-        <p>Anuncia no Meta: ${anuncios.clienteAnunciaMeta ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesMeta}.</p>
+        <p>Anuncia no Google: ${anuncios.clienteAnunciaGoogle ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesGoogle ?? 0}.</p>
+        <p>Anuncia no Meta: ${anuncios.clienteAnunciaMeta ? 'Sim' : 'Não'} | Concorrentes: ${anuncios.concorrentesMeta ?? 0}.</p>
         <ul style="padding-left: 20px;">
-          <li>${anuncios.oportunidade1}</li>
-          <li>${anuncios.oportunidade2}</li>
+          ${anuncios.oportunidade1 ? `<li>${anuncios.oportunidade1}</li>` : ''}
+          ${anuncios.oportunidade2 ? `<li>${anuncios.oportunidade2}</li>` : ''}
         </ul>
       </div>
     ` : '';
 
-    const cData = prospect?.calculatorData || {};
+    const cData = prospectData?.calculatorData || {};
     const ticketMedio = cData.ticketMedio || 1500;
     const buscasMes = 500;
+    const cons = Math.round(buscasMes * 0.02 * ticketMedio);
+    const mod = Math.round(buscasMes * 0.04 * ticketMedio);
     const agr = Math.round(buscasMes * 0.06 * ticketMedio);
 
     const dinheiroMesaHtml = `
@@ -222,46 +257,114 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         <p>Com um ticket médio de R$ ${ticketMedio.toLocaleString('pt-BR')} e 500 buscas mensais estimadas na região, uma campanha agressiva captando 6% das buscas pode gerar até <strong>R$ ${agr.toLocaleString('pt-BR')} de faturamento extra por mês.</strong></p>
       </div>
     `;
-    
-    const planoHtml = `
+
+    const planoHtml = planoAcao.length > 0 ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Plano de Ação de 30 Dias (IA)</h3>
         <ul style="padding-left: 20px;">
-          ${planoAcao.map((acao: any) => `<li style="margin-bottom: 8px;"><strong>${acao.titulo}</strong>: ${acao.descricao}</li>`).join('')}
+          ${planoAcao.map((acao: any) => `<li style="margin-bottom: 8px;"><strong>${acao.titulo || ''}</strong>: ${acao.descricao || ''}</li>`).join('')}
         </ul>
       </div>
-    `;
-    
-    const concorrentesHtml = `
+    ` : '';
+
+    const concorrentesHtml = concorrentes.length > 0 ? `
       <div style="background-color: #f8fafc; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <h3 style="color: #334155; margin-top: 0; font-size: 14pt;">Análise de Concorrentes (IA)</h3>
         <ul style="padding-left: 20px;">
-          ${concorrentes.map((c: any) => `<li style="margin-bottom: 8px;"><strong>${c.nome}</strong>: Nota ${c.nota} (${c.avaliacoes} avaliações). Anuncia no Google: ${c.anunciaGoogle ? 'Sim' : 'Não'}.</li>`).join('')}
+          ${concorrentes.map((c: any) => `<li style="margin-bottom: 8px;"><strong>${c.nome || ''}</strong>: Nota ${c.nota ?? 'N/A'} (${c.avaliacoes ?? 0} avaliações). Anuncia no Google: ${c.anunciaGoogle ? 'Sim' : 'Não'}.</li>`).join('')}
         </ul>
       </div>
+    ` : '';
+
+    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '');
+    const mapaCalorHtml = mapImageUrl ? `
+      <div style="margin: 24px 0; text-align: center;">
+        <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" />
+        <p style="margin: 8px 0 0; color: #475569; font-size: 9pt;">Mapa real da varredura Local Falcon${gmn?.scanId ? ` | Scan: ${gmn.scanId}` : ''}</p>
+      </div>
+    ` : '';
+    const fichaClinicaHtml = `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; color:#0f172a;">
+        <div style="font-size:18pt; font-weight:800; margin-bottom:6px;">${clinica || prospectData?.clinicName || 'Clínica'}</div>
+        <div style="font-size:10pt; color:#475569; margin-bottom:10px;">${enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || 'Endereço não informado'}</div>
+        <div style="font-size:11pt; font-weight:700;">${prospectData?.gmnRating || '—'} <span style="color:#f59e0b;">★★★★★</span> <span style="color:#64748b; font-weight:400;">(${prospectData?.gmnReviewsCount || 0} avaliações)</span></div>
+      </div>
     `;
-    
+    const pillarItems = [
+      ['Google', placar?.google], ['Reputação', placar?.reputacao], ['Instagram', placar?.instagram], ['Site', placar?.site], ['Ads', placar?.ads]
+    ];
+    const placarPilaresHtml = placar ? `
+      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
+        <h3 style="margin:0 0 16px; font-size:15pt;">Placar por pilar</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
+          ${pillarItems.map(([label, value]) => `<div style="flex:1; min-width:90px; border:1px solid #334155; border-radius:12px; padding:12px; text-align:center;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'N/A'}</div><div style="font-size:9pt; font-weight:700; margin-top:6px;">${label}</div></div>`).join('')}
+        </div>
+      </div>
+    ` : '';
+    const rankingHtml = concorrentes.length ? `
+      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
+        <h3 style="margin:0 0 16px; font-size:15pt;">Quem aparece na frente de você</h3>
+        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #334155; border-radius:10px; padding:12px; margin:8px 0;"><strong>${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#cbd5e1;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes !== undefined ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
+        <div style="border:2px solid #f59e0b; background:#422006; border-radius:10px; padding:12px; margin-top:12px; color:#fef3c7;"><strong>${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt;">Posição média no Google (Local Falcon)</span></div>
+      </div>
+    ` : '';
+    const pageSpeedHtml = site ? `
+      <div style="background:#0f172a; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
+        <h3 style="margin:0 0 16px; font-size:15pt;">Velocidade e SEO</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
+          ${[['Desempenho', site.velocidade], ['Acessibilidade', site.acessibilidade], ['Práticas recomendadas', site.praticas], ['SEO', site.seo]].map(([label, value]) => `<div style="flex:1; min-width:100px; border:1px solid #334155; border-radius:12px; padding:12px; text-align:center;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'Sem dados'}</div><div style="font-size:9pt; font-weight:700; margin-top:6px;">${label}</div></div>`).join('')}
+        </div>
+      </div>
+    ` : '';
+    const dinheiroMesaVisualHtml = `
+      <div style="background:#172033; color:#fff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif;">
+        <h3 style="margin:0 0 6px; font-size:15pt;">Dinheiro na mesa</h3><p style="margin:0 0 16px; color:#cbd5e1; font-size:10pt;">Estimativa da receita que deixa de entrar por mês.</p>
+        <div style="margin:12px 0;"><strong>Conservador</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${cons.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:33%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
+        <div style="margin:12px 0;"><strong>Moderado</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${mod.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:50%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
+        <div style="margin:12px 0;"><strong>Agressivo</strong><span style="float:right; color:#22c55e; font-size:14pt;">R$ ${agr.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px;"><div style="width:100%; height:10px; border-radius:8px; background:#22c55e;"></div></div></div>
+      </div>
+    `;
+
     let html = editorRef.current.innerHTML;
     let appended = '';
-    
-    if (html.includes('{{IA_RESUMO}}')) html = html.replace(/{{IA_RESUMO}}/g, resumoHtml); else appended += resumoHtml;
-    if (html.includes('{{IA_PLACAR}}')) html = html.replace(/{{IA_PLACAR}}/g, placarHtml); else appended += placarHtml;
-    if (html.includes('{{IA_GMN}}')) html = html.replace(/{{IA_GMN}}/g, gmnHtml); else appended += gmnHtml;
-    if (html.includes('{{IA_SITE}}')) html = html.replace(/{{IA_SITE}}/g, siteHtml); else appended += siteHtml;
-    if (html.includes('{{IA_ANUNCIOS}}')) html = html.replace(/{{IA_ANUNCIOS}}/g, anunciosHtml); else appended += anunciosHtml;
-    if (html.includes('{{IA_DINHEIRO}}')) html = html.replace(/{{IA_DINHEIRO}}/g, dinheiroMesaHtml); else appended += dinheiroMesaHtml;
-    if (html.includes('{{IA_PLANO_ACAO}}')) html = html.replace(/{{IA_PLANO_ACAO}}/g, planoHtml); else appended += planoHtml;
-    if (html.includes('{{IA_CONCORRENTES}}')) html = html.replace(/{{IA_CONCORRENTES}}/g, concorrentesHtml); else appended += concorrentesHtml;
-    
-    if (appended) {
-      editorRef.current.innerHTML = html + '<br><br>' + appended;
-      handleEditorInput();
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dados inseridos (alguns no final)!', showConfirmButton: false, timer: 2000 });
-    } else {
-      editorRef.current.innerHTML = html;
-      handleEditorInput();
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dados da IA Injetados!', showConfirmButton: false, timer: 2000 });
-    }
+
+    const visualTags: Record<string, string> = {
+      '{{IA_MAPA_CALOR}}': mapaCalorHtml,
+      '{{IA_FICHA_CLINICA}}': fichaClinicaHtml,
+      '{{IA_PLACAR_PILARES}}': placarPilaresHtml,
+      '{{IA_RANKING_CONCORRENTES}}': rankingHtml,
+      '{{IA_PAGESPEED}}': pageSpeedHtml,
+      '{{IA_DINHEIRO_NA_MESA}}': dinheiroMesaVisualHtml,
+      '{{IA_RESUMO}}': resumoHtml,
+      '{{IA_PLACAR}}': placarHtml,
+      '{{IA_GMN}}': gmnHtml,
+      '{{IA_SITE}}': siteHtml,
+      '{{IA_ANUNCIOS}}': anunciosHtml,
+      '{{IA_DINHEIRO}}': dinheiroMesaHtml,
+      '{{IA_PLANO_ACAO}}': planoHtml,
+      '{{IA_CONCORRENTES}}': concorrentesHtml,
+    };
+    let applied = 0;
+    let unavailable = 0;
+    Object.entries(visualTags).forEach(([tag, value]) => {
+      if (!html.includes(tag)) return;
+      if (value) {
+        html = html.split(tag).join(value);
+        applied += 1;
+      } else {
+        unavailable += 1;
+      }
+    });
+    const liveProspect = { ...prospectData, clinicName: clinica || prospectData?.clinicName, ownerName: donoClinica || prospectData?.ownerName, location: cidadeBairro || prospectData?.location, fullAddress: enderecoCompleto || prospectData?.fullAddress };
+    DEFAULT_VARIABLE_TAGS.forEach((tag) => {
+      if (visualTags[tag.code] !== undefined) return;
+      if (!html.includes(tag.code)) return;
+      html = html.split(tag.code).join(tag.exampleValue(liveProspect, diagnosticData));
+      applied += 1;
+    });
+    editorRef.current.innerHTML = html;
+    handleEditorInput();
+    Swal.fire({ toast: true, position: 'top-end', icon: applied ? 'success' : 'info', title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta', text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined, showConfirmButton: false, timer: 2600 });
   };
 
   const handleMarcarEntregue = async () => {
@@ -411,7 +514,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const handleEditorClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLImageElement) {
       const img = e.target;
-      
+
       const scrollContainer = document.getElementById('editor-scroll-container');
       const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
 
@@ -438,7 +541,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         didOpen: () => {
           const input = document.getElementById('swal-img-width') as HTMLInputElement;
           const select = document.getElementById('swal-img-align') as HTMLSelectElement;
-          
+
           if (input) {
             setTimeout(() => input.focus(), 100);
             input.addEventListener('keydown', (e) => {
@@ -479,7 +582,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           }
           handleEditorInput();
         }
-        
+
         // Restore scroll position
         if (scrollContainer) {
           setTimeout(() => {
@@ -796,6 +899,22 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     }
   };
 
+  const handleInsertTag = (tagCode: string) => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertText', false, tagCode);
+      handleEditorInput();
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Tag ${tagCode} inserida no texto!`,
+        showConfirmButton: false,
+        timer: 1200
+      });
+    }
+  };
+
   // ── Salvar / Imprimir ────────────────────────────────────────────────────
   const handleSalvarNoSistema = async () => {
     if (!clinica.trim()) {
@@ -811,7 +930,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         fullAddress: enderecoCompleto,
         conteudoHtml: editorRef.current?.innerHTML || ''
       });
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Salvo!', text: 'Prospecção registrada com sucesso.', timer: 1500, showConfirmButton: false });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Salvo!', text: 'Prospecção salva com sucesso no sistema.', timer: 2000, showConfirmButton: false });
     }
   };
 
@@ -830,11 +949,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           fullAddress: enderecoCompleto,
           conteudoHtml: editorRef.current?.innerHTML || ''
         });
-      } catch (err) { /* continua para imprimir mesmo se save falhar */ }
+      } catch (err) { /* continua para imprimir */ }
     }
 
     if (editorRef.current) {
-      const content = viewHtml ? previewHtml : editorRef.current.innerHTML;
+      const content = editorRef.current.innerHTML;
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
       document.body.appendChild(iframe);
@@ -848,20 +967,19 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 @page { size: A4; margin: ${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm; }
                 body { margin: 0; font-family: Arial, sans-serif; background: white; }
                 .content-cell { font-size: 11pt; line-height: 1.5; text-align: justify; }
-                .content-cell h1 { font-size: ${estilos.h1.size}pt !important; margin-left: ${estilos.h1.indent}px !important; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; margin-top: 15px; margin-bottom: 15px; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; }
-                .content-cell h2 { font-size: ${estilos.h2.size}pt !important; margin-left: ${estilos.h2.indent}px !important; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; margin-top: 15px; margin-bottom: 10px; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; }
-                .content-cell h3 { font-size: ${estilos.h3.size}pt !important; margin-left: ${estilos.h3.indent}px !important; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; margin-top: 12px; margin-bottom: 8px; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; }
-                .content-cell p { font-size: ${estilos.p.size}pt !important; margin-left: ${estilos.p.indent}px !important; text-indent: ${estilos.p.firstLine}px !important; margin-top: 0; margin-bottom: 10px; text-align: justify; }
-                .content-cell ul { padding-left: ${estilos.list.indent}px !important; list-style-type: disc !important; list-style-position: outside !important; }
-                .content-cell ol { padding-left: ${estilos.list.indent}px !important; list-style-type: decimal !important; list-style-position: outside !important; }
-                .content-cell li { margin-bottom: ${estilos.list.spacing}px !important; }
-                .content-cell img { max-width: 100% !important; height: auto !important; page-break-inside: avoid; }
-                .content-cell hr.page-break { border: none !important; margin: 0 !important; opacity: 0 !important; }
+                .content-cell h1 { font-size: ${estilos.h1.size}pt !important; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; margin-top: 15px; margin-bottom: 15px; }
+                .content-cell h2 { font-size: ${estilos.h2.size}pt !important; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; margin-top: 15px; margin-bottom: 10px; }
+                .content-cell h3 { font-size: ${estilos.h3.size}pt !important; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; margin-top: 12px; margin-bottom: 8px; }
+                .content-cell p { font-size: ${estilos.p.size}pt !important; margin-top: 0; margin-bottom: 10px; text-align: justify; }
+                .content-cell ul { padding-left: 20px !important; list-style-type: disc !important; }
+                .content-cell ol { padding-left: 20px !important; list-style-type: decimal !important; }
+                .content-cell li { margin-bottom: 5px !important; }
+                .content-cell img { max-width: 100% !important; height: auto !important; }
               </style>
             </head>
             <body>
               <div class="content-cell">${content}</div>
-              <script>setTimeout(() => window.print(), 800);<\/script>
+              <script>setTimeout(() => window.print(), 500);<\/script>
             </body>
           </html>
         `);
@@ -874,22 +992,15 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div className="gerador-modal-container" style={{ backgroundColor: '#f8fafc', width: showPreview ? '100vw' : '95%', maxWidth: showPreview ? '100vw' : '1400px', height: showPreview ? '100vh' : '90vh', borderRadius: showPreview ? '0' : '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', transition: 'all 0.3s' }}>
+      <div className="gerador-modal-container" style={{ backgroundColor: '#f8fafc', width: '96%', maxWidth: '1600px', height: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', transition: 'all 0.3s' }}>
 
         {/* Header */}
         <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FileText size={24} color="var(--primary-color)" />
-            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--primary-color)' }}>Gerador de Prospecção</h2>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>Gerador de Prospecção & Automação de Cartas</h2>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <label className="gerador-header-preview-toggle" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '500', color: 'var(--text-secondary)' }}>
-              <input type="checkbox" checked={showPreview} onChange={e => setShowPreview(e.target.checked)} style={{ width: '18px', height: '18px' }} />
-              Ver Prévia Dividida
-            </label>
-            <div className="gerador-header-preview-toggle" style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)' }}></div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} color="var(--text-secondary)" /></button>
-          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} color="var(--text-secondary)" /></button>
         </div>
 
         <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -915,26 +1026,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 </button>
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.2rem 0' }} />
-              
-              {/* Diagnóstico IA */}
-              {diagnosticData && (
-                <div style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Brain size={16} /> Dados da IA
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', lineHeight: '1.4' }}>
-                    Escreva <b>{"{{IA_RESUMO}}"}</b>, <b>{"{{IA_PLANO_ACAO}}"}</b> ou <b>{"{{IA_CONCORRENTES}}"}</b> no texto e clique abaixo para injetar, ou apenas clique para inserir no final.
-                  </p>
-                  <button onClick={handleInjectDiagnostic} style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 'bold' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#4f46e5'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#6366f1'}>
-                    <Wand2 size={16} /> Injetar Diagnóstico
-                  </button>
-                </div>
-              )}
-              
-              {diagnosticData && <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.2rem 0' }} />}
-
-              {/* Data da Prospecção - Único campo editável */}
+              {/* Data da Prospecção */}
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
                 <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
@@ -944,7 +1036,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
                   <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
-                  <a 
+                  <a
                     href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
                     onClick={(e) => {
                       if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
@@ -957,7 +1049,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                     <Edit2 size={12} /> Editar Ficha Completa
                   </a>
                 </div>
-                
+
                 <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
                   <strong style={{ color: 'white' }}>Dono da Clínica:</strong>
                   {opcoesDono.length > 1 ? (
@@ -1002,25 +1094,25 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 >
                   <Printer size={18} /> {isSaving ? 'Processando...' : 'Imprimir / Salvar PDF'}
                 </button>
-                
+
                 {prospeccaoParaEditar && (
                   <button
                     disabled={isSaving}
                     onClick={handleMarcarEntregue}
-                    style={{ 
-                      width: '100%', 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
-                      gap: '0.5rem', 
-                      padding: '0.75rem', 
-                      fontSize: '1rem', 
-                      fontWeight: 'bold', 
-                      backgroundColor: isEntregue ? '#22c55e' : '#ef4444', 
-                      border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`, 
-                      color: 'white', 
-                      borderRadius: '8px', 
-                      cursor: isSaving ? 'not-allowed' : 'pointer', 
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem',
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      backgroundColor: isEntregue ? '#22c55e' : '#ef4444',
+                      border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`,
+                      color: 'white',
+                      borderRadius: '8px',
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
                       opacity: isSaving ? 0.7 : 1,
                       marginTop: '0.5rem'
                     }}
@@ -1154,30 +1246,76 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             </div>
           </div>
 
-          {/* Prévia */}
-          {showPreview && (
-            <div className="gerador-preview" style={{ width: '450px', backgroundColor: '#e2e8f0', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-color)', fontWeight: '500', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Printer size={18} /> Prévia da Impressão</div>
-                <span style={{ fontSize: '0.85rem' }}>{totalPages} página{totalPages > 1 ? 's' : ''}</span>
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '476px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ width: '794px', transform: 'scale(0.6)', transformOrigin: 'top center', display: 'flex', flexDirection: 'column', gap: '40px', marginBottom: `calc(-40% * ${totalPages * 1123}px)` }}>
-                    {Array.from({ length: totalPages }).map((_, i) => (
-                      <div key={i} style={{ width: '794px', height: '1123px', backgroundColor: 'white', boxShadow: '0 15px 35px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', overflow: 'hidden' }}>
-                        <div style={{ height: '80px', margin: '20px auto' }}></div>
-                        <div style={{ height: '843px', overflow: 'hidden', margin: '0 20mm' }}>
-                          <div className="editor-content" dangerouslySetInnerHTML={{ __html: previewHtml }} style={{ marginTop: `-${i * 843}px`, padding: '10px', fontSize: '11pt', lineHeight: '1.5', textAlign: 'justify', color: 'black' }} />
-                        </div>
-                        <div style={{ height: '80px', width: '100%', marginTop: 'auto' }}></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+          {/* Painel Direito: IA e Variáveis de Automação */}
+          <div className="gerador-ia-panel" style={{ width: '380px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '0.75rem 1rem', backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={handleApplyAllTags}
+                style={{ flex: 1, backgroundColor: '#0f766e', color: 'white', border: '1px solid #14b8a6', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+                title="Substitui todas as tags por dados e blocos visuais reais disponíveis"
+              >
+                <Wand2 size={15} /> Aplicar Todas as Tags
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowVariableModal(true)}
+                style={{ backgroundColor: '#6366f1', color: 'white', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <Code size={12} /> Ver Mapeamento
+              </button>
             </div>
-          )}
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              {/* Tags de Clique Rápido */}
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h4 style={{ margin: '0 0 0.6rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)', fontWeight: 'bold' }}>
+                  ⚡ Clique para Inserir Tag na Carta
+                </h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {DEFAULT_VARIABLE_TAGS.map((tag) => {
+                    const isVisualTag = tag.code.startsWith('{{IA_');
+                    return (
+                    <button
+                      key={tag.code}
+                      type="button"
+                      onClick={() => handleInsertTag(tag.code)}
+                      style={{
+                        backgroundColor: isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)',
+                        border: isVisualTag ? '1px solid rgba(245, 158, 11, 0.65)' : '1px solid rgba(255,255,255,0.15)',
+                        color: isVisualTag ? '#fcd34d' : '#cbd5e1',
+                        borderRadius: '6px',
+                        padding: '0.35rem 0.55rem',
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.28)' : 'rgba(99, 102, 241, 0.3)';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)';
+                        e.currentTarget.style.color = isVisualTag ? '#fcd34d' : '#cbd5e1';
+                      }}
+                      title={`${isVisualTag ? 'Inserir bloco visual: ' : 'Inserir '}${tag.description}`}
+                    >
+                      {isVisualTag ? <ImageIcon size={12} /> : <Plus size={12} />} {tag.code}
+                    </button>
+                    );
+                  })}
+                </div>
+                <p style={{ margin: '0.7rem 0 0', fontSize: '0.7rem', color: '#fcd34d', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <ImageIcon size={12} /> Tags douradas inserem conteúdo visual na carta.
+                </p>
+              </div>
+
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1202,10 +1340,22 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; }
           .editor-page-wrapper { min-height: auto !important; padding: 10px !important; }
           .editor-content { padding: 10px !important; }
-          .gerador-header-preview-toggle { display: none !important; }
-          .gerador-preview { display: none !important; }
         }
       `}</style>
+
+      <VariableMappingModal
+        isOpen={showVariableModal}
+        onClose={() => setShowVariableModal(false)}
+        selectedProspect={prospeccaoParaEditar}
+        diagnosticData={diagnosticData}
+        onSelectTag={(tag) => {
+          if (editorRef.current) {
+            editorRef.current.focus();
+            document.execCommand('insertText', false, tag);
+            handleEditorInput();
+          }
+        }}
+      />
     </div>
   );
 }

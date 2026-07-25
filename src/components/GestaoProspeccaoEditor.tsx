@@ -13,7 +13,7 @@ import { db, auth } from '../firebase';
 
 export default function GestaoProspeccaoEditor() {
   const [prospeccoes, setProspeccoes] = useState<EditorProspeccaoDoc[]>([]);
-  
+
   const getSavedFilter = (key: string, defaultValue: any) => {
     try {
       const uid = auth?.currentUser?.uid || 'guest';
@@ -53,7 +53,7 @@ export default function GestaoProspeccaoEditor() {
 
   useEffect(() => {
     const unsubscribe = subscribeToProspeccaoDocs(docs => setProspeccoes(docs));
-    
+
     const unsubscribeProspects = onSnapshot(collection(db, 'prospects'), (snapshot) => {
       const map: Record<string, { responsible: string; ownerName: string; clinicName: string; location: string; }> = {};
       snapshot.docs.forEach(doc => {
@@ -83,7 +83,7 @@ export default function GestaoProspeccaoEditor() {
   const uniqueResponsibles = Array.from(new Set(
     activeProspeccoes.map(c => c.clienteId ? prospectsMap[c.clienteId]?.responsible : null).filter(Boolean)
   )).sort() as string[];
-  
+
   const uniqueLocations = Array.from(new Set(
     activeProspeccoes.map(c => c.clienteId ? prospectsMap[c.clienteId]?.location : null).filter(Boolean)
   )).sort() as string[];
@@ -123,7 +123,7 @@ export default function GestaoProspeccaoEditor() {
     }
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Restaurado!', showConfirmButton: false, timer: 1500 });
   };
-  
+
   const handleEmptyTrash = async () => {
     if (window.confirm('Deseja apagar TOTALMENTE todas as prospecções da lixeira? Esta ação não pode ser desfeita.')) {
       const deletedDocs = prospeccoes.filter(c => c.isDeleted === true);
@@ -145,7 +145,7 @@ export default function GestaoProspeccaoEditor() {
       if (copy.clienteNome) copy.clienteNome += ' (Cópia)';
       copy.isEntregue = false;
       copy.dataAssinatura = new Date().toISOString();
-      
+
       await addProspeccaoDoc(copy as any);
       Swal.fire({ icon: 'success', title: 'Prospecção Duplicada!', timer: 1500, showConfirmButton: false });
     } catch (error: any) {
@@ -264,7 +264,7 @@ export default function GestaoProspeccaoEditor() {
 
       const parts = cDateStr.split('-');
       if (parts.length !== 3) return false;
-      
+
       const cYear = parseInt(parts[0], 10);
       const cMonth = parseInt(parts[1], 10);
 
@@ -302,21 +302,21 @@ export default function GestaoProspeccaoEditor() {
     <div className="p-4 sm:p-8 pb-32 bg-slate-50 h-full overflow-y-auto custom-scrollbar">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-4 mb-6">
         <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          <button 
+          <button
             onClick={() => setActiveTab('ativos')}
             className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
           >
             <Layers size={14} />
             Ativas ({countAtivos})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('entregues')}
             className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'entregues' ? 'bg-green-500 shadow-sm shadow-green-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-green-500'}`}
           >
             <CheckCircle size={14} />
             Entregues ({countEntregues})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('lixeira')}
             className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
           >
@@ -336,7 +336,7 @@ export default function GestaoProspeccaoEditor() {
 
       {activeTab === 'lixeira' && (
         <div className="mb-4">
-          <button 
+          <button
             onClick={handleEmptyTrash}
             className="flex items-center justify-center gap-2 py-2 px-4 text-xs font-bold uppercase tracking-wider rounded-lg transition-all text-red-500 border border-red-200 hover:bg-red-50"
           >
@@ -350,15 +350,15 @@ export default function GestaoProspeccaoEditor() {
         <div className="grid grid-cols-2 sm:flex sm:flex-row flex-wrap gap-2 sm:gap-4 items-center">
           <div className="col-span-2 sm:flex-1 sm:max-w-[400px] relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar por Clínica ou cliente..." 
+            <input
+              type="text"
+              placeholder="Buscar por Clínica ou cliente..."
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div className="col-span-1 sm:w-auto relative">
             <select
               value={responsibleFilter}
@@ -371,7 +371,7 @@ export default function GestaoProspeccaoEditor() {
               ))}
             </select>
           </div>
-          
+
           <div className="col-span-1 sm:w-auto relative">
             <select
               value={statusFilter}
@@ -383,7 +383,7 @@ export default function GestaoProspeccaoEditor() {
               <option value="pendente">Não Entregues</option>
             </select>
           </div>
-          
+
           <div className="col-span-1 sm:w-auto relative">
             <select
               value={locationFilter}
@@ -429,18 +429,18 @@ export default function GestaoProspeccaoEditor() {
               </div>
             )}
           </div>
-          
+
           <div className="col-span-1 flex items-center justify-start sm:w-auto">
             {(periodType !== 'all' || startDate || endDate || statusFilter || responsibleFilter || searchTerm || locationFilter) && (
-              <button 
-                onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); setLocationFilter(''); }} 
+              <button
+                onClick={() => { setPeriodType('all'); setStartDate(''); setEndDate(''); setStatusFilter(''); setResponsibleFilter(''); setSearchTerm(''); setLocationFilter(''); }}
                 className="text-xs sm:text-sm text-slate-500 underline hover:text-slate-700 py-1"
               >
                 Limpar Filtros
               </button>
             )}
           </div>
-          
+
           <div className="col-span-1 flex items-center justify-end sm:w-auto sm:ml-auto">
             <div className="text-xs sm:text-sm text-slate-500 font-medium bg-slate-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border border-slate-200 text-center whitespace-nowrap">
               Exibindo {filteredProspeccoes.length} {filteredProspeccoes.length === 1 ? 'ficha' : 'fichas'}
@@ -468,14 +468,14 @@ export default function GestaoProspeccaoEditor() {
                     </span>
                   )}
                 </div>
-                
+
                 {prospeccao.clienteId && prospectsMap[prospeccao.clienteId]?.location && (
                   <div className="text-sm text-slate-500 truncate mt-1">
                     <span className="font-semibold text-slate-600 mr-1">Local:</span>
                     {prospectsMap[prospeccao.clienteId].location}
                   </div>
                 )}
-                
+
                 <div className="flex justify-between items-center text-sm border-t border-slate-100 pt-3">
                   <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Responsável</span>
@@ -494,7 +494,7 @@ export default function GestaoProspeccaoEditor() {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2 justify-end border-t border-slate-100 pt-3 mt-1">
                     {activeTab === 'lixeira' ? (
                       <>
@@ -615,8 +615,8 @@ export default function GestaoProspeccaoEditor() {
       )}
 
       {isGeradorOpen && (
-        <GeradorProspeccao 
-          onClose={() => { setIsGeradorOpen(false); setEditingEditorProspeccaoDoc(null); }} 
+        <GeradorProspeccao
+          onClose={() => { setIsGeradorOpen(false); setEditingEditorProspeccaoDoc(null); }}
           prospeccaoParaEditar={editingEditorProspeccaoDoc}
           onSaveProspeccao={async (prospeccao) => {
             try {
@@ -641,9 +641,6 @@ export default function GestaoProspeccaoEditor() {
               Swal.fire({ icon: 'error', title: 'Erro ao Salvar', text: e.message || String(e) });
               return;
             }
-            
-            setIsGeradorOpen(false);
-            setEditingEditorProspeccaoDoc(null);
           }}
         />
       )}

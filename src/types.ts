@@ -308,7 +308,7 @@ export interface Prospect {
   step2Done?: boolean;
   step3Done?: boolean;
   step4Done?: boolean;
-  
+
   // Novos campos adicionados
   collaborators?: string;
   gmnRating?: string;
@@ -318,6 +318,13 @@ export interface Prospect {
   aiReport?: string;
   instagramMessage?: string;
   isRestartBase?: boolean;
+  keyword?: string;
+  ticketMedio?: string;
+  stateUf?: string;
+  cityName?: string;
+  neighborhoodName?: string;
+  facebookUrl?: string;
+  mapaCalorImg?: string;
   followUps?: FollowUp[];
   aiFilledFields?: string[];
   calculatorData?: CalculatorData;
@@ -329,6 +336,7 @@ export interface Prospect {
   lng?: number;
   geocodeFailed?: boolean;
   isEntregue?: boolean;
+  isArchived?: boolean;
   owners?: { name: string; instagram: string; role?: string }[];
 }
 

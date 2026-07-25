@@ -7,8 +7,12 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   const [geminiKey, setGeminiKey] = useState('');
   const [outscraperKey, setOutscraperKey] = useState('');
   const [localFalconKey, setLocalFalconKey] = useState('');
+  const [localFalconGridSize, setLocalFalconGridSize] = useState<'3x3' | '5x5' | '7x7'>('3x3');
+  const [pageSpeedKey, setPageSpeedKey] = useState('');
+  const [metaAdsKey, setMetaAdsKey] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [falconTesting, setFalconTesting] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -17,6 +21,9 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
         if (settings.key) setGeminiKey(settings.key);
         if (settings.outscraperKey) setOutscraperKey(settings.outscraperKey);
         if (settings.localFalconKey) setLocalFalconKey(settings.localFalconKey);
+        if (settings.localFalconGridSize) setLocalFalconGridSize(settings.localFalconGridSize);
+        if (settings.pageSpeedKey) setPageSpeedKey(settings.pageSpeedKey);
+        if (settings.metaAdsKey) setMetaAdsKey(settings.metaAdsKey);
       }
       setIsLoading(false);
     };
@@ -28,10 +35,13 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   }, [userProfile]);
 
   const handleSaveKey = async () => {
-    await updateGlobalSettings('gemini', { 
+    await updateGlobalSettings('gemini', {
       key: geminiKey,
       outscraperKey,
-      localFalconKey
+      localFalconKey,
+      localFalconGridSize,
+      pageSpeedKey,
+      metaAdsKey
     });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
@@ -62,7 +72,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
 
   return (
     <div className="flex-1 h-screen bg-[#060B19] text-white overflow-y-auto custom-scrollbar">
-      <div className="p-8">
+      <div className="p-8 pb-28">
         <div className="flex items-center gap-4 mb-8">
           <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center border border-red-500/30">
             <AlertTriangle className="w-6 h-6 text-red-500" />
@@ -73,24 +83,27 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Configurações de API */}
-          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col h-full">
+        {/* Linha Superior: Gemini (Esquerda) + Zona de Perigo (Direita) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Chave Gemini */}
+          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col justify-between">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-50" />
-            
-            <div className="flex items-center gap-3 mb-6">
-              <Key className="text-blue-400" />
-              <h2 className="text-xl font-bold">Chave da API do Gemini</h2>
+
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <Key className="text-blue-400" />
+                <h2 className="text-xl font-bold">Chave da API do Gemini</h2>
+              </div>
+
+              <p className="text-white/60 text-sm mb-6">
+                Esta chave é utilizada para gerar as análises de IA e sugestões de mensagens. Certifique-se de usar uma chave válida do Google AI Studio.
+              </p>
             </div>
-            
-            <p className="text-white/60 text-sm mb-6 flex-1">
-              Esta chave é utilizada para gerar as análises de IA e sugestões de mensagens. Certifique-se de usar uma chave válida do Google AI Studio.
-            </p>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-white/80 mb-2">
-                  API Key Atual
+                  API Key Atual (Google AI Studio)
                 </label>
                 <input
                   type="password"
@@ -115,138 +128,64 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
               </div>
 
               {saveSuccess && (
-                <div className="mt-4 bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl flex items-center justify-center gap-2">
-                  <span>Chaves salvas com sucesso!</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col h-full">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#5271FF] to-[#38bdf8] opacity-50" />
-            
-            <div className="flex items-center gap-3 mb-6">
-              <Database className="text-[#5271FF]" />
-              <h2 className="text-xl font-bold">Chaves de Integração (Gerador de Leads)</h2>
-            </div>
-            
-            <p className="text-white/60 text-sm mb-6 flex-1">
-              Insira abaixo as chaves necessárias para as integrações de prospecção digital (Outscraper, Local Falcon, etc).
-            </p>
-
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-white/80 mb-2">
-                    API Key Outscraper (Google Maps)
-                  </label>
-                  <input
-                    type="password"
-                    value={outscraperKey}
-                    onChange={(e) => setOutscraperKey(e.target.value)}
-                    placeholder="Cole sua API Key do Outscraper"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
-                  />
-                  <p className="text-xs text-white/40 mt-1">Usada no Gerador Inteligente de Leads.</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-white/80 mb-2">
-                    API Key Local Falcon (Análise de SEO)
-                  </label>
-                  <input
-                    type="password"
-                    value={localFalconKey}
-                    onChange={(e) => setLocalFalconKey(e.target.value)}
-                    placeholder="Cole sua API Key do Local Falcon"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
-                  />
-                  <p className="text-xs text-white/40 mt-1">Usada na etapa de verificação de ICP para gerar raio-X.</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-white/40">
-                  Estas chaves ficam salvas junto com a configuração global.
-                </p>
-                <button
-                  onClick={handleSaveKey}
-                  className="flex items-center gap-2 bg-[#5271FF] hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all"
-                >
-                  <Save className="w-4 h-4" />
-                  Salvar Chaves
-                </button>
-              </div>
-
-              {saveSuccess && (
                 <div className="mt-2 bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl flex items-center justify-center gap-2">
                   <span>Chaves salvas com sucesso!</span>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-          {/* Sugestões de Ferramentas Administrativas */}
-          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 mt-8">
-            <div className="flex items-center gap-3 mb-6">
-              <AlertTriangle className="text-orange-400" />
-              <h2 className="text-xl font-bold">Zona de Perigo & Ferramentas</h2>
+          {/* Zona de Perigo */}
+          <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group flex flex-col justify-between">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500 opacity-50" />
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="text-orange-400" />
+                <h2 className="text-xl font-bold">Zona de Perigo & Ferramentas</h2>
+              </div>
+
+              <p className="text-white/60 text-sm mb-4">
+                Ações avançadas de gerenciamento do sistema.
+              </p>
             </div>
 
-            <p className="text-white/60 text-sm mb-6">
-              Ações avançadas de gerenciamento do sistema. (Algumas ferramentas podem estar em desenvolvimento).
-            </p>
-
             <div className="space-y-3">
-              <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
-                <div className="flex items-center gap-3 w-full">
-                  <div className="p-2 bg-yellow-500/20 rounded-lg group-hover:bg-yellow-500/30 transition-colors shrink-0">
-                    <Key className="text-yellow-400 w-5 h-5" />
+              <div className="p-3.5 rounded-xl border border-white/5 bg-white/5 flex items-center justify-between gap-4 opacity-50 cursor-not-allowed">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-500/20 rounded-lg shrink-0">
+                    <Key className="text-yellow-400 w-4 h-4" />
                   </div>
-                  <div className="flex-1 w-full opacity-50 cursor-not-allowed">
-                    <h3 className="font-bold text-sm text-yellow-400 mb-1">Acesso Mestre via Firebase Auth</h3>
-                    <p className="text-xs text-white/40">O acesso agora é validado pelo nível de permissão da conta do usuário.</p>
+                  <div>
+                    <h3 className="font-bold text-xs text-yellow-400">Acesso Mestre via Firebase Auth</h3>
+                    <p className="text-[11px] text-white/40">Validado pelo nível de permissão do usuário.</p>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 opacity-50 cursor-not-allowed">
+              <div className="p-3.5 rounded-xl border border-white/5 bg-white/5 flex items-center justify-between gap-4 opacity-50 cursor-not-allowed">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <Database className="text-purple-400 w-5 h-5" />
+                  <div className="p-2 bg-purple-500/20 rounded-lg shrink-0">
+                    <Database className="text-purple-400 w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm">Backup de Dados</h3>
-                    <p className="text-xs text-white/40">Exportar todos os cards e configurações para JSON.</p>
+                    <h3 className="font-bold text-xs">Backup de Dados</h3>
+                    <p className="text-[11px] text-white/40">Exportar cards e configurações para JSON.</p>
                   </div>
                 </div>
-                <button disabled className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-white/40">Em breve</button>
+                <button disabled className="text-[11px] font-bold bg-white/10 px-2.5 py-1 rounded text-white/40">Em breve</button>
               </div>
 
-              <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 opacity-50 cursor-not-allowed">
+              <div className="p-3.5 rounded-xl border border-red-500/10 bg-red-500/5 hover:bg-red-500/10 transition-colors flex items-center justify-between gap-4 cursor-pointer group">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Users className="text-blue-400 w-5 h-5" />
+                  <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors shrink-0">
+                    <Trash2 className="text-red-400 w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm">Permissões Globais</h3>
-                    <p className="text-xs text-white/40">Gerenciar níveis de acesso de todos os usuários.</p>
+                    <h3 className="font-bold text-xs text-red-400">Limpar Cache Local</h3>
+                    <p className="text-[11px] text-red-400/60">Remove preferências salvas e reseta a UI.</p>
                   </div>
                 </div>
-                <button disabled className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-white/40">Em breve</button>
-              </div>
-
-              <div className="p-4 rounded-xl border border-red-500/10 bg-red-500/5 hover:bg-red-500/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors">
-                    <Trash2 className="text-red-400 w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-red-400">Limpar Cache Local</h3>
-                    <p className="text-xs text-red-400/60">Remove preferências salvas e reseta a UI.</p>
-                  </div>
-                </div>
-                <button 
+                <button
                   onClick={() => {
                     if(window.confirm('Tem certeza? Isso pode deslogar sua sessão ou limpar preferências visuais.')) {
                       localStorage.clear();
@@ -260,6 +199,101 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Linha Inferior: Chaves de Integração */}
+        <div className="bg-[#0C1122] rounded-3xl p-6 border border-white/10 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#5271FF] via-purple-500 to-[#38bdf8] opacity-50" />
+
+          <div className="flex items-center gap-3 mb-4">
+            <Database className="text-[#5271FF]" />
+            <h2 className="text-xl font-bold">Chaves de Integração (Auditoria e Diagnóstico)</h2>
+          </div>
+
+          <p className="text-white/60 text-sm mb-6">
+            Insira abaixo as chaves para alimentarmos os relatórios com dados 100% reais de Maps, SEO, Ads e Velocidade.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-white/80 mb-1">
+                API Key Outscraper (Google Maps & Ads)
+              </label>
+              <input
+                type="password"
+                value={outscraperKey}
+                onChange={(e) => setOutscraperKey(e.target.value)}
+                placeholder="Cole sua API Key do Outscraper"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+              />
+              <p className="text-xs text-white/40 mt-1">Gerador de Leads e buscas no Google Maps.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-white/80 mb-1">
+                API Key Google PageSpeed Insights (Velocidade & SEO)
+              </label>
+              <input
+                type="password"
+                value={pageSpeedKey}
+                onChange={(e) => setPageSpeedKey(e.target.value)}
+                placeholder="Cole sua API Key do PageSpeed Insights"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+              />
+              <p className="text-xs text-white/40 mt-1">Auditoria real de velocidade de site e métricas de SEO.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-white/80 mb-1">
+                API Key Meta Ad Library / Access Token (Anúncios Meta)
+              </label>
+              <input
+                type="password"
+                value={metaAdsKey}
+                onChange={(e) => setMetaAdsKey(e.target.value)}
+                placeholder="Cole seu Token / Key da Meta Ads Library"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+              />
+              <p className="text-xs text-white/40 mt-1">Detecção de anúncios ativos no Instagram e Facebook.</p>
+            </div>
+
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">
+                  API Key Local Falcon (Análise de SEO Local Grid)
+                </label>
+                <input
+                  type="password"
+                  value={localFalconKey}
+                  onChange={(e) => setLocalFalconKey(e.target.value)}
+                  placeholder="Cole sua API Key do Local Falcon (opcional)"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                />
+                <p className="text-xs text-white/40 mt-1">Raio-X de presença regional em matriz de pontos.</p>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+            <p className="text-xs text-white/40">
+              Salvas globalmente no banco de dados.
+            </p>
+            <button
+              onClick={handleSaveKey}
+              className="flex items-center gap-2 bg-[#5271FF] hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all"
+            >
+              <Save className="w-4 h-4" />
+              Salvar Chaves
+            </button>
+          </div>
+
+          {saveSuccess && (
+            <div className="mt-4 bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl flex items-center justify-center gap-2">
+              <span>Chaves salvas com sucesso!</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -18,8 +18,22 @@ export default defineConfig(({mode}) => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modifyâ€”file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
+      proxy: {
+        // Proxy para a API do Local Falcon (evita CORS)
+        '/api-proxy/localfalcon': {
+          target: 'https://api.localfalcon.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api-proxy\/localfalcon/, ''),
+        },
+        // Proxy para a API do Google PageSpeed Insights (evita CORS)
+        '/api-proxy/pagespeed': {
+          target: 'https://www.googleapis.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api-proxy\/pagespeed/, ''),
+        },
+      },
     },
   };
 });

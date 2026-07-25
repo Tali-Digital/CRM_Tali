@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wand2, Search, MapPin, Database, Zap, ArrowRight, Play, Loader2, Sparkles, Building2, Map, Crosshair, Check, Key, X, User } from 'lucide-react';
 import { addProspect, getGlobalSettings } from '../services/firestoreService';
+import { enrichSingleLeadWithOutscraper } from '../services/outscraperEnrichment';
 import { CompanyType } from '../types';
 
 export const LeadGeneratorView: React.FC = () => {
@@ -67,22 +68,40 @@ export const LeadGeneratorView: React.FC = () => {
       }
 
       const places = data.data[0];
-      addLog(`Encontrados ${places.length} locais. Salvando no Kanban de Prospecção...`);
+      addLog(`Encontrados ${places.length} locais. Enriquecendo dados via Outscraper + Receita e salvando no CRM...`);
 
       let savedCount = 0;
       for (const place of places) {
+        let initialInsta = place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '';
+        let initialOwner = place.owner_title || place.owner || '';
+        let foundCnpj = '';
+        const websiteUrl = place.site || place.website || '';
+
+        addLog(`Buscando CNPJ, Instagram e Sócios de "${place.name}"...`);
+
+        // Chamada direta do serviço de enriquecimento robusto
+        try {
+          const enriched = await enrichSingleLeadWithOutscraper(place.name || '', location, websiteUrl);
+          if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
+          if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
+          if (enriched.cnpj) foundCnpj = enriched.cnpj;
+        } catch (e) {
+          console.warn('Erro ao enriquecer lead:', e);
+        }
+
         // Prepare Prospect Data
         await addProspect({
           order: 0,
           responsible: responsible,
           location: location,
           clinicName: place.name || 'Sem Nome',
-          clinicInstagram: place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '',
+          clinicInstagram: initialInsta,
+          cnpj: foundCnpj,
           gmn: place.google_maps_url || place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : '',
           gmnRating: place.rating ? String(place.rating) : '',
           gmnReviewsCount: place.reviews ? String(place.reviews) : '',
-          site: place.site || place.website || '',
-          ownerName: place.owner_title || place.owner || '',
+          site: websiteUrl,
+          ownerName: initialOwner,
           ownerInstagram: '',
           size: '',
           age: '',

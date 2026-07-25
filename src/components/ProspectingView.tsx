@@ -38,12 +38,14 @@ import {
   Settings,
   LayoutGrid,
   Grid,
-  ArrowUp
+  ArrowUp,
+  HelpCircle
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
 import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
+import { enrichSingleLeadWithOutscraper } from '../services/outscraperEnrichment';
 import { geocodeAndSaveProspect } from '../utils/geocode';
 
 interface ProspectingViewProps {
@@ -150,13 +152,66 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     };
   }, []);
 
-  // IA Gemini States
+  // IA Gemini & Auto Enricher States
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingInsta, setIsGeneratingInsta] = useState(false);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [isAutoEnriching, setIsAutoEnriching] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState((import.meta.env.VITE_GEMINI_API_KEY as string) || '');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [activeTab, setActiveTab] = useState<'dados' | 'ia' | 'instagram' | 'calculadora'>('dados');
+
+  const handleAutoEnrich = async () => {
+    if (!formData.clinicName) {
+      Swal.fire('Nome da Clínica Obrigatório', 'Digite o nome da clínica para auto-enriquecer os dados.', 'warning');
+      return;
+    }
+    setIsAutoEnriching(true);
+    try {
+      const enriched = await enrichSingleLeadWithOutscraper(formData.clinicName, formData.location || '', formData.site || '');
+
+      const hasCnpj = !!enriched.cnpj;
+      const hasInsta = !!enriched.clinicInstagram;
+      const hasOwner = !!enriched.ownerName;
+
+      if (hasCnpj || hasInsta || hasOwner) {
+        setFormData(prev => {
+          const cleanPrevCnpj = (prev.cnpj && prev.cnpj !== '00.000.000/0001-00') ? prev.cnpj : '';
+          return {
+            ...prev,
+            cnpj: enriched.cnpj || cleanPrevCnpj,
+            clinicInstagram: enriched.clinicInstagram || prev.clinicInstagram,
+            ownerName: enriched.ownerName || prev.ownerName
+          };
+        });
+
+        if (editingProspect) {
+          await updateProspect(editingProspect.id, {
+            ...(enriched.cnpj ? { cnpj: enriched.cnpj } : {}),
+            ...(enriched.clinicInstagram ? { clinicInstagram: enriched.clinicInstagram } : {}),
+            ...(enriched.ownerName ? { ownerName: enriched.ownerName } : {})
+          });
+        }
+
+        const foundList: string[] = [];
+        if (hasCnpj) foundList.push(`CNPJ (${enriched.cnpj})`);
+        if (hasInsta) foundList.push(`Instagram (${enriched.clinicInstagram})`);
+        if (hasOwner) foundList.push(`Sócios (${enriched.ownerName})`);
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Dados Encontrados!',
+          html: `<p class="text-sm font-medium">As seguintes informações foram encontradas e salvas na ficha:</p><ul class="mt-3 text-left text-xs font-bold bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">${foundList.map(item => `<li class="text-emerald-700">✅ ${item}</li>`).join('')}</ul>`
+        });
+      } else {
+        Swal.fire('Pesquisa Concluída', 'Não foram encontradas novas informações públicas no site ou no Google para esta clínica.', 'info');
+      }
+    } catch (e: any) {
+      Swal.fire('Erro', e.message || 'Falha ao enriquecer lead', 'error');
+    } finally {
+      setIsAutoEnriching(false);
+    }
+  };
 
   // Follow Up Form States
   const [newFollowUpDate, setNewFollowUpDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -298,7 +353,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           });
         }
       } else {
-        // Client doesn't exist yet, create it 
+        // Client doesn't exist yet, create it
         await addDoc(collection(db, 'clients'), {
           name: prospectData.clinicName?.trim() || prospectData.ownerName?.trim() || 'Novo Cliente',
           themeColor: 'blue',
@@ -725,7 +780,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
         if (newOwners.length > 0) {
           const newName = newOwners.map((o: any) => o.name).join(', ');
-          
+
           let fetchedAddress = '';
           if (data.logradouro) {
             fetchedAddress = [
@@ -737,19 +792,25 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               data.cep ? `CEP: ${data.cep}` : null
             ].filter(Boolean).join(', ');
           }
-          
-          setFormData(prev => ({ 
-            ...prev, 
-            owners: newOwners, 
+
+          setFormData(prev => ({
+            ...prev,
+            owners: newOwners,
             ownerName: newName,
-            fullAddress: prev.fullAddress || fetchedAddress 
+            fullAddress: prev.fullAddress || fetchedAddress
           }));
           Swal.fire({
+            toast: true,
+            position: 'top-end',
             icon: 'success',
-            title: 'Sócios Encontrados!',
-            text: `Foram encontrados ${newOwners.length} sócios no quadro societário.`,
-            timer: 3000,
-            showConfirmButton: false
+            title: `${newOwners.length} sócio(s) encontrado(s)`,
+            showConfirmButton: false,
+            timer: 2200,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.onmouseenter = Swal.stopTimer;
+              toast.onmouseleave = Swal.resumeTimer;
+            }
           });
         } else {
           Swal.fire({
@@ -776,7 +837,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
           if (newOwners.length > 0) {
             const newName = newOwners.map((o: any) => o.name).join(', ');
-            
+
             let fetchedAddress = '';
             if (fallbackData.estabelecimento?.logradouro) {
               const est = fallbackData.estabelecimento;
@@ -790,18 +851,24 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               ].filter(Boolean).join(', ');
             }
 
-            setFormData(prev => ({ 
-              ...prev, 
-              owners: newOwners, 
+            setFormData(prev => ({
+              ...prev,
+              owners: newOwners,
               ownerName: newName,
-              fullAddress: prev.fullAddress || fetchedAddress 
+              fullAddress: prev.fullAddress || fetchedAddress
             }));
             Swal.fire({
+              toast: true,
+              position: 'top-end',
               icon: 'success',
-              title: 'Sócios Encontrados!',
-              text: `Foram encontrados ${newOwners.length} sócios via fallback!`,
-              timer: 3000,
-              showConfirmButton: false
+              title: `${newOwners.length} sócio(s) encontrado(s)`,
+              showConfirmButton: false,
+              timer: 2200,
+              timerProgressBar: true,
+              didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+              }
             });
           } else {
             Swal.fire({
@@ -2210,10 +2277,21 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           {/* Bloco 1: Clínica & Identificação (Azul) */}
                           <div className="md:col-span-3 bg-blue-50/10 border border-blue-100 rounded-3xl p-6 shadow-sm border-t-4 border-t-blue-600 transition-all hover:shadow-md">
                             <div className="flex flex-col mb-4 gap-3">
-                              <h4 className="text-sm font-black text-blue-900 uppercase tracking-wider flex items-center gap-2">
-                                <User size={16} className="text-blue-600" />
-                                1. Clínica & Identificação Geral
-                              </h4>
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <h4 className="text-sm font-black text-blue-900 uppercase tracking-wider flex items-center gap-2">
+                                  <User size={16} className="text-blue-600" />
+                                  1. Clínica & Identificação Geral
+                                </h4>
+                                <button
+                                  type="button"
+                                  onClick={handleAutoEnrich}
+                                  disabled={isAutoEnriching}
+                                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                  {isAutoEnriching ? <Loader2 className="animate-spin" size={13} /> : <Sparkles size={13} />}
+                                  {isAutoEnriching ? 'Buscando CNPJ, Instagram e Sócios...' : 'Auto-Enriquecer Lead (CNPJ, Instagram & Sócios)'}
+                                </button>
+                              </div>
 
                               <div className="flex gap-4 flex-wrap">
                                 <div className="bg-white border-2 border-blue-500/30 rounded-xl p-3 shadow-sm inline-flex items-center w-fit transition-all hover:border-blue-500/50">

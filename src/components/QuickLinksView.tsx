@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  ExternalLink, 
-  Trash2, 
-  Edit2, 
+import {
+  Search,
+  Plus,
+  ExternalLink,
+  Trash2,
+  Edit2,
   Grid,
   List as ListIcon,
   Tag,
@@ -80,14 +80,14 @@ const SortableLink = ({ link, viewMode, onEdit, onDelete }: SortableItemProps) =
       {...listeners}
       onClick={handleClick}
       className={`group relative bg-white border border-stone-200 transition-all hover:shadow-xl hover:border-stone-300 cursor-pointer ${
-        viewMode === 'grid' 
-          ? 'rounded-3xl p-6 flex flex-col h-full min-h-[200px]' 
+        viewMode === 'grid'
+          ? 'rounded-3xl p-6 flex flex-col h-full min-h-[200px]'
           : 'rounded-2xl p-5 flex items-center gap-5'
       }`}
     >
       <div className={`shrink-0 rounded-2xl flex items-center justify-center ${
-        viewMode === 'grid' 
-          ? 'w-14 h-14 mb-5 bg-stone-50 text-stone-900 group-hover:bg-stone-900 group-hover:text-white transition-colors' 
+        viewMode === 'grid'
+          ? 'w-14 h-14 mb-5 bg-stone-50 text-stone-900 group-hover:bg-stone-900 group-hover:text-white transition-colors'
           : 'w-12 h-12 bg-stone-50 text-stone-900'
       }`}>
         <LinkIcon size={viewMode === 'grid' ? 28 : 24} />
@@ -110,7 +110,7 @@ const SortableLink = ({ link, viewMode, onEdit, onDelete }: SortableItemProps) =
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(link);
@@ -120,7 +120,7 @@ const SortableLink = ({ link, viewMode, onEdit, onDelete }: SortableItemProps) =
             >
               <Edit2 size={20} />
             </button>
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(link.id);
@@ -186,7 +186,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
   );
 
   const filteredLinks = links
-    .filter(link => 
+    .filter(link =>
       link.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       link.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       link.url.toLowerCase().includes(searchTerm.toLowerCase())
@@ -220,13 +220,13 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (over && active.id !== over.id) {
       const oldIndex = links.findIndex((l) => l.id === active.id);
       const newIndex = links.findIndex((l) => l.id === over.id);
-      
-      const newOrder = arrayMove(links, oldIndex, newIndex);
-      
+
+      const newOrder = arrayMove<QuickLink>(links, oldIndex, newIndex);
+
       newOrder.forEach((link, index) => {
         if (link.order !== index) {
           updateQuickLink(link.id, { order: index });
@@ -298,8 +298,8 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
           <h2 className="text-2xl font-black text-stone-900 tracking-tight">Links Rápidos</h2>
           <p className="text-sm text-stone-500 font-medium">Acesse as ferramentas que você mais utiliza em um só lugar.</p>
         </div>
-        
-        <button 
+
+        <button
           onClick={() => setIsAddModalOpen(true)}
           className="flex items-center justify-center gap-2 bg-stone-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10"
         >
@@ -311,7 +311,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
-          <input 
+          <input
             type="text"
             placeholder="Filtrar links por nome, categoria ou URL..."
             value={searchTerm}
@@ -319,17 +319,17 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
             className="w-full bg-white border border-stone-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5 transition-all font-medium text-stone-900"
           />
         </div>
-        
+
         <div className="flex gap-4">
           <div className="flex bg-white p-1 rounded-2xl border border-stone-200 shadow-sm shrink-0">
-            <button 
+            <button
               onClick={() => setDisplayMode('all')}
               className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${displayMode === 'all' ? 'bg-stone-900 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
             >
               <LayoutGrid size={14} />
               Geral
             </button>
-            <button 
+            <button
               onClick={() => setDisplayMode('category')}
               className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${displayMode === 'category' ? 'bg-stone-900 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
             >
@@ -339,13 +339,13 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
           </div>
 
           <div className="flex bg-white p-1 rounded-2xl border border-stone-200 shadow-sm shrink-0">
-            <button 
+            <button
               onClick={() => setViewMode('grid')}
               className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-stone-900 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
             >
               <Grid size={18} />
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('list')}
               className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-stone-900 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
             >
@@ -373,8 +373,8 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
                 items={filteredLinks.map(l => l.id)}
                 strategy={viewMode === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}
               >
-                <div className={viewMode === 'grid' 
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
+                <div className={viewMode === 'grid'
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                   : "flex flex-col gap-4"
                 }>
                   <AnimatePresence mode="popLayout">
@@ -396,7 +396,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
                   const isCollapsed = collapsedCategories.has(category);
                   return (
                     <div key={category} className="space-y-6">
-                      <div 
+                      <div
                         onClick={() => toggleCategory(category)}
                         className="flex items-center gap-4 cursor-pointer group/header"
                       >
@@ -422,8 +422,8 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
                             items={catLinks.map(l => l.id)}
                             strategy={viewMode === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}
                           >
-                            <div className={viewMode === 'grid' 
-                              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
+                            <div className={viewMode === 'grid'
+                              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                               : "flex flex-col gap-4"
                             }>
                               <AnimatePresence mode="popLayout">
@@ -450,16 +450,16 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
         )}
       </div>
 
-      <Modal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
         title="Adicionar Novo Link"
         maxWidth="max-w-md"
       >
         <form onSubmit={handleAddLink} className="space-y-5">
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Nome do Link</label>
-            <input 
+            <input
               autoFocus
               type="text"
               value={linkName}
@@ -468,10 +468,10 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
               placeholder="Ex: Google Drive, Canva, Slack..."
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">URL</label>
-            <input 
+            <input
               type="text"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
@@ -482,7 +482,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Categoria (Opcional)</label>
-            <input 
+            <input
               type="text"
               value={linkCategory}
               onChange={(e) => setLinkCategory(e.target.value)}
@@ -495,7 +495,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
             </datalist>
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10 mt-2"
           >
@@ -504,16 +504,16 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
         </form>
       </Modal>
 
-      <Modal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
         title="Editar Link"
         maxWidth="max-w-md"
       >
         <form onSubmit={handleUpdateLink} className="space-y-5">
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Nome do Link</label>
-            <input 
+            <input
               autoFocus
               type="text"
               value={linkName}
@@ -521,10 +521,10 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5 transition-all font-medium text-stone-900"
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">URL</label>
-            <input 
+            <input
               type="text"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
@@ -534,7 +534,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Categoria (Opcional)</label>
-            <input 
+            <input
               type="text"
               value={linkCategory}
               onChange={(e) => setLinkCategory(e.target.value)}
@@ -542,7 +542,7 @@ export const QuickLinksView: React.FC<Props> = ({ links, companyId }) => {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10 mt-2"
           >

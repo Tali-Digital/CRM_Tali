@@ -1,18 +1,19 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
   Timestamp,
   getDocs,
   getDoc,
   setDoc,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  deleteField
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
@@ -55,7 +56,7 @@ function sanitizeData(data: any): any {
   if (data instanceof Date || (data && typeof data.toDate === 'function')) {
     return data;
   }
-  
+
   if (Array.isArray(data)) {
     return data.map(sanitizeData);
   }
@@ -167,11 +168,11 @@ export const deleteClient = async (clientId: string) => {
 
     // 2. Find and delete all associated cards in all funnels
     const collections = ['commercial_cards', 'financial_cards', 'operation_cards', 'internal_tasks_cards'];
-    
+
     for (const collName of collections) {
       const q = query(collection(db, collName), where('clientId', '==', clientId));
       const snapshot = await getDocs(q);
-      
+
       const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
       await Promise.all(deletePromises);
     }
@@ -190,18 +191,18 @@ export const saveUser = async (user: any, overrides?: { name?: string, photoURL?
       await auth.signOut();
       throw new Error('Conta desativada.');
     }
-    
+
     let role = 'client';
     if (userSnap.exists() && userSnap.data().role) {
       role = userSnap.data().role;
     }
-    
+
     if (user.email === 'tali.agenciadigital@gmail.com' || user.email === 'diogotorres2907@gmail.com') {
       role = 'admin';
     }
 
     const existingData = userSnap.exists() ? userSnap.data() : {};
-    
+
     await setDoc(userRef, {
       name: overrides?.name || existingData?.name || user.displayName || user.email?.split('@')[0] || 'Usuário',
       email: user.email,
@@ -222,11 +223,11 @@ export const adminCreateUser = async (email: string, name: string, role: 'admin'
   try {
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
-    
+
     // Create user with a random password
     const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
     const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, randomPassword);
-    
+
     // Save user document
     const userRef = doc(db, 'users', userCredential.user.uid);
     await setDoc(userRef, {
@@ -239,7 +240,7 @@ export const adminCreateUser = async (email: string, name: string, role: 'admin'
 
     // Sign out the secondary app
     await secondaryAuth.signOut();
-    
+
     return { success: true, password: randomPassword };
   } catch (error: any) {
     console.error("Error creating user:", error);
@@ -250,9 +251,9 @@ export const adminCreateUser = async (email: string, name: string, role: 'admin'
 export const updateUserRole = async (userId: string, role: 'admin' | 'client' | 'equipe', teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados') => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, { 
-      role, 
-      teamCategory: role === 'equipe' ? (teamCategory || null) : null 
+    await updateDoc(userRef, {
+      role,
+      teamCategory: role === 'equipe' ? (teamCategory || null) : null
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
@@ -467,7 +468,7 @@ export const addCommercialCard = async (card: Omit<CommercialCard, 'id'>) => {
       ...card,
       createdAt: Timestamp.now()
     }));
-    
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'commercial_cards');
@@ -486,7 +487,7 @@ export const updateCommercialCard = async (cardId: string, data: Partial<Commerc
 export const deleteCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: true,
       updatedAt: Timestamp.now()
     });
@@ -498,7 +499,7 @@ export const deleteCommercialCard = async (cardId: string) => {
 export const completeCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       completed: true,
       completedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -511,7 +512,7 @@ export const completeCommercialCard = async (cardId: string) => {
 export const restoreCommercialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'commercial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: false,
       completed: false,
       updatedAt: Timestamp.now()
@@ -591,7 +592,7 @@ export const updateFinancialCard = async (cardId: string, data: Partial<Financia
 export const deleteFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: true,
       updatedAt: Timestamp.now()
     });
@@ -603,7 +604,7 @@ export const deleteFinancialCard = async (cardId: string) => {
 export const completeFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       completed: true,
       completedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -616,7 +617,7 @@ export const completeFinancialCard = async (cardId: string) => {
 export const restoreFinancialCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'financial_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: false,
       completed: false,
       updatedAt: Timestamp.now()
@@ -696,7 +697,7 @@ export const updateOperationCard = async (cardId: string, data: Partial<Operatio
 export const deleteOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: true,
       updatedAt: Timestamp.now()
     });
@@ -708,7 +709,7 @@ export const deleteOperationCard = async (cardId: string) => {
 export const completeOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       completed: true,
       completedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -721,7 +722,7 @@ export const completeOperationCard = async (cardId: string) => {
 export const restoreOperationCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'operation_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: false,
       completed: false,
       updatedAt: Timestamp.now()
@@ -823,7 +824,7 @@ export const updateInternalTaskCard = async (cardId: string, data: Partial<Inter
 export const deleteInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: true,
       updatedAt: Timestamp.now()
     });
@@ -835,7 +836,7 @@ export const deleteInternalTaskCard = async (cardId: string) => {
 export const completeInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       completed: true,
       completedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -848,7 +849,7 @@ export const completeInternalTaskCard = async (cardId: string) => {
 export const restoreInternalTaskCard = async (cardId: string) => {
   try {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
-    await updateDoc(cardRef, { 
+    await updateDoc(cardRef, {
       deleted: false,
       completed: false,
       updatedAt: Timestamp.now()
@@ -871,7 +872,7 @@ export const duplicateCommercialCard = async (cardId: string) => {
     const cardRef = doc(db, 'commercial_cards', cardId);
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
-    
+
     const { id, createdAt, updatedAt, ...data } = cardSnap.data() as CommercialCard & { id: string };
     return await addCommercialCard({
       ...data,
@@ -888,7 +889,7 @@ export const duplicateFinancialCard = async (cardId: string) => {
     const cardRef = doc(db, 'financial_cards', cardId);
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
-    
+
     const { id, createdAt, updatedAt, ...data } = cardSnap.data() as FinancialCard & { id: string };
     return await addFinancialCard({
       ...data,
@@ -905,7 +906,7 @@ export const duplicateOperationCard = async (cardId: string) => {
     const cardRef = doc(db, 'operation_cards', cardId);
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
-    
+
     const { id, createdAt, updatedAt, ...data } = cardSnap.data() as OperationCard & { id: string };
     return await addOperationCard({
       ...data,
@@ -922,7 +923,7 @@ export const duplicateInternalTaskCard = async (cardId: string) => {
     const cardRef = doc(db, 'internal_tasks_cards', cardId);
     const cardSnap = await getDoc(cardRef);
     if (!cardSnap.exists()) throw new Error('Card não encontrado');
-    
+
     const { id, createdAt, updatedAt, ...data } = cardSnap.data() as InternalTaskCard & { id: string };
     return await addInternalTaskCard({
       ...data,
@@ -934,20 +935,20 @@ export const duplicateInternalTaskCard = async (cardId: string) => {
   }
 };
 export const updateCardTimer = async (
-  cardId: string, 
-  sector: string, 
-  data: { 
-    timeSpent: number; 
-    timerStartedAt: any | null; 
+  cardId: string,
+  sector: string,
+  data: {
+    timeSpent: number;
+    timerStartedAt: any | null;
     timerStatus: 'running' | 'paused' | 'idle';
   }
 ) => {
   try {
-    const colName = sector === 'comercial' ? 'commercial_cards' : 
-                   sector === 'financeiro' ? 'financial_cards' : 
-                   sector === 'operacional' ? 'operation_cards' : 
+    const colName = sector === 'comercial' ? 'commercial_cards' :
+                   sector === 'financeiro' ? 'financial_cards' :
+                   sector === 'operacional' ? 'operation_cards' :
                    'internal_tasks_cards';
-    
+
     const cardRef = doc(db, colName, cardId);
     await updateDoc(cardRef, sanitizeData({
       ...data,
@@ -1187,7 +1188,7 @@ export const addProspect = async (prospect: Omit<Prospect, 'id' | 'createdAt' | 
     const tagsSnapshot = await getDocs(tagsQuery);
     let tagId = '';
     const tagDoc = tagsSnapshot.docs.find(d => d.data().name.toLowerCase() === 'prospecção' || d.data().name.toLowerCase() === 'prospeccao');
-    
+
     if (tagDoc) {
       tagId = tagDoc.id;
     } else {
@@ -1222,36 +1223,36 @@ export const syncProspectsToClients = async (companyId: string) => {
       const cId = d.data().companyId;
       return cId === companyId || !cId; // include legacy without companyId
     });
-    
+
     const clientsSnap = await getDocs(query(collection(db, 'clients'), where('companyId', '==', companyId)));
-    
+
     const existingClientNames = clientsSnap.docs.map(d => (d.data().name || '').toLowerCase().trim());
-    
+
     let tagId = '';
     const tagsSnap = await getDocs(query(collection(db, 'tags'), where('companyId', '==', companyId)));
     const tagDoc = tagsSnap.docs.find(d => {
       const n = (d.data().name || '').toLowerCase();
       return n.includes('prospecç') || n.includes('prospecc');
     });
-    
+
     if (tagDoc) {
       tagId = tagDoc.id;
     } else {
       const newTagRef = await addDoc(collection(db, 'tags'), { name: 'Prospecção', color: '#3b82f6', companyId });
       tagId = newTagRef.id;
     }
-    
+
     let synced = 0;
     for (const docSnap of prospectsDocs) {
       const p = docSnap.data() as Prospect;
       const pName = (p.clinicName || p.ownerName || 'Novo Prospecto').trim();
-      
+
       // If contract is closed, they are active, so don't put prospeccao tag
       let finalTags = [tagId];
       if (p.isContractClosed) {
         finalTags = [];
       }
-      
+
       if (pName && !existingClientNames.includes(pName.toLowerCase())) {
         await addDoc(collection(db, 'clients'), {
           name: pName,
@@ -1277,6 +1278,14 @@ export const syncProspectsToClients = async (companyId: string) => {
 export const updateProspect = async (id: string, data: Partial<Prospect>) => {
   await updateDoc(doc(db, 'prospects', id), {
     ...data,
+    updatedAt: serverTimestamp()
+  });
+};
+
+// Apaga completamente o campo marketingDiagnostic de um prospect (usa deleteField do Firestore)
+export const clearProspectDiagnostic = async (id: string) => {
+  await updateDoc(doc(db, 'prospects', id), {
+    marketingDiagnostic: deleteField(),
     updatedAt: serverTimestamp()
   });
 };
