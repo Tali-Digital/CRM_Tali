@@ -636,14 +636,15 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
     const notaGoogle = getNumber(selectedProspect.gmnRating, 0);
     const scoreGeral = notaGoogle > 4.5 ? 65 : (notaGoogle > 4.0 ? 44 : 25);
-    const topCompetitors: any[] = Array.from(
-      new Map(
-        (Array.isArray(diagnosticData.concorrentes) ? diagnosticData.concorrentes : [])
-          .filter((competitor: any) => competitor?.nome && !competitor.nome.startsWith('Concorrente Local'))
-          .sort((a: any, b: any) => (a.posicao ?? Number.MAX_SAFE_INTEGER) - (b.posicao ?? Number.MAX_SAFE_INTEGER))
-          .map((competitor: any) => [competitor.placeId || competitor.nome.trim().toLowerCase(), competitor])
-      ).values()
-    ).slice(0, 3);
+    const competitors = Array.isArray(diagnosticData?.concorrentes) ? diagnosticData.concorrentes : [];
+    const topCompetitors: any[] = competitors
+      .filter((competitor: any) => competitor?.nome && !competitor.nome.startsWith('Concorrente Local'))
+      .sort((a: any, b: any) => (a.posicao ?? Number.MAX_SAFE_INTEGER) - (b.posicao ?? Number.MAX_SAFE_INTEGER))
+      .filter((competitor: any, index: number, list: any[]) => {
+        const key = competitor.placeId || competitor.nome.trim().toLowerCase();
+        return list.findIndex((item: any) => (item.placeId || item.nome.trim().toLowerCase()) === key) === index;
+      })
+      .slice(0, 3);
     const siteUrl = selectedProspect.site || (selectedProspect as any).websiteUrl || diagnosticData.siteUrl || '';
     const hasValidSite = (() => {
       try {
@@ -1347,7 +1348,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           <p className="text-sm text-gray-400 mb-6">As cinco ações em ordem de prioridade geradas por IA.</p>
 
           <div className="space-y-4">
-            {diagnosticData.planoAcao?.map((p: any, i: number) => (
+            {(Array.isArray(diagnosticData.planoAcao) ? diagnosticData.planoAcao : []).map((p: any, i: number) => (
               <div key={i} className="flex gap-4 p-5 bg-[#0d0f19] rounded-xl border border-gray-800">
                 <div className="w-8 h-8 shrink-0 bg-purple-900 text-purple-200 rounded-full flex items-center justify-center font-bold text-sm">{i + 1}</div>
                 <div>
