@@ -30,7 +30,9 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
         body
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && data?.success) {
+      console.log('[LocalFalcon Test] HTTP status:', res.status, '| JSON:', data);
+
+      if (data?.success === true) {
         const credits =
           data?.data?.credits?.total_usable_credits ??
           data?.data?.credits?.credit_package_remaining ??
@@ -39,8 +41,14 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
         const name = data?.data?.first_name ? `${data.data.first_name} ${data.data.last_name || ''}`.trim() : '';
         setFalconTestResult({ ok: true, message: `✅ Conectado! ${name ? `Conta: ${name} — ` : ''}Créditos disponíveis: ${credits}` });
       } else {
-        const errMsg = data?.message || data?.error || `HTTP ${res.status}`;
-        setFalconTestResult({ ok: false, message: `❌ Falha: ${errMsg}` });
+        // Tenta extrair mensagem de erro de todos os campos possíveis
+        const errMsg =
+          (typeof data?.message === 'string' && data.message) ||
+          (typeof data?.error === 'string' && data.error) ||
+          (typeof data?.code_desc === 'string' && data.code_desc) ||
+          (data?.data && typeof data.data === 'string' && data.data) ||
+          (data ? `Resposta inesperada (veja console): ${JSON.stringify(data).slice(0, 120)}` : `HTTP ${res.status} sem corpo`);
+        setFalconTestResult({ ok: false, message: `❌ ${errMsg}` });
       }
     } catch (e: any) {
       setFalconTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
