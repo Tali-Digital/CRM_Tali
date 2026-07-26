@@ -25,12 +25,24 @@ export default defineConfig(({mode}) => {
         '/api-proxy/localfalcon': {
           target: 'https://api.localfalcon.com',
           changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replace(/^\/api-proxy\/localfalcon/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.setHeader('Host', 'api.localfalcon.com');
+              proxyReq.setHeader('Origin', 'https://api.localfalcon.com');
+              proxyReq.setHeader('Referer', 'https://api.localfalcon.com/');
+            });
+            proxy.on('error', (err) => {
+              console.error('[Proxy LocalFalcon] Erro:', err.message);
+            });
+          },
         },
         // Proxy para a API do Google PageSpeed Insights (evita CORS)
         '/api-proxy/pagespeed': {
           target: 'https://www.googleapis.com',
           changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replace(/^\/api-proxy\/pagespeed/, ''),
         },
       },

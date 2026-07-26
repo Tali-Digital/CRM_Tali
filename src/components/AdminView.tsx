@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Key, AlertTriangle, Save, Database, Users, Trash2, Activity } from 'lucide-react';
+import { Lock, Key, AlertTriangle, Save, Database, Users, Trash2, Activity, CheckCircle2, XCircle, Loader2, Wifi } from 'lucide-react';
 import { UserProfile } from '../types';
 import { getGlobalSettings, updateGlobalSettings } from '../services/firestoreService';
 
@@ -13,6 +13,41 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [falconTesting, setFalconTesting] = useState(false);
+  const [falconTestResult, setFalconTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleTestLocalFalcon = async () => {
+    if (!localFalconKey.trim()) {
+      setFalconTestResult({ ok: false, message: 'Cole a API Key antes de testar.' });
+      return;
+    }
+    setFalconTesting(true);
+    setFalconTestResult(null);
+    try {
+      const body = new URLSearchParams({ api_key: localFalconKey.trim() }).toString();
+      const res = await fetch('/api-proxy/localfalcon/v2/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        const credits =
+          data?.data?.credits?.total_usable_credits ??
+          data?.data?.credits?.credit_package_remaining ??
+          data?.data?.credits ??
+          '?';
+        const name = data?.data?.first_name ? `${data.data.first_name} ${data.data.last_name || ''}`.trim() : '';
+        setFalconTestResult({ ok: true, message: `✅ Conectado! ${name ? `Conta: ${name} — ` : ''}Créditos disponíveis: ${credits}` });
+      } else {
+        const errMsg = data?.message || data?.error || `HTTP ${res.status}`;
+        setFalconTestResult({ ok: false, message: `❌ Falha: ${errMsg}` });
+      }
+    } catch (e: any) {
+      setFalconTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
+    } finally {
+      setFalconTesting(false);
+    }
+  };
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -265,13 +300,37 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
                 <input
                   type="password"
                   value={localFalconKey}
-                  onChange={(e) => setLocalFalconKey(e.target.value)}
+                  onChange={(e) => { setLocalFalconKey(e.target.value); setFalconTestResult(null); }}
                   placeholder="Cole sua API Key do Local Falcon (opcional)"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
                 />
                 <p className="text-xs text-white/40 mt-1">Raio-X de presença regional em matriz de pontos.</p>
               </div>
 
+              {/* Botão de Teste */}
+              <button
+                onClick={handleTestLocalFalcon}
+                disabled={falconTesting}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all"
+              >
+                {falconTesting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
+                  : <><Wifi className="w-4 h-4" /> Testar Conexão</>}
+              </button>
+
+              {/* Resultado do Teste */}
+              {falconTestResult && (
+                <div className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
+                  falconTestResult.ok
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}>
+                  {falconTestResult.ok
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                  <span>{falconTestResult.message}</span>
+                </div>
+              )}
             </div>
           </div>
 
