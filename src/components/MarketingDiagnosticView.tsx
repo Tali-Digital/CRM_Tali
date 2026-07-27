@@ -11,6 +11,7 @@ import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { auth } from '../firebase';
 import { VariableMappingModal } from './VariableMappingModal';
+import { VisualCropModal } from './VisualCropModal';
 import Swal from 'sweetalert2';
 
 // ── Queue Types ──
@@ -151,6 +152,48 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, []);
+
+  // ── Image Crop & Zoom State ──
+  const [imgZoom, setImgZoom] = useState<number>(1.25);
+  const [imgOffsetX, setImgOffsetX] = useState<number>(0);
+  const [imgOffsetY, setImgOffsetY] = useState<number>(0);
+  const [showCropControls, setShowCropControls] = useState<boolean>(false);
+  const [showVisualCropModal, setShowVisualCropModal] = useState<boolean>(false);
+
+  // Sync crop settings whenever diagnosticData changes
+  useEffect(() => {
+    if (diagnosticData?.gmn) {
+      setImgZoom(diagnosticData.gmn.imageZoom ?? 1.25);
+      setImgOffsetX(diagnosticData.gmn.imageOffsetX ?? 0);
+      setImgOffsetY(diagnosticData.gmn.imageOffsetY ?? 0);
+    } else {
+      setImgZoom(1.25);
+      setImgOffsetX(0);
+      setImgOffsetY(0);
+    }
+  }, [diagnosticData]);
+
+  const handleUpdateCrop = useCallback(async (zoom: number, x: number, y: number) => {
+    setImgZoom(zoom);
+    setImgOffsetX(x);
+    setImgOffsetY(y);
+
+    if (selectedProspect && diagnosticData) {
+      const updatedDiag = {
+        ...diagnosticData,
+        gmn: {
+          ...diagnosticData.gmn,
+          imageZoom: zoom,
+          imageOffsetX: x,
+          imageOffsetY: y
+        }
+      };
+      setDiagnosticData(updatedDiag);
+      await updateProspect(selectedProspect.id, {
+        marketingDiagnostic: updatedDiag
+      });
+    }
+  }, [selectedProspect, diagnosticData]);
 
   // Diagnostic Form state
   const [showDiagnosticForm, setShowDiagnosticForm] = useState(false);
@@ -1934,14 +1977,112 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             </div>
 
-            {/* Real Local Falcon Map Image or Warning */}
+            {/* Real Local Falcon Map Image com Controles de Corte & Zoom */}
             {diagnosticData.gmn?.mapaCalorImg || (diagnosticData.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}` : '') ? (
               <div className="w-full max-w-xl bg-[#1a1d2d] p-3 rounded-2xl border border-gray-700/80 shadow-2xl overflow-hidden mb-4">
-                <img
-                  src={diagnosticData.gmn?.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn?.scanId}`}
-                  alt="Mapa de Calor Local Falcon Real"
-                  className="w-full h-auto rounded-xl object-cover shadow-lg"
-                />
+                {/* Janela da Imagem com Moldura de Recorte */}
+                <div className="overflow-hidden rounded-xl w-full h-[380px] flex items-center justify-center bg-black/40 relative">
+                  <img
+                    src={diagnosticData.gmn?.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn?.scanId}`}
+                    alt="Mapa de Calor Local Falcon Real"
+                    style={{
+                      transform: `scale(${imgZoom}) translate(${imgOffsetX}%, ${imgOffsetY}%)`,
+                      transition: 'transform 0.15s ease-out'
+                    }}
+                    className="w-full h-full object-cover rounded-xl"
+                  />
+                </div>
+
+                {/* Barra de Controles Rápidos de Recorte */}
+                <div className="mt-3 bg-[#0d0f19] p-3 rounded-xl border border-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-gray-400 font-bold flex items-center gap-1">
+                      <Maximize2 size={13} className="text-indigo-400" /> Recorte de Margem:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCrop(1, 0, 0)}
+                      className={`px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${imgZoom === 1 ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-gray-800 text-gray-400 hover:text-white border-gray-700'}`}
+                      title="Exibir imagem inteira (com margens)"
+                    >
+                      100% (Inteira)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCrop(1.35, 0, 0)}
+                      className={`px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${imgZoom === 1.35 ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-gray-800 text-gray-400 hover:text-white border-gray-700'}`}
+                      title="Corta 25% de margens brancas da borda"
+                    >
+                      ✂️ Cortar Margens (135%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCrop(1.6, 0, 0)}
+                      className={`px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${imgZoom === 1.6 ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-gray-800 text-gray-400 hover:text-white border-gray-700'}`}
+                      title="Zoom focado nos pontos centrais"
+                    >
+                      🔎 Zoom (160%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowVisualCropModal(true)}
+                      className="px-3 py-1 rounded-lg font-black bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md border border-indigo-400/40 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                      title="Abrir quadro visual de recorte interativo (clicar, segurar e arrastar os cantos)"
+                    >
+                      <Crop size={13} /> Recortar Visualmente (Arrastar Cantos)
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCropControls(!showCropControls)}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold text-xs underline flex items-center gap-1 ml-auto cursor-pointer"
+                  >
+                    {showCropControls ? 'Ocultar Ajustes (X/Y)' : '⚙️ Ajustes Finos (X/Y)'}
+                  </button>
+                </div>
+
+                {/* Painel de Ajustes Finos (Slidings) */}
+                {showCropControls && (
+                  <div className="mt-2 bg-[#090b13] p-4 rounded-xl border border-indigo-500/30 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-gray-300">
+                      <span className="font-bold">Nível de Zoom ({Math.round(imgZoom * 100)}%):</span>
+                      <input
+                        type="range"
+                        min="1"
+                        max="2.5"
+                        step="0.05"
+                        value={imgZoom}
+                        onChange={e => handleUpdateCrop(parseFloat(e.target.value), imgOffsetX, imgOffsetY)}
+                        className="w-48 accent-indigo-500 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-300">
+                      <span className="font-bold">Posição Vertical (Y: {imgOffsetY}%):</span>
+                      <input
+                        type="range"
+                        min="-40"
+                        max="40"
+                        step="2"
+                        value={imgOffsetY}
+                        onChange={e => handleUpdateCrop(imgZoom, imgOffsetX, parseInt(e.target.value))}
+                        className="w-48 accent-indigo-500 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-300">
+                      <span className="font-bold">Posição Horizontal (X: {imgOffsetX}%):</span>
+                      <input
+                        type="range"
+                        min="-40"
+                        max="40"
+                        step="2"
+                        value={imgOffsetX}
+                        onChange={e => handleUpdateCrop(imgZoom, parseInt(e.target.value), imgOffsetY)}
+                        className="w-48 accent-indigo-500 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="w-full max-w-md bg-[#1a1d2d] p-6 rounded-2xl border border-amber-500/30 text-amber-300 text-center mb-4 text-xs font-semibold">
@@ -3133,6 +3274,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         selectedProspect={selectedProspect}
         diagnosticData={diagnosticData}
         initialSelectedText={selectedTextModal}
+      />
+
+      {/* MODAL RECORTE & REDIMENSIONAMENTO VISUAL */}
+      <VisualCropModal
+        isOpen={showVisualCropModal}
+        imageUrl={diagnosticData?.gmn?.mapaCalorImg || (diagnosticData?.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}` : '')}
+        initialZoom={imgZoom}
+        initialOffsetX={imgOffsetX}
+        initialOffsetY={imgOffsetY}
+        onClose={() => setShowVisualCropModal(false)}
+        onSave={(zoom, x, y) => handleUpdateCrop(zoom, x, y)}
       />
 
       {/* ═══ QUEUE MODAL ═══ */}
