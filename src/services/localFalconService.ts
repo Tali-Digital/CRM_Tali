@@ -50,10 +50,41 @@ const extractDataPointsArray = (dataObj: any): any[] => {
   return [];
 };
 
-// Faz uma requisição POST com corpo x-www-form-urlencoded (formato exigido pela API do Local Falcon)
+// Helper: obtém a URL correta da API (proxy em localhost, direta HTTPS em produção)
+export const getFalconApiUrl = (endpoint: string): string => {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
+  const cleanPath = endpoint.replace(/^\/api-proxy\/localfalcon/, '');
+  const pathWithSlash = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return `/api-proxy/localfalcon${pathWithSlash}`;
+  }
+  return `https://api.localfalcon.com${pathWithSlash}`;
+};
+
+export const fetchFalconApi = async (endpoint: string, options: RequestInit = {}, timeoutMs = 60000): Promise<Response> => {
+  const url = getFalconApiUrl(endpoint);
+  return fetchWithTimeout(url, options, timeoutMs);
+};
+
+// Parser seguro para JSON
+const parseFalconJson = async (res: Response): Promise<any> => {
+  try {
+    const text = await res.text();
+    if (!text || text.trim().startsWith('<')) {
+      return { success: false, error: `Servidor retornou resposta inválida (${res.status}).` };
+    }
+    return JSON.parse(text);
+  } catch (e: any) {
+    return { success: false, error: `Falha ao interpretar JSON da API.` };
+  }
+};
+
+// Faz uma requisição POST com corpo x-www-form-urlencoded
 const postForm = async (path: string, params: Record<string, string>, timeoutMs = 60000) => {
+  const url = getFalconApiUrl(path);
   const body = new URLSearchParams(params).toString();
-  const res = await fetchWithTimeout(path, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
@@ -64,31 +95,34 @@ const postForm = async (path: string, params: Record<string, string>, timeoutMs 
 /**
  * Testa se a API Key do Local Falcon está configurada e retorna o status da conta
  */
-export const checkLocalFalconStatus = async (): Promise<{ configured: boolean; credits?: number; error?: string }> => {
+export const checkLocalFalconStatus = async (customKey?: string): Promise<{ configured: boolean; credits?: number; error?: string }> => {
   const settings = await getGlobalSettings('gemini');
-  const key = settings?.localFalconKey || '';
+  const key = customKey || settings?.localFalconKey || '';
 
   if (!key) {
     return { configured: false, error: 'Chave da API do Local Falcon não informada no Admin.' };
   }
 
   try {
-    const body = new URLSearchParams({ api_key: key }).toString();
-    const res = await fetchWithTimeout('/api-proxy/localfalcon/v2/account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    }, 15000).catch(() => null);
+    const res = await postForm('/v2/account', { api_key: key }, 15000).catch(() => null);
     if (res && res.ok) {
-      const data = await res.json();
-      const credits =
-        data?.data?.credits?.total_usable_credits ??
-        data?.data?.credits?.credit_package_remaining ??
-        data?.credits ??
-        0;
-      return { configured: true, credits };
+      const data = await parseFalconJson(res);
+      if (data?.success === true) {
+        const credits =
+          data?.data?.credits?.total_usable_credits ??
+          data?.data?.credits?.credit_package_remaining ??
+          data?.data?.credits ??
+          data?.credits ??
+          0;
+        return { configured: true, credits };
+      }
+      return { configured: true, error: data?.message || data?.error || 'Chave de API inválida' };
     }
-    return { configured: true };
+    if (res) {
+      const errTxt = await res.text().catch(() => '');
+      return { configured: true, error: `HTTP ${res.status}: ${errTxt.slice(0, 100)}` };
+    }
+    return { configured: true, error: 'Sem resposta da API do Local Falcon.' };
   } catch (err: any) {
     return { configured: true, error: err.message };
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Key, AlertTriangle, Save, Database, Users, Trash2, Activity, CheckCircle2, XCircle, Loader2, Wifi } from 'lucide-react';
 import { UserProfile } from '../types';
 import { getGlobalSettings, updateGlobalSettings } from '../services/firestoreService';
+import { checkLocalFalconStatus } from '../services/localFalconService';
 
 export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile }) => {
   const [geminiKey, setGeminiKey] = useState('');
@@ -23,32 +24,11 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
     setFalconTesting(true);
     setFalconTestResult(null);
     try {
-      const body = new URLSearchParams({ api_key: localFalconKey.trim() }).toString();
-      const res = await fetch('/api-proxy/localfalcon/v2/account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body
-      });
-      const data = await res.json().catch(() => null);
-      console.log('[LocalFalcon Test] HTTP status:', res.status, '| JSON:', data);
-
-      if (data?.success === true) {
-        const credits =
-          data?.data?.credits?.total_usable_credits ??
-          data?.data?.credits?.credit_package_remaining ??
-          data?.data?.credits ??
-          '?';
-        const name = data?.data?.first_name ? `${data.data.first_name} ${data.data.last_name || ''}`.trim() : '';
-        setFalconTestResult({ ok: true, message: `✅ Conectado! ${name ? `Conta: ${name} — ` : ''}Créditos disponíveis: ${credits}` });
+      const result = await checkLocalFalconStatus(localFalconKey.trim());
+      if (result.configured && !result.error) {
+        setFalconTestResult({ ok: true, message: `✅ Conectado com sucesso! Créditos disponíveis: ${result.credits ?? '0'}` });
       } else {
-        // Tenta extrair mensagem de erro de todos os campos possíveis
-        const errMsg =
-          (typeof data?.message === 'string' && data.message) ||
-          (typeof data?.error === 'string' && data.error) ||
-          (typeof data?.code_desc === 'string' && data.code_desc) ||
-          (data?.data && typeof data.data === 'string' && data.data) ||
-          (data ? `Resposta inesperada (veja console): ${JSON.stringify(data).slice(0, 120)}` : `HTTP ${res.status} sem corpo`);
-        setFalconTestResult({ ok: false, message: `❌ ${errMsg}` });
+        setFalconTestResult({ ok: false, message: `❌ Falha na conexão: ${result.error || 'Verifique a chave de API'}` });
       }
     } catch (e: any) {
       setFalconTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
