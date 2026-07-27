@@ -1276,7 +1276,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                 }
-                .page-break, hr.page-break, hr[title="Quebra de Página"], hr {
+                .page-break, hr.page-break, hr[title="Quebra de Página"] {
                   page-break-after: always !important;
                   break-after: page !important;
                   border: none !important;
@@ -1287,6 +1287,10 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   margin: 0 !important;
                   padding: 0 !important;
                   opacity: 0 !important;
+                }
+                table, blockquote, div[style*="border"], div[style*="background"] {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
                 }
               </style>
             </head>
@@ -1647,6 +1651,43 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                     spellCheck={false}
                   />
                 )}
+
+                <style>{`
+                  .editor-content hr.page-break,
+                  .editor-content hr[title="Quebra de Página"] {
+                    display: block !important;
+                    page-break-after: always !important;
+                    break-after: page !important;
+                    height: 36px !important;
+                    margin: 28px -20mm !important;
+                    background: #cbd5e1 !important;
+                    border: none !important;
+                    border-top: 1px solid #94a3b8 !important;
+                    border-bottom: 1px solid #94a3b8 !important;
+                    position: relative !important;
+                    clear: both !important;
+                    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+                  }
+                  .editor-content hr.page-break::after,
+                  .editor-content hr[title="Quebra de Página"]::after {
+                    content: '─── QUEBRA DE PÁGINA A4 (PRÓXIMA FOLHA NA IMPRESSÃO) ───';
+                    display: block;
+                    text-align: center;
+                    font-size: 8pt;
+                    font-weight: 800;
+                    color: #475569;
+                    line-height: 36px;
+                    letter-spacing: 1px;
+                  }
+
+                  .editor-content table,
+                  .editor-content blockquote,
+                  .editor-content div[style*="border"],
+                  .editor-content div[style*="background"] {
+                    break-inside: avoid !important;
+                    page-break-inside: avoid !important;
+                  }
+                `}</style>
 
                 <div
                   ref={editorRef}
