@@ -3202,13 +3202,6 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         {selectedProspect ? (
           <div className="h-full flex flex-col bg-[#0d0f19] rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-[#1a1d2d] no-print">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-black text-white">{selectedProspect.clinicName}</h2>
-                </div>
-                <p className="text-xs text-gray-400">Diagnóstico Completo de Marketing</p>
-              </div>
-
               <div className="flex items-center gap-2 no-print">
                 {!showDiagnosticForm && (
                   <button
