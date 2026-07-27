@@ -310,39 +310,17 @@ export const LeadGeneratorView: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-stone-100 p-6 rounded-[2rem] border border-stone-200/60 shadow-inner">
-              <h3 className="text-xs font-black text-stone-900 uppercase tracking-widest mb-3">Estimativa de Custo</h3>
-              <div className="space-y-2 text-xs font-medium text-stone-600">
-                <div className="flex justify-between">
-                  <span>Google Maps:</span>
-                  <span className="text-stone-900 font-bold">R$ 0,02 / lead</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>ReceitaWS:</span>
-                  <span className="text-green-600 font-bold">Grátis</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Local Falcon:</span>
-                  <span className="text-stone-900 font-bold">~R$ 0,65 / lead</span>
-                </div>
-                <div className="pt-2 mt-2 border-t border-stone-200 flex justify-between font-bold">
-                  <span className="text-stone-900">Total (aprox):</span>
-                  <span className="text-[#5271FF]">R$ 0,67 por lead</span>
-                </div>
+            {/* Terminal de Logs */}
+            <div className="bg-[#0C1122] p-6 rounded-[2rem] border border-stone-200/60 shadow-inner overflow-hidden flex flex-col">
+              <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-3">Terminal</h3>
+              <div className="space-y-2 text-xs font-mono text-green-400 min-h-12 max-h-40 overflow-y-auto custom-scrollbar">
+                {logs.length > 0 ? logs.map((log, index) => (
+                  <div key={index}>&gt; {log}</div>
+                )) : (
+                  <div className="text-white/35">&gt; Aguardando o início da geração de leads...</div>
+                )}
               </div>
             </div>
-
-            {/* Terminal de Logs */}
-            {logs.length > 0 && (
-              <div className="bg-[#0C1122] p-6 rounded-[2rem] border border-stone-200/60 shadow-inner overflow-hidden flex flex-col">
-                <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-3">Terminal</h3>
-                <div className="space-y-2 text-xs font-mono text-green-400 max-h-40 overflow-y-auto custom-scrollbar">
-                  {logs.map((log, index) => (
-                    <div key={index}>&gt; {log}</div>
-                  ))}
-                </div>
-              </div>
-            )}
 
           </div>
         </div>

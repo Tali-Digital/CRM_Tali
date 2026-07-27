@@ -35,7 +35,7 @@ export default function GestaoProspeccaoEditor() {
   const [responsibleFilter, setResponsibleFilter] = useState<string>(() => getSavedFilter('responsibleFilter', ''));
   const [periodType, setPeriodType] = useState<string>(() => getSavedFilter('periodType', 'all'));
   const [startDate, setStartDate] = useState<string>(() => getSavedFilter('startDate', ''));
-  const [activeTab, setActiveTab] = useState<'ativos' | 'lixeira' | 'entregues'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'aguardando' | 'lixeira' | 'entregues'>('ativos');
   const [endDate, setEndDate] = useState<string>(() => getSavedFilter('endDate', ''));
   const [statusFilter, setStatusFilter] = useState<string>(() => getSavedFilter('statusFilter', ''));
   const [locationFilter, setLocationFilter] = useState<string>(() => getSavedFilter('locationFilter', ''));
@@ -75,7 +75,8 @@ export default function GestaoProspeccaoEditor() {
   }, []);
 
   const activeProspeccoes = prospeccoes.filter(c => {
-    if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true;
+    if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true && c.isAguardando !== true;
+    if (activeTab === 'aguardando') return c.isDeleted !== true && c.isEntregue !== true && c.isAguardando === true;
     if (activeTab === 'entregues') return c.isDeleted !== true && c.isEntregue === true;
     return c.isDeleted === true;
   });
@@ -124,6 +125,19 @@ export default function GestaoProspeccaoEditor() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Restaurado!', showConfirmButton: false, timer: 1500 });
   };
 
+  const handleToggleAguardando = async (prospeccao: EditorProspeccaoDoc) => {
+    const isAguardando = prospeccao.isAguardando === true;
+    await updateProspeccaoDoc(prospeccao.id, { isAguardando: !isAguardando });
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: isAguardando ? 'Movido para Ativas' : 'Movido para Aguardando',
+      showConfirmButton: false,
+      timer: 1500
+    });
+  };
+
   const handleEmptyTrash = async () => {
     if (window.confirm('Deseja apagar TOTALMENTE todas as prospecções da lixeira? Esta ação não pode ser desfeita.')) {
       const deletedDocs = prospeccoes.filter(c => c.isDeleted === true);
@@ -144,6 +158,7 @@ export default function GestaoProspeccaoEditor() {
       if (copy.titulo) copy.titulo += ' (Cópia)';
       if (copy.clienteNome) copy.clienteNome += ' (Cópia)';
       copy.isEntregue = false;
+      copy.isAguardando = false;
       copy.dataAssinatura = new Date().toISOString();
 
       await addProspeccaoDoc(copy as any);
@@ -232,13 +247,15 @@ export default function GestaoProspeccaoEditor() {
     }
   };
 
-  const countAtivos = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue !== true).length;
+  const countAtivos = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue !== true && c.isAguardando !== true).length;
+  const countAguardando = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue !== true && c.isAguardando === true).length;
   const countEntregues = prospeccoes.filter(c => c.isDeleted !== true && c.isEntregue === true).length;
   const countLixeira = prospeccoes.filter(c => c.isDeleted === true).length;
 
   const filteredProspeccoes = prospeccoes
     .filter(c => {
-      if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true;
+      if (activeTab === 'ativos') return c.isDeleted !== true && c.isEntregue !== true && c.isAguardando !== true;
+      if (activeTab === 'aguardando') return c.isDeleted !== true && c.isEntregue !== true && c.isAguardando === true;
       if (activeTab === 'entregues') return c.isDeleted !== true && c.isEntregue === true;
       return c.isDeleted === true;
     })
@@ -315,6 +332,13 @@ export default function GestaoProspeccaoEditor() {
           >
             <CheckCircle size={14} />
             Entregues ({countEntregues})
+          </button>
+          <button
+            onClick={() => setActiveTab('aguardando')}
+            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'aguardando' ? 'bg-amber-500 shadow-sm shadow-amber-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-amber-600'}`}
+          >
+            <Clock size={14} />
+            Aguardando ({countAguardando})
           </button>
           <button
             onClick={() => setActiveTab('lixeira')}
@@ -503,9 +527,8 @@ export default function GestaoProspeccaoEditor() {
                       </>
                     ) : (
                       <>
-                        <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" className={`p-2 rounded ${prospeccao.documentoId || prospeccao.link ? 'text-blue-600 hover:bg-blue-50' : 'text-slate-300'}`} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-2 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" className="p-2 text-slate-500 hover:bg-slate-100 rounded"><Edit2 size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleToggleAguardando(prospeccao) }} title={prospeccao.isAguardando ? 'Mover para Ativas' : 'Mover para Aguardando'} className="p-2 text-amber-500 hover:bg-amber-50 rounded"><Clock size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
                       </>
                     )}
@@ -580,9 +603,8 @@ export default function GestaoProspeccaoEditor() {
                         </>
                       ) : (
                         <>
-                          <button onClick={(e) => { e.stopPropagation(); if(prospeccao.documentoId || prospeccao.link) viewContract(prospeccao) }} title="Ver Prospecção" className={`p-1.5 rounded ${prospeccao.documentoId || prospeccao.link ? 'text-blue-600 hover:bg-blue-50' : 'text-slate-300'}`} disabled={!(prospeccao.documentoId || prospeccao.link)}><FileText size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleOpenGerador(prospeccao) }} title="Editar" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded"><Edit2 size={18} /></button>
+                           <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
+                           <button onClick={(e) => { e.stopPropagation(); handleToggleAguardando(prospeccao) }} title={prospeccao.isAguardando ? 'Mover para Ativas' : 'Mover para Aguardando'} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded"><Clock size={18} /></button>
                           <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
                         </>
                       )}

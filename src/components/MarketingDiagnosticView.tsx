@@ -61,6 +61,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState(() => getSavedViewState('searchQuery', ''));
   const [activeTab, setActiveTab] = useState<'ativas' | 'arquivados' | 'lixeira'>(() => getSavedViewState('activeTab', 'ativas'));
+  const [responsibleFilter, setResponsibleFilter] = useState(() => getSavedViewState('responsibleFilter', ''));
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
   const [showPresentationModal, setShowPresentationModal] = useState(false);
@@ -329,11 +330,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       localStorage.setItem(`${prefix}searchQuery`, JSON.stringify(searchQuery));
       localStorage.setItem(`${prefix}activeTab`, JSON.stringify(activeTab));
       localStorage.setItem(`${prefix}diagFilter`, JSON.stringify(diagFilter));
+      localStorage.setItem(`${prefix}responsibleFilter`, JSON.stringify(responsibleFilter));
       localStorage.setItem(`${prefix}selectedProspectId`, JSON.stringify(selectedProspect?.id || null));
     } catch (error) {
       console.error('Erro ao salvar a visualização de diagnósticos:', error);
     }
-  }, [searchQuery, activeTab, diagFilter, selectedProspect?.id]);
+  }, [searchQuery, activeTab, diagFilter, responsibleFilter, selectedProspect?.id]);
 
   const countAtivas = prospects.filter(p => p.isDeleted !== true && p.isArchived !== true && p.isEntregue !== true).length;
   const countArquivados = prospects.filter(p => p.isDeleted !== true && (p.isArchived === true || p.isEntregue === true)).length;
@@ -348,6 +350,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const countComDiag = tabFilteredProspects.filter(p => !!p.marketingDiagnostic).length;
   const countSemDiag = tabFilteredProspects.filter(p => !p.marketingDiagnostic).length;
+  const responsibles = Array.from(new Set(prospects.map(p => p.responsible).filter(Boolean))).sort();
 
   const filteredProspects = tabFilteredProspects.filter(p => {
     const matchesSearch =
@@ -355,7 +358,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       (p.ownerName && p.ownerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.location && p.location.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    if (!matchesSearch) return false;
+     if (!matchesSearch) return false;
+
+      if (responsibleFilter && p.responsible !== responsibleFilter) return false;
 
     if (diagFilter === 'com_diag') return !!p.marketingDiagnostic;
     if (diagFilter === 'sem_diag') return !p.marketingDiagnostic;
@@ -1952,7 +1957,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </button>
           </div>
 
-          <div className="bg-[#141626] p-8 rounded-2xl border border-gray-800 shadow-xl">
+            <div className="bg-[#141626] p-4 md:p-8 rounded-2xl border border-gray-800 shadow-xl">
             <h3 className="text-lg font-black text-white mb-6">Perfil no Google</h3>
 
             {/* 3 Metric Cards */}
@@ -1977,9 +1982,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
 
             {/* Two Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
               <div>
-                <h4 className="text-xs font-black text-indigo-400 tracking-wider uppercase mb-4">O QUE OS NÚMEROS MOSTRAM</h4>
+                <h4 className="text-xs font-black text-indigo-400 tracking-wider uppercase mb-3">O QUE OS NÚMEROS MOSTRAM</h4>
                 <ul className="space-y-3 text-xs text-gray-300">
                   <li className="flex items-start gap-2">
                     <span className="text-gray-500 font-bold">•</span>
@@ -1997,7 +2002,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
 
               <div>
-                <h4 className="text-xs font-black text-emerald-400 tracking-wider uppercase mb-4">OPORTUNIDADES</h4>
+                <h4 className="text-xs font-black text-emerald-400 tracking-wider uppercase mb-3">OPORTUNIDADES</h4>
                 <ul className="space-y-3 text-xs text-gray-300">
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-500 font-bold">•</span>
@@ -2674,7 +2679,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               <div>
                 <h4 className="text-sm font-bold text-purple-400 mb-2 uppercase">O que os números mostram</h4>
                 <ul className="list-disc pl-4 space-y-2 text-sm text-gray-300">
@@ -2909,10 +2914,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 };
 
   return (
-    <div className="flex h-screen bg-stone-50 p-2 gap-2 relative">
+    <div className="flex h-screen flex-col md:flex-row bg-stone-50 p-2 gap-2 relative overflow-y-auto md:overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`w-96 md:w-[420px] shrink-0 bg-white rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm ${isFullscreen ? 'hidden' : 'flex'}`}>
-        <div className="p-4 border-b border-stone-100">
+      <div className={`w-full md:w-96 lg:w-[420px] shrink-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm h-[68vh] md:h-auto md:max-h-none ${isFullscreen ? 'hidden' : 'flex'}`}>
+        <div className="p-3 md:p-4 border-b border-stone-100">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-black text-stone-800 flex items-center gap-2">
               <Activity className="text-[#5271FF]" /> Diagnósticos
@@ -2941,7 +2946,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           <p className="text-xs text-stone-500 mb-3">Prospecções Presenciais marcadas</p>
 
           {/* Abas Pill: Ativas / Arquivados / Lixeira */}
-          <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl gap-1 shadow-inner border border-[#1e3a8a]/10 mb-3 text-xs w-full overflow-hidden">
+            <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl gap-1 shadow-inner border border-[#1e3a8a]/10 mb-2 md:mb-3 text-xs w-full overflow-hidden">
             <button
               onClick={() => setActiveTab('ativas')}
               className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'ativas' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-stone-500 hover:text-[#1e3a8a]'}`}
@@ -2977,6 +2982,29 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             />
           </div>
 
+          <div className="flex gap-2 mt-2">
+            <select
+              value={responsibleFilter}
+              onChange={e => setResponsibleFilter(e.target.value)}
+              className="min-w-0 flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#5271FF]"
+            >
+              <option value="">Todos os líderes</option>
+              {responsibles.map(responsible => <option key={responsible} value={responsible}>{responsible}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setResponsibleFilter('');
+                setActiveTab('ativas');
+                setDiagFilter('todos');
+              }}
+              className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#5271FF] border border-[#5271FF]/20 rounded-xl hover:bg-[#5271FF]/5"
+            >
+              Limpar
+            </button>
+          </div>
+
           {/* Filtro 50/50: Com Diagnóstico vs Sem Diagnóstico */}
           <div className="grid grid-cols-2 gap-1.5 mt-2">
             <button
@@ -3005,7 +3033,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto pt-2 pb-24 px-2 space-y-1.5 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto pt-1 md:pt-2 pb-4 md:pb-24 px-2 space-y-1.5 custom-scrollbar">
           {filteredProspects.map(p => {
             const hasReport = !!p.marketingDiagnostic;
             const isArchivedItem = p.isArchived === true || p.isEntregue === true;
@@ -3100,16 +3128,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-sm flex flex-col">
+      <div className="flex-1 min-h-screen md:min-h-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 overflow-hidden shadow-sm flex flex-col">
         {selectedProspect ? (
           <div className="h-full flex flex-col bg-[#0d0f19] rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-[#1a1d2d] no-print">
-              <div className="flex items-center gap-2 no-print">
+            <div className="p-2 md:p-4 border-b border-gray-800 bg-[#1a1d2d] no-print">
+              <div className="grid grid-cols-2 md:flex items-stretch gap-1.5 md:gap-2 no-print">
                 {!showDiagnosticForm && (
                   <button
                     onClick={() => setShowVariableModal(true)}
                     title="Ver todas as variáveis e tags disponíveis para automação das cartas"
-                    className="bg-[#5271FF] hover:bg-blue-600 text-white border border-indigo-400/40 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md"
+                      className="bg-[#5271FF] hover:bg-blue-600 text-white border border-indigo-400/40 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md text-center"
                   >
                     <Code size={14} />
                     Mapeamento de Variáveis
@@ -3119,7 +3147,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <button
                   onClick={() => setShowDiagnosticForm(!showDiagnosticForm)}
                   title="Editar dados da empresa, palavra-chave e executar novo rastreamento real"
-                  className="bg-purple-600/40 hover:bg-purple-600/70 text-purple-200 border border-purple-500/40 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                  className="bg-purple-600/40 hover:bg-purple-600/70 text-purple-200 border border-purple-500/40 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 text-center"
                 >
                   <Brain size={14} />
                   {showDiagnosticForm ? 'Ver Relatório' : '✏️ Parâmetros / Novo Rastreamento'}
@@ -3130,7 +3158,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <button
                       onClick={() => setDiagTheme(diagTheme === 'light' ? 'dark' : 'light')}
                       title="Alternar entre Tema Claro (Impressão/Carta) e Tema Escuro (Apresentação)"
-                      className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border ${
+                      className={`px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 border text-center ${
                         diagTheme === 'light'
                           ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-sm'
                           : 'bg-indigo-900/40 hover:bg-indigo-900/70 text-indigo-200 border-indigo-500/40'
@@ -3143,7 +3171,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <button
                       onClick={() => setShowPresentationModal(true)}
                       title="Visualizar Diagnóstico em Modo Apresentação de Slides"
-                      className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer"
+                      className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer text-center"
                     >
                       <Tv size={14} className="text-emerald-400" />
                       Apresentação (Slides)
@@ -3152,7 +3180,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <button
                       onClick={handlePrintDiagnostic}
                       title="Imprimir este Diagnóstico"
-                      className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                     >
                       <Printer size={14} />
                       Imprimir
@@ -3161,7 +3189,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <button
                       onClick={() => setIsFullscreen(true)}
                       title="Abrir em Tela Cheia"
-                      className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                     >
                       <Maximize2 size={14} />
                       Tela Cheia
@@ -3171,7 +3199,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-2 md:p-4">
               {showDiagnosticForm || !diagnosticData ? (
                 renderDiagnosticForm()
               ) : (
@@ -3193,17 +3221,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       {/* PORTAL PARA TELA CHEIA VERDADEIRA (SOBREPÕE MENU GLOBAL E SIDEBAR DA APLICAÇÃO) */}
       {isFullscreen && selectedProspect && diagnosticData && createPortal(
         <div className={`fixed inset-0 z-[9999999] flex flex-col w-screen h-screen overflow-hidden p-6 ${diagTheme === 'light' ? 'bg-[#f1f5f9]' : 'bg-[#0d0f19]'}`}>
-          <div className={`p-4 border flex items-center justify-between rounded-2xl mb-4 no-print shrink-0 ${diagTheme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#1a1d2d] border-gray-800'}`}>
+          <div className={`p-3 md:p-4 border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 rounded-2xl mb-4 no-print shrink-0 ${diagTheme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#1a1d2d] border-gray-800'}`}>
             <div>
-              <h2 className={`text-xl font-black ${diagTheme === 'light' ? 'text-slate-900' : 'text-white'}`}>{selectedProspect.clinicName}</h2>
-              <p className={`text-xs ${diagTheme === 'light' ? 'text-slate-500' : 'text-gray-400'}`}>Diagnóstico Completo de Marketing — {diagTheme === 'light' ? 'Modo Claro (Carta/Impressão)' : 'Modo Escuro (Apresentação)'}</p>
+              <h2 className={`text-base md:text-xl font-black ${diagTheme === 'light' ? 'text-slate-900' : 'text-white'}`}>{selectedProspect.clinicName}</h2>
+              <p className={`text-[10px] md:text-xs ${diagTheme === 'light' ? 'text-slate-500' : 'text-gray-400'}`}>Diagnóstico Completo de Marketing</p>
             </div>
 
-            <div className="flex items-center gap-3 no-print">
+            <div className="grid grid-cols-2 md:flex items-stretch gap-1.5 md:gap-3 no-print">
               <button
                 onClick={() => setDiagTheme(diagTheme === 'light' ? 'dark' : 'light')}
                 title="Alternar entre Modo Claro e Escuro"
-                className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border ${
+                className={`px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 border text-center ${
                   diagTheme === 'light'
                     ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-sm'
                     : 'bg-indigo-900/40 hover:bg-indigo-900/70 text-indigo-200 border-indigo-500/40'
@@ -3217,7 +3245,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 onClick={handleGenerate}
                 disabled={isGenerating}
                 title="Refazer e regerar o diagnóstico com IA"
-                className="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                className="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-2 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 md:gap-2 transition-all active:scale-95 disabled:opacity-50 text-center"
               >
                 {isGenerating ? <Loader2 className="animate-spin" size={14} /> : <RotateCw size={14} />}
                 {isGenerating ? 'Analisando...' : 'Refazer Diagnóstico'}
@@ -3226,7 +3254,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <button
                 onClick={() => setShowPresentationModal(true)}
                 title="Visualizar Diagnóstico em Modo Apresentação de Slides"
-                className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-md cursor-pointer"
+                className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 px-2 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 md:gap-2 transition-all active:scale-95 shadow-md cursor-pointer text-center"
               >
                 <Tv size={14} className="text-emerald-400" />
                 Apresentação (Slides)
@@ -3235,7 +3263,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <button
                 onClick={handlePrintDiagnostic}
                 title="Imprimir este Diagnóstico"
-                className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95"
+                className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-2 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 md:gap-2 transition-all active:scale-95"
               >
                 <Printer size={14} />
                 Imprimir
@@ -3243,7 +3271,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-md"
+                className="bg-red-600 hover:bg-red-500 text-white px-2 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 md:gap-2 transition-all active:scale-95 shadow-md"
               >
                 <Minimize2 size={14} />
                 Sair da Tela Cheia
