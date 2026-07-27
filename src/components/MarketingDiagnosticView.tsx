@@ -45,12 +45,22 @@ interface Props {
 }
 
 export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
+  const getSavedViewState = <T,>(key: string, defaultValue: T): T => {
+    try {
+      const uid = auth?.currentUser?.uid || 'guest';
+      const saved = localStorage.getItem(`marketing_diagnostic_view_${uid}_${key}`);
+      return saved ? JSON.parse(saved) : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  };
+
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'ativas' | 'arquivados' | 'lixeira'>('ativas');
+  const [searchQuery, setSearchQuery] = useState(() => getSavedViewState('searchQuery', ''));
+  const [activeTab, setActiveTab] = useState<'ativas' | 'arquivados' | 'lixeira'>(() => getSavedViewState('activeTab', 'ativas'));
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
   const [showPresentationModal, setShowPresentationModal] = useState(false);
@@ -159,7 +169,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [imgOffsetY, setImgOffsetY] = useState<number>(0);
   const [showCropControls, setShowCropControls] = useState<boolean>(false);
   const [showVisualCropModal, setShowVisualCropModal] = useState<boolean>(false);
-  const [diagTheme, setDiagTheme] = useState<'dark' | 'light'>('light');
+  const [diagTheme, setDiagTheme] = useState<'dark' | 'light'>('dark');
 
   // Sync crop settings whenever diagnosticData changes
   useEffect(() => {
@@ -205,7 +215,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     ticketMedio: '',
     stateUf: 'Distrito Federal (DF)',
     cityName: 'Brasília',
-    neighborhoodName: 'Asa Norte',
+    neighborhoodName: '',
     instagramUrl: '',
     siteUrl: '',
     facebookUrl: '',
@@ -245,6 +255,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     return () => unsubscribe();
   }, [companyId]);
 
+  useEffect(() => {
+    const selectedId = getSavedViewState<string | null>('selectedProspectId', null);
+    if (!selectedId || selectedProspect) return;
+    const prospect = prospects.find(item => item.id === selectedId);
+    if (prospect) {
+      setSelectedProspect(prospect);
+      setDiagnosticData(prospect.marketingDiagnostic || null);
+    }
+  }, [prospects, selectedProspect]);
+
   const handlePrintDiagnostic = useCallback(() => {
     document.body.classList.add('is-printing-marketing-diagnostic');
 
@@ -272,14 +292,20 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   useEffect(() => {
     if (selectedProspect) {
+      const prospectBairro = (selectedProspect as any).bairro || selectedProspect.neighborhoodName || '';
+
+      const locParts = (selectedProspect.location || '').split('-').map(s => s.trim());
+      const extractedCity = (selectedProspect as any).cityName || (locParts[0] || '');
+      const extractedState = (selectedProspect as any).stateUf || (locParts[1] ? (locParts[1].length === 2 ? `Distrito Federal (${locParts[1]})` : locParts[1]) : 'Distrito Federal (DF)');
+
       setFormData({
         companyName: selectedProspect.clinicName || '',
         keyword: (selectedProspect as any).keyword || 'Dentista',
         gridSize: (selectedProspect as any).gridSize || '3x3',
         ticketMedio: (selectedProspect as any).ticketMedio || '',
-        stateUf: (selectedProspect as any).stateUf || 'Distrito Federal (DF)',
-        cityName: (selectedProspect as any).cityName || selectedProspect.location?.split('-')[0]?.trim() || 'Brasília',
-        neighborhoodName: (selectedProspect as any).neighborhoodName || 'Asa Norte',
+        stateUf: extractedState,
+        cityName: extractedCity || 'Brasília',
+        neighborhoodName: prospectBairro,
         instagramUrl: selectedProspect.clinicInstagram || (selectedProspect as any).instagramUrl || '',
         siteUrl: selectedProspect.site || (selectedProspect as any).websiteUrl || '',
         facebookUrl: (selectedProspect as any).facebookUrl || '',
@@ -294,7 +320,20 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     }
   }, [selectedProspect?.id]);
 
-  const [diagFilter, setDiagFilter] = useState<'todos' | 'com_diag' | 'sem_diag'>('todos');
+  const [diagFilter, setDiagFilter] = useState<'todos' | 'com_diag' | 'sem_diag'>(() => getSavedViewState('diagFilter', 'todos'));
+
+  useEffect(() => {
+    try {
+      const uid = auth?.currentUser?.uid || 'guest';
+      const prefix = `marketing_diagnostic_view_${uid}_`;
+      localStorage.setItem(`${prefix}searchQuery`, JSON.stringify(searchQuery));
+      localStorage.setItem(`${prefix}activeTab`, JSON.stringify(activeTab));
+      localStorage.setItem(`${prefix}diagFilter`, JSON.stringify(diagFilter));
+      localStorage.setItem(`${prefix}selectedProspectId`, JSON.stringify(selectedProspect?.id || null));
+    } catch (error) {
+      console.error('Erro ao salvar a visualização de diagnósticos:', error);
+    }
+  }, [searchQuery, activeTab, diagFilter, selectedProspect?.id]);
 
   const countAtivas = prospects.filter(p => p.isDeleted !== true && p.isArchived !== true && p.isEntregue !== true).length;
   const countArquivados = prospects.filter(p => p.isDeleted !== true && (p.isArchived === true || p.isEntregue === true)).length;
@@ -1711,17 +1750,27 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           }
 
           /* TEMA CLARO PARA DIAGNÓSTICO & IMPRESSÃO */
-          .diag-theme-light {
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            padding: 1rem;
-            border-radius: 1rem;
-          }
-          .diag-theme-light .bg-\[\#1a1d2d\],
-          .diag-theme-light .bg-\[\#0d0f19\],
-          .diag-theme-light .bg-\[\#141626\],
-          .diag-theme-light .bg-\[\#111322\],
-          .diag-theme-light .bg-\[\#1e2238\],
+           .diag-theme-light {
+             background-color: #ffffff !important;
+             color: #0f172a !important;
+             padding: 1rem;
+             border-radius: 1rem;
+           }
+           .diag-theme-light [class*="bg-"] {
+             color: #0f172a;
+           }
+           .diag-theme-light [class*="bg-[#"],
+           .diag-theme-light [class*="bg-gray-9"],
+           .diag-theme-light [class*="bg-slate-9"] {
+             background-color: #ffffff !important;
+             border-color: #cbd5e1 !important;
+             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+           }
+           .diag-theme-light .bg-\[\#1a1d2d\],
+           .diag-theme-light .bg-\[\#0d0f19\],
+           .diag-theme-light .bg-\[\#141626\],
+           .diag-theme-light .bg-\[\#111322\],
+           .diag-theme-light .bg-\[\#1e2238\],
           .diag-theme-light .bg-gray-900,
           .diag-theme-light .bg-gray-950 {
             background-color: #ffffff !important;
@@ -1748,9 +1797,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           .diag-theme-light .text-gray-400 {
             color: #334155 !important;
           }
-          .diag-theme-light .text-gray-500 {
-            color: #64748b !important;
-          }
+           .diag-theme-light .text-gray-500 {
+             color: #64748b !important;
+           }
+           .diag-theme-light .text-orange-500,
+           .diag-theme-light .text-amber-400,
+           .diag-theme-light .text-amber-500,
+           .diag-theme-light .text-emerald-400,
+           .diag-theme-light .text-indigo-400,
+           .diag-theme-light .text-purple-400 {
+             color: inherit !important;
+           }
           .diag-theme-light .border-gray-800,
           .diag-theme-light .border-gray-700 {
             border-color: #e2e8f0 !important;
