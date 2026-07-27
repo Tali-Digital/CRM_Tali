@@ -321,59 +321,59 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       ['Google', placar?.google], ['Reputação', placar?.reputacao], ['Instagram', placar?.instagram], ['Site', placar?.site], ['Ads', placar?.ads]
     ];
     const placarPilaresHtml = placar ? `
-      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Placar por pilar</h3>
+      <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">Placar por pilar</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
-          ${pillarItems.map(([label, value]) => `<div style="flex:1; min-width:90px; border:1px solid #334155; background:#1e293b; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'N/A'}</div><div style="font-size:9pt; font-weight:700; color:#ffffff; margin-top:6px;">${label}</div></div>`).join('')}
+          ${pillarItems.map(([label, value]) => `<div style="flex:1; min-width:90px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#059669;">${value ?? 'N/A'}</div><div style="font-size:9pt; font-weight:700; color:#334155; margin-top:6px;">${label}</div></div>`).join('')}
         </div>
       </div>
     ` : '';
     const rankingHtml = concorrentes.length ? `
-      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Quem aparece na frente de você</h3>
-        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #334155; background:#1e293b; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#ffffff; font-size:10pt;">${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#cbd5e1;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
-        <div style="border:2px solid #f59e0b; background:#422006; border-radius:10px; padding:12px; margin-top:12px; color:#fef3c7; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#ffffff; font-size:10pt;">${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#fef3c7;">Posição média no Google (Local Falcon)</span></div>
+      <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">Quem aparece na frente de você</h3>
+        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#0f172a; font-size:10pt;">${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#475569;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
+        <div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição média no Google (Local Falcon)</span></div>
       </div>
     ` : '';
     const pageSpeedHtml = site ? `
-      <div style="background:#0f172a; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#ffffff;">Velocidade e SEO</h3>
+      <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">Velocidade e SEO</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
-          ${[['Desempenho', site.velocidade], ['Acessibilidade', site.acessibilidade], ['Práticas recomendadas', site.praticas], ['SEO', site.seo]].map(([label, value]) => `<div style="flex:1; min-width:100px; border:1px solid #334155; background:#1e293b; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#34d399;">${value ?? 'Sem dados'}</div><div style="font-size:9pt; font-weight:700; color:#ffffff; margin-top:6px;">${label}</div></div>`).join('')}
+          ${[['Desempenho', site.velocidade], ['Acessibilidade', site.acessibilidade], ['Práticas recomendadas', site.praticas], ['SEO', site.seo]].map(([label, value]) => `<div style="flex:1; min-width:100px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:12px; padding:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="font-size:20pt; font-weight:800; color:#059669;">${value ?? 'Sem dados'}</div><div style="font-size:9pt; font-weight:700; color:#334155; margin-top:6px;">${label}</div></div>`).join('')}
         </div>
       </div>
     ` : '';
     const dinheiroMesaVisualHtml = `
-      <div style="background:#172033; color:#ffffff; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 6px; font-size:15pt; color:#ffffff;">Dinheiro na mesa</h3><p style="margin:0 0 16px; color:#cbd5e1; font-size:10pt;">Estimativa da receita que deixa de entrar por mês.</p>
-        <div style="margin:12px 0;"><strong style="color:#ffffff;">Conservador</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${cons.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:33%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
-        <div style="margin:12px 0;"><strong style="color:#ffffff;">Moderado</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${mod.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:50%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
-        <div style="margin:12px 0;"><strong style="color:#ffffff;">Agressivo</strong><span style="float:right; color:#22c55e; font-size:14pt; font-weight:bold;">R$ ${agr.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#1e293b; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:100%; height:10px; border-radius:8px; background:#22c55e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
+      <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
+        <h3 style="margin:0 0 6px; font-size:15pt; color:#0f172a;">Dinheiro na mesa</h3><p style="margin:0 0 16px; color:#475569; font-size:10pt;">Estimativa da receita que deixa de entrar por mês.</p>
+        <div style="margin:12px 0;"><strong style="color:#0f172a;">Conservador</strong><span style="float:right; color:#059669; font-size:14pt; font-weight:bold;">R$ ${cons.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#e2e8f0; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:33%; height:10px; border-radius:8px; background:#10b981; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
+        <div style="margin:12px 0;"><strong style="color:#0f172a;">Moderado</strong><span style="float:right; color:#059669; font-size:14pt; font-weight:bold;">R$ ${mod.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#e2e8f0; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:50%; height:10px; border-radius:8px; background:#10b981; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
+        <div style="margin:12px 0;"><strong style="color:#0f172a;">Agressivo</strong><span style="float:right; color:#059669; font-size:14pt; font-weight:bold;">R$ ${agr.toLocaleString('pt-BR')}/mês</span><div style="height:10px; border-radius:8px; background:#e2e8f0; margin-top:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><div style="width:100%; height:10px; border-radius:8px; background:#10b981; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></div></div></div>
       </div>
     `;
 
     const keywordTermo = (prospectData as any)?.keyword || (diagnosticData as any)?.termoPesquisado || (diagnosticData as any)?.gmn?.keyword || 'dentista';
 
     const cardLegendaMapaHtml = `
-      <div style="background-color: #0d0f19; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #ffffff; border: 1px solid #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background-color: #ffffff; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
         <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 10pt; font-weight: bold;">
-          <span style="color: #10b981; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #059669; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
           </span>
-          <span style="color: #f59e0b; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
           </span>
-          <span style="color: #ef4444; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
           </span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 10pt; color: #94a3b8; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 10pt; color: #475569; flex-wrap: wrap;">
           <span>Searching</span>
-          <span style="background-color: #1e293b; color: #ffffff; padding: 4px 12px; border-radius: 6px; font-weight: bold; border: 1px solid #334155;">
+          <span style="background-color: #f1f5f9; color: #0f172a; padding: 4px 12px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1;">
             "${keywordTermo}"
           </span>
           <span>on</span>
-          <span style="background-color: #ffffff; color: #1e293b; padding: 4px 12px; border-radius: 16px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;">
+          <span style="background-color: #f8fafc; color: #0f172a; padding: 4px 12px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
             📍 Google Maps
           </span>
           <span>for:</span>
@@ -382,25 +382,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     `;
 
     const cardBuscaGoogleHtml = `
-      <div style="background-color: #0d0f19; padding: 20px; border-radius: 16px; font-family: sans-serif; text-align: center; margin: 20px 0; color: #ffffff; border: 1px solid #1e293b; box-shadow: 0 8px 20px rgba(0,0,0,0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background-color: #ffffff; padding: 20px; border-radius: 16px; font-family: sans-serif; text-align: center; margin: 20px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
         <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 10pt; font-weight: bold;">
-          <span style="color: #10b981; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #059669; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
           </span>
-          <span style="color: #f59e0b; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
           </span>
-          <span style="color: #ef4444; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
           </span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11pt; color: #94a3b8; margin-bottom: 18px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11pt; color: #475569; flex-wrap: wrap;">
           <span>Searching</span>
-          <span style="background-color: #1e293b; color: #ffffff; padding: 4px 14px; border-radius: 8px; font-weight: bold; border: 1px solid #334155;">
+          <span style="background-color: #f1f5f9; color: #0f172a; padding: 6px 14px; border-radius: 8px; font-weight: bold; border: 1px solid #cbd5e1;">
             "${keywordTermo}"
           </span>
           <span>on</span>
-          <span style="background-color: #ffffff; color: #1e293b; padding: 4px 14px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;">
+          <span style="background-color: #f8fafc; color: #0f172a; padding: 6px 14px; border-radius: 20px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 6px;">
             📍 Google Maps
           </span>
           <span>for:</span>
@@ -1240,11 +1240,17 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     if (editorRef.current) {
       const content = editorRef.current.innerHTML;
       const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
       document.body.appendChild(iframe);
       const doc = iframe.contentWindow?.document;
       if (doc) {
         doc.write(`
+          <!DOCTYPE html>
           <html>
             <head>
               <title>${clinica || 'Prospecção'}</title>
@@ -1264,7 +1270,12 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 .content-cell ul { padding-left: 20px !important; list-style-type: disc !important; }
                 .content-cell ol { padding-left: 20px !important; list-style-type: decimal !important; }
                 .content-cell li { margin-bottom: 5px !important; }
-                .content-cell img { max-width: 100% !important; height: auto !important; }
+                .content-cell img {
+                  max-width: 100% !important;
+                  display: block !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
                 .page-break, hr.page-break, hr[title="Quebra de Página"], hr {
                   page-break-after: always !important;
                   break-after: page !important;
@@ -1281,12 +1292,40 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             </head>
             <body>
               <div class="content-cell">${content}</div>
-              <script>setTimeout(() => window.print(), 500);<\/script>
+              <script>
+                function triggerPrint() {
+                  const images = Array.from(document.querySelectorAll('img'));
+                  if (images.length === 0) {
+                    window.print();
+                    return;
+                  }
+                  let loaded = 0;
+                  const onCheck = () => {
+                    loaded++;
+                    if (loaded >= images.length) {
+                      setTimeout(() => window.print(), 300);
+                    }
+                  };
+                  images.forEach(img => {
+                    if (img.complete && img.naturalHeight !== 0) {
+                      onCheck();
+                    } else {
+                      img.onload = onCheck;
+                      img.onerror = onCheck;
+                    }
+                  });
+                }
+                if (document.readyState === 'complete') {
+                  triggerPrint();
+                } else {
+                  window.onload = triggerPrint;
+                }
+              <\/script>
             </body>
           </html>
         `);
         doc.close();
-        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 10000);
+        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 15000);
       }
     }
   };

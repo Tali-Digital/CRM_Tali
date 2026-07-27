@@ -4,6 +4,7 @@ export interface VariableTag {
   code: string;
   category: 'Geral & Empresa' | 'Notas & Desempenho' | 'SEO & Google Maps' | 'Site & Rastreamento' | 'Simulações & Anúncios' | 'IA & Resumos';
   description: string;
+  isVisual?: boolean;
   exampleValue: (prospect?: Prospect | null, diagnosticData?: any) => string;
 }
 

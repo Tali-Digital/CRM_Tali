@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Search, Sparkles, Plus, Code, Layers, Trash2 } from 'lucide-react';
+import { X, Copy, Check, Search, Sparkles, Plus, Code, Layers, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
 import { Prospect } from '../types';
 import { DEFAULT_VARIABLE_TAGS, VariableTag } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
@@ -146,10 +146,20 @@ export const VariableMappingModal: React.FC<Props> = ({
     }))
   ];
 
-  const categories = ['Todas', 'Geral & Empresa', 'Notas & Desempenho', 'SEO & Google Maps', 'Site & Rastreamento', 'Simulações & Anúncios', 'IA & Resumos'];
+  const categories = ['Todas', '🖼️ Imagens / Blocos', '📄 Textos Simples', 'Geral & Empresa', 'Notas & Desempenho', 'SEO & Google Maps', 'Site & Rastreamento', 'Simulações & Anúncios', 'IA & Resumos'];
 
   const filteredTags = allTags.filter(t => {
-    const matchesCategory = selectedCategory === 'Todas' || t.category === selectedCategory;
+    const isTagVisual = t.code.startsWith('{{IA_') || (t as any).isVisual || t.code.includes('MAPA') || t.code.includes('CARD') || t.code.includes('FICHA') || t.code.includes('PLACAR') || t.code.includes('RANKING') || t.code.includes('SPEED') || t.code.includes('MESA');
+
+    let matchesCategory = true;
+    if (selectedCategory === '🖼️ Imagens / Blocos') {
+      matchesCategory = isTagVisual;
+    } else if (selectedCategory === '📄 Textos Simples') {
+      matchesCategory = !isTagVisual;
+    } else if (selectedCategory !== 'Todas') {
+      matchesCategory = t.category === selectedCategory;
+    }
+
     const matchesSearch = t.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           t.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -428,6 +438,18 @@ export const VariableMappingModal: React.FC<Props> = ({
                     <span className="font-mono text-xs font-black text-indigo-400 bg-indigo-950/70 px-3 py-1 rounded-xl border border-indigo-500/30 break-all">
                       {tag.code}
                     </span>
+
+                    {/* Delineação se é Tag de Imagem/Visual ou Texto Simples */}
+                    {(tag.code.startsWith('{{IA_') || (tag as any).isVisual || tag.code.includes('MAPA') || tag.code.includes('CARD') || tag.code.includes('FICHA') || tag.code.includes('PLACAR') || tag.code.includes('RANKING') || tag.code.includes('SPEED') || tag.code.includes('MESA')) ? (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0">
+                        <ImageIcon size={10} /> Visual / Bloco de Imagem
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1 shrink-0">
+                        <FileText size={10} /> Texto Simples
+                      </span>
+                    )}
+
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gray-800 text-gray-400 shrink-0">
                       {tag.category}
                     </span>

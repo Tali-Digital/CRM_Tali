@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop
+  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, updateProspect, createNotification } from '../services/firestoreService';
@@ -159,6 +159,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [imgOffsetY, setImgOffsetY] = useState<number>(0);
   const [showCropControls, setShowCropControls] = useState<boolean>(false);
   const [showVisualCropModal, setShowVisualCropModal] = useState<boolean>(false);
+  const [diagTheme, setDiagTheme] = useState<'dark' | 'light'>('light');
 
   // Sync crop settings whenever diagnosticData changes
   useEffect(() => {
@@ -1708,6 +1709,52 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               display: none !important;
             }
           }
+
+          /* TEMA CLARO PARA DIAGNÓSTICO & IMPRESSÃO */
+          .diag-theme-light {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            padding: 1rem;
+            border-radius: 1rem;
+          }
+          .diag-theme-light .bg-\[\#1a1d2d\],
+          .diag-theme-light .bg-\[\#0d0f19\],
+          .diag-theme-light .bg-\[\#141626\],
+          .diag-theme-light .bg-\[\#111322\],
+          .diag-theme-light .bg-\[\#1e2238\],
+          .diag-theme-light .bg-gray-900,
+          .diag-theme-light .bg-gray-950 {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+          }
+          .diag-theme-light h1,
+          .diag-theme-light h2,
+          .diag-theme-light h3,
+          .diag-theme-light h4 {
+            color: #0f172a !important;
+          }
+          .diag-theme-light p,
+          .diag-theme-light span,
+          .diag-theme-light div {
+            color: #1e293b;
+          }
+          .diag-theme-light .text-white,
+          .diag-theme-light .text-gray-100,
+          .diag-theme-light .text-gray-200 {
+            color: #0f172a !important;
+          }
+          .diag-theme-light .text-gray-300,
+          .diag-theme-light .text-gray-400 {
+            color: #334155 !important;
+          }
+          .diag-theme-light .text-gray-500 {
+            color: #64748b !important;
+          }
+          .diag-theme-light .border-gray-800,
+          .diag-theme-light .border-gray-700 {
+            border-color: #e2e8f0 !important;
+          }
         `}</style>
 
         {/* Capa */}
@@ -3129,6 +3176,19 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 {diagnosticData && !showDiagnosticForm && (
                   <>
                     <button
+                      onClick={() => setDiagTheme(diagTheme === 'light' ? 'dark' : 'light')}
+                      title="Alternar entre Tema Claro (Impressão/Carta) e Tema Escuro (Apresentação)"
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border ${
+                        diagTheme === 'light'
+                          ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-sm'
+                          : 'bg-indigo-900/40 hover:bg-indigo-900/70 text-indigo-200 border-indigo-500/40'
+                      }`}
+                    >
+                      {diagTheme === 'light' ? <Sun size={14} className="text-amber-600" /> : <Moon size={14} className="text-indigo-400" />}
+                      {diagTheme === 'light' ? 'Modo Claro (Carta/Impressão)' : 'Modo Escuro (Apresentação)'}
+                    </button>
+
+                    <button
                       onClick={() => setShowPresentationModal(true)}
                       title="Visualizar Diagnóstico em Modo Apresentação de Slides"
                       className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer"
@@ -3163,7 +3223,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               {showDiagnosticForm || !diagnosticData ? (
                 renderDiagnosticForm()
               ) : (
-                renderDiagnostic()
+                <div className={diagTheme === 'light' ? 'diag-theme-light' : ''}>
+                  {renderDiagnostic()}
+                </div>
               )}
             </div>
           </div>
@@ -3178,14 +3240,27 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
       {/* PORTAL PARA TELA CHEIA VERDADEIRA (SOBREPÕE MENU GLOBAL E SIDEBAR DA APLICAÇÃO) */}
       {isFullscreen && selectedProspect && diagnosticData && createPortal(
-        <div className="fixed inset-0 z-[9999999] bg-[#0d0f19] flex flex-col w-screen h-screen overflow-hidden p-6">
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-[#1a1d2d] rounded-2xl mb-4 no-print shrink-0">
+        <div className={`fixed inset-0 z-[9999999] flex flex-col w-screen h-screen overflow-hidden p-6 ${diagTheme === 'light' ? 'bg-[#f1f5f9]' : 'bg-[#0d0f19]'}`}>
+          <div className={`p-4 border flex items-center justify-between rounded-2xl mb-4 no-print shrink-0 ${diagTheme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#1a1d2d] border-gray-800'}`}>
             <div>
-              <h2 className="text-xl font-black text-white">{selectedProspect.clinicName}</h2>
-              <p className="text-xs text-gray-400">Diagnóstico Completo de Marketing — Modo Apresentação</p>
+              <h2 className={`text-xl font-black ${diagTheme === 'light' ? 'text-slate-900' : 'text-white'}`}>{selectedProspect.clinicName}</h2>
+              <p className={`text-xs ${diagTheme === 'light' ? 'text-slate-500' : 'text-gray-400'}`}>Diagnóstico Completo de Marketing — {diagTheme === 'light' ? 'Modo Claro (Carta/Impressão)' : 'Modo Escuro (Apresentação)'}</p>
             </div>
 
             <div className="flex items-center gap-3 no-print">
+              <button
+                onClick={() => setDiagTheme(diagTheme === 'light' ? 'dark' : 'light')}
+                title="Alternar entre Modo Claro e Escuro"
+                className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border ${
+                  diagTheme === 'light'
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-sm'
+                    : 'bg-indigo-900/40 hover:bg-indigo-900/70 text-indigo-200 border-indigo-500/40'
+                }`}
+              >
+                {diagTheme === 'light' ? <Sun size={14} className="text-amber-600" /> : <Moon size={14} className="text-indigo-400" />}
+                {diagTheme === 'light' ? 'Modo Claro' : 'Modo Escuro'}
+              </button>
+
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -3225,7 +3300,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto rounded-2xl">
-            {renderDiagnostic()}
+            <div className={diagTheme === 'light' ? 'diag-theme-light' : ''}>
+              {renderDiagnostic()}
+            </div>
           </div>
         </div>,
         document.body
