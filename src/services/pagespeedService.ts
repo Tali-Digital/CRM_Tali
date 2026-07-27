@@ -31,41 +31,56 @@ export const runPageSpeedAnalysis = async (url: string): Promise<PageSpeedResult
     formattedUrl = `https://${formattedUrl}`;
   }
 
-  // Carrega a API key salva no Admin
   const settings = await getGlobalSettings('gemini');
   const apiKey = settings?.pageSpeedKey || '';
 
   try {
-    // Usa proxy do Vite (/api-proxy/pagespeed) para evitar bloqueio CORS
-    // Inclui a API key para evitar erro 429 (rate limit)
     const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : '';
-    const apiUrl = `/api-proxy/pagespeed/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=mobile&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${keyParam}`;
+    const directApiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=mobile&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${keyParam}`;
+    const proxyApiUrl = `/api-proxy/pagespeed/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=mobile&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${keyParam}`;
 
     console.log('[PageSpeed] Chamando com URL:', formattedUrl, '| API Key configurada:', !!apiKey);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 90000); // 90s timeout
+    const timer = setTimeout(() => controller.abort(), 90000);
     let res: Response;
     try {
-      res = await fetch(apiUrl, { signal: controller.signal });
+      res = await fetch(directApiUrl, { signal: controller.signal }).catch(async () => {
+        return await fetch(proxyApiUrl, { signal: controller.signal });
+      });
     } finally {
       clearTimeout(timer);
     }
     console.log('[PageSpeed] Status:', res.status, res.statusText);
 
+    const rawText = await res.text();
+
     if (!res.ok) {
-      const errTxt = await res.text();
-      console.error('[PageSpeed] Erro:', res.status, errTxt);
+      console.error('[PageSpeed] Erro:', res.status, rawText);
       return {
         success: false,
         velocidade: 'sem dados',
         acessibilidade: 'sem dados',
         praticas: 'sem dados',
         seo: 'sem dados',
-        error: `PageSpeed API status ${res.status}: ${errTxt.slice(0, 200)}`
+        error: `PageSpeed API status ${res.status}: ${rawText.slice(0, 150)}`
       };
     }
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error('[PageSpeed] Erro ao parsear JSON:', parseErr, rawText.slice(0, 200));
+      return {
+        success: false,
+        velocidade: 'sem dados',
+        acessibilidade: 'sem dados',
+        praticas: 'sem dados',
+        seo: 'sem dados',
+        error: 'A API retornou uma resposta HTML em vez de JSON (verifique se a URL do site é válida).'
+      };
+    }
+
     const categories = data?.lighthouseResult?.categories || {};
 
     const speed = categories.performance?.score !== undefined ? Math.round(categories.performance.score * 100) : 'sem dados';
