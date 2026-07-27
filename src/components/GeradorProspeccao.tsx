@@ -48,7 +48,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   });
 
   const editorRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
+  const paginationFrameRef = useRef<HTMLDivElement>(null);
+  const isPaginatingRef = useRef(false);
+  const paginationRafRef = useRef<number | null>(null);
+  const paginationTimeoutRef = useRef<number | null>(null);
+  const isComposingRef = useRef(false);
+  const dirtyPageRef = useRef<HTMLElement | null>(null);
 
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
 
@@ -133,8 +138,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       }
 
       if (prospeccaoParaEditar.conteudoHtml && editorRef.current) {
-        editorRef.current.innerHTML = prospeccaoParaEditar.conteudoHtml;
-        setPreviewHtml(prospeccaoParaEditar.conteudoHtml);
+        setEditorHtml(prospeccaoParaEditar.conteudoHtml);
       }
     }
   }, [prospeccaoParaEditar]);
@@ -159,23 +163,219 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     }
 
     if (editorRef.current && editorRef.current.innerHTML === '') {
-      editorRef.current.innerHTML = conteudoInicial;
-      setPreviewHtml(conteudoInicial);
+      setEditorHtml(conteudoInicial);
     }
 
     return () => unsubscribe();
   }, []);
 
-  // Calcular número de páginas
-  useEffect(() => {
-    if (measureRef.current) {
-      const height = measureRef.current.scrollHeight;
-      setTotalPages(Math.max(1, Math.ceil(height / 843)));
-    }
-  }, [previewHtml]);
+  const getCanonicalHtml = () => {
+    if (!editorRef.current) return '';
+    const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+    if (!pages.length) return editorRef.current.innerHTML;
+    return pages.map(page => page.querySelector<HTMLElement>(':scope > .a4-page-content')?.innerHTML || '').join('');
+  };
 
-  const handleEditorInput = () => {
-    if (editorRef.current) setPreviewHtml(editorRef.current.innerHTML);
+  const createPage = () => {
+    const page = document.createElement('section');
+    page.className = 'a4-page';
+    page.contentEditable = 'false';
+    const content = document.createElement('div');
+    content.className = 'a4-page-content';
+    content.contentEditable = 'true';
+    content.style.padding = `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`;
+    page.appendChild(content);
+    return { page, content };
+  };
+
+  const exceedsPageContent = (content: HTMLElement, node: Node) => {
+    if (!(node instanceof HTMLElement)) return content.scrollHeight > content.clientHeight + 1;
+    const contentRect = content.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    const contentStyles = window.getComputedStyle(content);
+    const bottomLimit = contentRect.bottom - parseFloat(contentStyles.paddingBottom || '0');
+    const marginBottom = parseFloat(window.getComputedStyle(node).marginBottom || '0');
+    return nodeRect.bottom + marginBottom > bottomLimit + 1;
+  };
+
+  const updatePageCount = () => {
+    const count = editorRef.current?.querySelectorAll(':scope > .a4-page').length || 1;
+    setTotalPages(Math.max(1, count));
+  };
+
+  const balancePagesFrom = (startContent: HTMLElement | null) => {
+    const editor = editorRef.current;
+    if (!editor || !startContent || isPaginatingRef.current || !startContent.isConnected) return;
+    isPaginatingRef.current = true;
+    try {
+      let page = startContent.closest<HTMLElement>('.a4-page');
+      while (page) {
+        const content = page.querySelector<HTMLElement>(':scope > .a4-page-content');
+        if (!content) break;
+
+        while (content.lastChild && exceedsPageContent(content, content.lastChild)) {
+          let nextPage = page.nextElementSibling as HTMLElement | null;
+          if (!nextPage?.classList.contains('a4-page')) {
+            nextPage = createPage().page;
+            editor.insertBefore(nextPage, page.nextSibling);
+          }
+          const nextContent = nextPage.querySelector<HTMLElement>(':scope > .a4-page-content');
+          if (!nextContent) break;
+          nextContent.insertBefore(content.lastChild, nextContent.firstChild);
+        }
+
+        let nextPage = page.nextElementSibling as HTMLElement | null;
+        if (nextPage?.classList.contains('a4-page')) {
+          const nextContent = nextPage.querySelector<HTMLElement>(':scope > .a4-page-content');
+          while (nextContent?.firstChild) {
+            const candidate = nextContent.firstChild;
+            content.appendChild(candidate);
+            if (exceedsPageContent(content, candidate)) {
+              content.removeChild(candidate);
+              nextContent.insertBefore(candidate, nextContent.firstChild);
+              break;
+            }
+          }
+          if (nextContent && !nextContent.childNodes.length) {
+            nextPage.remove();
+            nextPage = page.nextElementSibling as HTMLElement | null;
+          }
+        }
+
+        page = nextPage?.classList.contains('a4-page') ? nextPage : null;
+      }
+      updatePageCount();
+    } finally {
+      isPaginatingRef.current = false;
+    }
+  };
+
+  const paginateEditor = () => {
+    const editor = editorRef.current;
+    if (!editor || isPaginatingRef.current) return;
+    const selection = window.getSelection();
+    let startMarker: HTMLSpanElement | null = null;
+    let endMarker: HTMLSpanElement | null = null;
+    if (selection?.rangeCount && editor.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0).cloneRange();
+      startMarker = document.createElement('span');
+      startMarker.dataset.caretMarker = 'start';
+      startMarker.style.cssText = 'display:inline;width:0;height:0;overflow:hidden;';
+      if (!range.collapsed) {
+        const endRange = range.cloneRange();
+        endRange.collapse(false);
+        endMarker = document.createElement('span');
+        endMarker.dataset.caretMarker = 'end';
+        endMarker.style.cssText = 'display:inline;width:0;height:0;overflow:hidden;';
+        endRange.insertNode(endMarker);
+      }
+      range.collapse(true);
+      range.insertNode(startMarker);
+    }
+    isPaginatingRef.current = true;
+    try {
+      const fragment = document.createDocumentFragment();
+      const existingPages = Array.from(editor.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+      if (existingPages.length) {
+        existingPages.forEach(page => {
+          const content = page.querySelector<HTMLElement>(':scope > .a4-page-content');
+          if (content) while (content.firstChild) fragment.appendChild(content.firstChild);
+        });
+      } else {
+        while (editor.firstChild) fragment.appendChild(editor.firstChild);
+      }
+
+      editor.replaceChildren();
+      let current = createPage();
+      editor.appendChild(current.page);
+      const nodes = Array.from(fragment.childNodes);
+
+      nodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) return;
+        const isManualBreak = node instanceof HTMLElement && node.matches('hr.page-break, hr[title="Quebra de Página"]');
+        if (isManualBreak) {
+          current.content.appendChild(node);
+          current = createPage();
+          editor.appendChild(current.page);
+          return;
+        }
+
+        current.content.appendChild(node);
+        if (exceedsPageContent(current.content, node) && current.content.childNodes.length > 1) {
+          current.content.removeChild(node);
+          current = createPage();
+          editor.appendChild(current.page);
+          current.content.appendChild(node);
+        }
+      });
+
+      updatePageCount();
+      if (startMarker?.isConnected) {
+        const range = document.createRange();
+        range.setStartBefore(startMarker);
+        if (endMarker?.isConnected) range.setEndBefore(endMarker);
+        else range.collapse(true);
+        startMarker.remove();
+        if (endMarker?.isConnected) endMarker.remove();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+    } finally {
+      if (startMarker?.isConnected) startMarker.remove();
+      if (endMarker?.isConnected) endMarker.remove();
+      isPaginatingRef.current = false;
+    }
+  };
+
+  const schedulePagination = () => {
+    if (paginationTimeoutRef.current !== null) {
+      window.clearTimeout(paginationTimeoutRef.current);
+      paginationTimeoutRef.current = null;
+    }
+    if (paginationRafRef.current !== null) cancelAnimationFrame(paginationRafRef.current);
+    paginationRafRef.current = requestAnimationFrame(() => {
+      paginationRafRef.current = null;
+      paginateEditor();
+    });
+  };
+
+  const schedulePaginationAfterInput = () => {
+    if (isComposingRef.current) return;
+    if (paginationTimeoutRef.current !== null) window.clearTimeout(paginationTimeoutRef.current);
+    paginationTimeoutRef.current = window.setTimeout(() => {
+      paginationTimeoutRef.current = null;
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && editorRef.current?.contains(selection.anchorNode)) return;
+      balancePagesFrom(dirtyPageRef.current);
+      dirtyPageRef.current = null;
+    }, 350);
+  };
+
+  const setEditorHtml = (html: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.innerHTML = html;
+    setPreviewHtml(html);
+    schedulePagination();
+  };
+
+  useEffect(() => {
+    schedulePagination();
+    return () => {
+      if (paginationRafRef.current !== null) cancelAnimationFrame(paginationRafRef.current);
+      if (paginationTimeoutRef.current !== null) window.clearTimeout(paginationTimeoutRef.current);
+    };
+  }, [estilos.page.top, estilos.page.right, estilos.page.bottom, estilos.page.left]);
+
+  const handleEditorInput = (event?: React.FormEvent<HTMLDivElement>) => {
+    const target = event?.target as HTMLElement | undefined;
+    const anchorNode = window.getSelection()?.anchorNode;
+    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+    dirtyPageRef.current = target?.closest<HTMLElement>('.a4-page-content')
+      || anchorElement?.closest<HTMLElement>('.a4-page-content')
+      || dirtyPageRef.current
+      || editorRef.current?.querySelector<HTMLElement>(':scope > .a4-page > .a4-page-content')
+      || null;
+    schedulePaginationAfterInput();
   };
 
   const handleApplyAllTags = () => {
@@ -417,7 +617,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
 
-    let html = editorRef.current.innerHTML;
+    let html = getCanonicalHtml();
     let appended = '';
 
     const visualTags: Record<string, string> = {
@@ -456,8 +656,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       html = html.split(tag.code).join(tag.exampleValue(liveProspect, diagnosticData));
       applied += 1;
     });
-    editorRef.current.innerHTML = html;
-    handleEditorInput();
+    setEditorHtml(html);
     Swal.fire({ toast: true, position: 'top-end', icon: applied ? 'success' : 'info', title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta', text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined, showConfirmButton: false, timer: 2600 });
   };
 
@@ -488,8 +687,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         setNomeModeloState(mod.nome);
         setDescricaoModeloState(mod.descricao || '');
         if (editorRef.current) {
-          editorRef.current.innerHTML = mod.conteudo;
-          setPreviewHtml(mod.conteudo);
+          setEditorHtml(mod.conteudo);
         }
       }
     } else if (isModeloOnlyMode && !modeloIdParaEditar && !selectedModeloId) {
@@ -505,8 +703,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       setNomeModeloState('Novo Modelo');
       setDescricaoModeloState('');
       if (editorRef.current) {
-        editorRef.current.innerHTML = '<p>Escreva aqui o conteúdo do novo modelo...</p>';
-        setPreviewHtml('<p>Escreva aqui o conteúdo do novo modelo...</p>');
+        setEditorHtml('<p>Escreva aqui o conteúdo do novo modelo...</p>');
       }
       return;
     }
@@ -515,15 +712,14 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       setNomeModeloState(mod.nome);
       setDescricaoModeloState(mod.descricao || '');
       if (editorRef.current) {
-        editorRef.current.innerHTML = mod.conteudo;
-        setPreviewHtml(mod.conteudo);
+        setEditorHtml(mod.conteudo);
       }
     }
   };
 
   const handleSaveModeloOnly = async () => {
     if (!editorRef.current) return;
-    const html = editorRef.current.innerHTML;
+    const html = getCanonicalHtml();
 
     if (!nomeModeloState.trim()) {
       Swal.fire('Nome Obrigatório', 'Por favor, informe o nome do modelo.', 'warning');
@@ -567,7 +763,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleSaveModelo = async () => {
     if (!editorRef.current) return;
-    const html = editorRef.current.innerHTML;
+    const html = getCanonicalHtml();
     const currentModel = modelos.find(m => m.id === selectedModeloId);
 
     const { value: nome } = await Swal.fire({
@@ -618,15 +814,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     setSelectedModeloId(modeloId);
     if (!modeloId) {
       if (editorRef.current) {
-        editorRef.current.innerHTML = conteudoInicial;
-        setPreviewHtml(conteudoInicial);
+        setEditorHtml(conteudoInicial);
       }
       return;
     }
     const modelo = modelos.find(m => m.id === modeloId);
     if (modelo && editorRef.current) {
-      editorRef.current.innerHTML = modelo.conteudo;
-      setPreviewHtml(modelo.conteudo);
+      setEditorHtml(modelo.conteudo);
     }
   };
 
@@ -665,9 +859,9 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     if (command === 'removeFormat') {
       clearFormatting();
     } else if (command === 'pageBreak') {
-      document.execCommand('insertHTML', false, '<hr class="page-break" style="page-break-after: always; border: none; border-top: 2px dashed #ef4444; margin: 40px 0; opacity: 0.5;" title="Quebra de Página" />');
       editorRef.current?.focus();
-      handleEditorInput();
+      document.execCommand('insertHTML', false, '<hr class="page-break" title="Quebra de Página" />');
+      paginateEditor();
     } else {
       document.execCommand(command, false, value);
       editorRef.current?.focus();
@@ -1150,7 +1344,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     });
     if (!isConfirmed) return;
 
-    const rawText = editorRef.current?.innerHTML || '';
+    const rawText = getCanonicalHtml();
     if (!rawText.trim()) { Swal.fire({ icon: 'warning', title: 'Editor vazio', text: 'Escreva algo primeiro.' }); return; }
 
     Swal.fire({ title: 'Processando com IA... ✨', text: 'Aguarde...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -1177,7 +1371,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
       const data = await response.json();
       let htmlOutput = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```html/g, '').replace(/```/g, '').trim();
 
-      if (editorRef.current) { editorRef.current.innerHTML = htmlOutput; setPreviewHtml(htmlOutput); }
+      if (editorRef.current) setEditorHtml(htmlOutput);
       Swal.fire({ icon: 'success', title: 'Formatado!', timer: 2000, showConfirmButton: false });
     } catch (error: any) {
       Swal.fire({ icon: 'error', title: 'Erro na IA', text: error.message || 'Erro de comunicação com Gemini.' });
@@ -1213,7 +1407,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         dataAssinatura: dataProspeccao,
         location: cidadeBairro,
         fullAddress: enderecoCompleto,
-        conteudoHtml: editorRef.current?.innerHTML || ''
+        conteudoHtml: getCanonicalHtml()
       });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Salvo!', text: 'Prospecção salva com sucesso no sistema.', timer: 2000, showConfirmButton: false });
     }
@@ -1232,13 +1426,18 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           dataAssinatura: dataProspeccao,
           location: cidadeBairro,
           fullAddress: enderecoCompleto,
-          conteudoHtml: editorRef.current?.innerHTML || ''
+          conteudoHtml: getCanonicalHtml()
         });
       } catch (err) { /* continua para imprimir */ }
     }
 
     if (editorRef.current) {
-      const content = editorRef.current.innerHTML;
+      paginateEditor();
+      const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+      const printablePages = pages.map(page => {
+        const content = page.querySelector<HTMLElement>(':scope > .a4-page-content');
+        return `<section class="print-page"><div class="content-cell" style="${content?.getAttribute('style') || ''}">${content?.innerHTML || ''}</div></section>`;
+      }).join('');
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
       iframe.style.right = '0';
@@ -1260,22 +1459,21 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
                 }
-                @page { size: A4; margin: ${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm; }
-                body { margin: 0; font-family: Arial, sans-serif; background: white; }
-                .content-cell { font-size: 11pt; line-height: 1.5; text-align: justify; }
-                .content-cell h1 { font-size: ${estilos.h1.size}pt !important; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; margin-top: 15px; margin-bottom: 15px; }
-                .content-cell h2 { font-size: ${estilos.h2.size}pt !important; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; margin-top: 15px; margin-bottom: 10px; }
-                .content-cell h3 { font-size: ${estilos.h3.size}pt !important; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; margin-top: 12px; margin-bottom: 8px; }
-                .content-cell p { font-size: ${estilos.p.size}pt !important; margin-top: 0; margin-bottom: 10px; text-align: justify; }
-                .content-cell ul { padding-left: 20px !important; list-style-type: disc !important; }
-                .content-cell ol { padding-left: 20px !important; list-style-type: decimal !important; }
-                .content-cell li { margin-bottom: 5px !important; }
-                .content-cell img {
-                  max-width: 100% !important;
-                  display: block !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                }
+                 @page { size: A4; margin: 0; }
+                  html, body { margin: 0; padding: 0; width: 210mm; font-family: Arial, sans-serif; background: white; }
+                  .print-page { width: 210mm; height: 297mm; box-sizing: border-box; overflow: hidden; break-after: page; page-break-after: always; background: white; }
+                  .print-page:last-child { break-after: auto; page-break-after: auto; }
+                  .content-cell { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; text-align: justify; }
+                 .content-cell h1 { font-family: Arial, sans-serif; font-size: ${estilos.h1.size}pt !important; line-height: 1.5; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0; }
+                 .content-cell h2 { font-family: Arial, sans-serif; font-size: ${estilos.h2.size}pt !important; line-height: 1.5; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0 10px; }
+                 .content-cell h3 { font-family: Arial, sans-serif; font-size: ${estilos.h3.size}pt !important; line-height: 1.5; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; margin: 12px 0 8px; }
+                 .content-cell p { font-family: Arial, sans-serif; font-size: ${estilos.p.size}pt !important; line-height: 1.5; margin: 0 0 10px; text-align: justify; }
+                 .content-cell ul { padding-left: ${estilos.list.indent}px !important; list-style-type: disc !important; }
+                 .content-cell ol { padding-left: ${estilos.list.indent}px !important; list-style-type: decimal !important; }
+                 .content-cell li { margin-bottom: ${estilos.list.spacing}px !important; }
+                 .content-cell > :first-child { margin-top: 0 !important; }
+                 .content-cell > :last-child { margin-bottom: 0 !important; }
+                 .content-cell img { max-width: 100%; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 .page-break, hr.page-break, hr[title="Quebra de Página"] {
                   page-break-after: always !important;
                   break-after: page !important;
@@ -1288,14 +1486,10 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   padding: 0 !important;
                   opacity: 0 !important;
                 }
-                table, blockquote, div[style*="border"], div[style*="background"] {
-                  break-inside: avoid !important;
-                  page-break-inside: avoid !important;
-                }
-              </style>
+               </style>
             </head>
             <body>
-              <div class="content-cell">${content}</div>
+              ${printablePages}
               <script>
                 function triggerPrint() {
                   const images = Array.from(document.querySelectorAll('img'));
@@ -1349,11 +1543,6 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         </div>
 
         <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-          {/* Div oculto para medir páginas */}
-          <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', visibility: 'hidden' }}>
-            <div ref={measureRef} dangerouslySetInnerHTML={{ __html: previewHtml }} style={{ width: 'calc(794px - 40mm)', padding: '10px', fontSize: '11pt', lineHeight: '1.5', boxSizing: 'border-box' }} />
-          </div>
 
           {/* Sidebar */}
           <div className="gerador-sidebar" style={{ width: '320px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -1640,7 +1829,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 onUpdate={handleEditorInput}
                 onDeselect={() => setSelectedEditorImage(null)}
               />
-              <div className="editor-page-wrapper" style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', margin: '0 auto', backgroundColor: 'white', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08)', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
+              <div ref={paginationFrameRef} className="editor-page-wrapper" style={{ width: '210mm', minWidth: '210mm', margin: '0 auto', overflow: 'visible' }}>
 
                 {viewHtml && (
                   <textarea
@@ -1650,9 +1839,9 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                       setPreviewHtml(e.target.value);
                       e.target.style.height = '1px';
                       e.target.style.height = `${e.target.scrollHeight + 20}px`;
-                      if (editorRef.current) editorRef.current.innerHTML = e.target.value;
+                      if (editorRef.current) setEditorHtml(e.target.value);
                     }}
-                    style={{ width: '100%', padding: `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`, outline: 'none', fontSize: '10pt', fontFamily: 'monospace', lineHeight: '1.5', minHeight: '400px', color: '#334155', backgroundColor: '#f8fafc', border: 'none', resize: 'none', overflow: 'hidden', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`, outline: 'none', fontSize: '10pt', fontFamily: 'monospace', lineHeight: '1.5', minHeight: '297mm', color: '#334155', backgroundColor: 'rgba(248, 250, 252, 0.94)', border: 'none', resize: 'none', overflow: 'hidden', boxSizing: 'border-box' }}
                     spellCheck={false}
                   />
                 )}
@@ -1660,7 +1849,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <style>{`
                   .editor-content hr.page-break,
                   .editor-content hr[title="Quebra de Página"] {
-                    display: block !important;
+                    display: none !important;
                     page-break-after: always !important;
                     break-after: page !important;
                     height: 36px !important;
@@ -1673,16 +1862,57 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                     clear: both !important;
                     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05) !important;
                   }
-                  .editor-content hr.page-break::after,
-                  .editor-content hr[title="Quebra de Página"]::after {
-                    content: '─── QUEBRA DE PÁGINA A4 (PRÓXIMA FOLHA NA IMPRESSÃO) ───';
-                    display: block;
-                    text-align: center;
+
+                  .editor-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10mm;
+                    width: 210mm;
+                    outline: none;
+                  }
+
+                  .editor-content .a4-page {
+                    position: relative;
+                    width: 210mm;
+                    height: 297mm;
+                    min-height: 297mm;
+                    flex: 0 0 297mm;
+                    box-sizing: border-box;
+                    overflow: visible;
+                    background: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+                  }
+
+                  .editor-content .a4-page-content {
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    outline: none;
+                    overflow: hidden;
+                  }
+
+                  .editor-content .a4-page-content > :first-child { margin-top: 0 !important; }
+                  .editor-content .a4-page-content > :last-child { margin-bottom: 0 !important; }
+
+                  .editor-content .a4-page:not(:last-child)::after {
+                    content: '─── QUEBRA DE PÁGINA A4 (PRÓXIMA FOLHA) ───';
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    z-index: 2;
+                    width: 100%;
+                    height: 10mm;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
+                    background: #e2e8f0;
+                    color: #94a3b8;
                     font-size: 8pt;
                     font-weight: 800;
-                    color: #475569;
-                    line-height: 36px;
                     letter-spacing: 1px;
+                    pointer-events: none;
                   }
 
                   .editor-content table,
@@ -1700,11 +1930,22 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   contentEditable
                   suppressContentEditableWarning
                   onInput={handleEditorInput}
+                  onBlur={() => {
+                    if (dirtyPageRef.current) {
+                      balancePagesFrom(dirtyPageRef.current);
+                      dirtyPageRef.current = null;
+                    }
+                  }}
+                  onCompositionStart={() => { isComposingRef.current = true; }}
+                  onCompositionEnd={() => {
+                    isComposingRef.current = false;
+                    schedulePaginationAfterInput();
+                  }}
                   onPaste={handlePaste}
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
                   onClick={handleEditorClick}
-                  style={{ display: viewHtml ? 'none' : 'block', padding: `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`, flex: 1, outline: 'none', fontSize: '11pt', lineHeight: '1.5', textAlign: 'justify', minHeight: '200px', color: '#000000', wordWrap: 'break-word' }}
+                  style={{ display: viewHtml ? 'none' : 'flex', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.5', textAlign: 'justify', color: '#000000', wordWrap: 'break-word' }}
                 />
               </div>
             </div>
@@ -1788,10 +2029,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         .editor-btn:hover { background: #f1f5f9; color: var(--primary-color); border-color: #cbd5e1; }
         .editor-select { padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 4px; outline: none; color: var(--text-secondary); background: white; font-size: 0.85rem; cursor: pointer; }
         .editor-select:hover { border-color: #cbd5e1; }
-        .editor-content h1 { font-size: ${estilos.h1.size}pt !important; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; }
-        .editor-content h2 { font-size: ${estilos.h2.size}pt !important; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; }
-        .editor-content h3 { font-size: ${estilos.h3.size}pt !important; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; }
-        .editor-content p { font-size: ${estilos.p.size}pt !important; text-align: justify; }
+        .editor-content, .editor-content * { font-family: Arial, sans-serif; }
+        .editor-content h1 { font-size: ${estilos.h1.size}pt !important; line-height: 1.5; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0; }
+        .editor-content h2 { font-size: ${estilos.h2.size}pt !important; line-height: 1.5; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0 10px; }
+        .editor-content h3 { font-size: ${estilos.h3.size}pt !important; line-height: 1.5; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; margin: 12px 0 8px; }
+        .editor-content p { font-size: ${estilos.p.size}pt !important; line-height: 1.5; margin: 0 0 10px; text-align: justify; }
         .editor-content ul { padding-left: ${estilos.list.indent}px !important; list-style-type: disc !important; }
         .editor-content ol { padding-left: ${estilos.list.indent}px !important; list-style-type: decimal !important; }
         .editor-content li { margin-bottom: ${estilos.list.spacing}px !important; display: list-item !important; }
@@ -1802,8 +2044,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           .gerador-sidebar-inner { overflow-y: visible !important; }
           .gerador-editor { width: 100% !important; overflow-y: visible !important; }
           .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; }
-          .editor-page-wrapper { min-height: auto !important; padding: 10px !important; }
-          .editor-content { padding: 10px !important; }
+          .editor-page-wrapper { min-height: auto !important; }
         }
       `}</style>
 
