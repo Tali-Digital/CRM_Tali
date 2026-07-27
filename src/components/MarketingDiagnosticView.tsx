@@ -72,14 +72,64 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showPresentationModal]);
 
-  // ── Queue System State ──
-  const [diagnosticQueue, setDiagnosticQueue] = useState<DiagnosticQueueItem[]>([]);
+  // ── Queue System State (Com histórico persistente e auto-exclusão de 72h) ──
+  const QUEUE_STORAGE_KEY = 'tali_diagnostic_queue_history_v1';
+  const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
+
+  const filterNonExpiredQueue = useCallback((items: DiagnosticQueueItem[]): DiagnosticQueueItem[] => {
+    const now = Date.now();
+    return items.filter(item => {
+      if (item.status === 'waiting' || item.status === 'running') return true;
+      const refTime = item.finishedAt || item.addedAt;
+      return (now - refTime) < SEVENTY_TWO_HOURS_MS;
+    });
+  }, [SEVENTY_TWO_HOURS_MS]);
+
+  const [diagnosticQueue, setDiagnosticQueue] = useState<DiagnosticQueueItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('tali_diagnostic_queue_history_v1');
+      if (!stored) return [];
+      const parsed: DiagnosticQueueItem[] = JSON.parse(stored);
+      const now = Date.now();
+      return parsed.filter(item => {
+        if (item.status === 'waiting' || item.status === 'running') return true;
+        const refTime = item.finishedAt || item.addedAt;
+        return (now - refTime) < (72 * 60 * 60 * 1000);
+      });
+    } catch (e) {
+      console.error('[Queue] Erro ao carregar fila do localStorage:', e);
+      return [];
+    }
+  });
+
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [terminalOpenId, setTerminalOpenId] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
   const queueRef = useRef<DiagnosticQueueItem[]>([]);
-  // Keep ref in sync
-  useEffect(() => { queueRef.current = diagnosticQueue; }, [diagnosticQueue]);
+  
+  // Sincroniza ref e salva no localStorage limpando itens com mais de 72h
+  useEffect(() => {
+    queueRef.current = diagnosticQueue;
+    try {
+      const validItems = filterNonExpiredQueue(diagnosticQueue);
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(validItems));
+    } catch (e) {
+      console.error('[Queue] Erro ao salvar fila no localStorage:', e);
+    }
+  }, [diagnosticQueue, filterNonExpiredQueue]);
+
+  // Limpeza automática periódica (a cada 5 minutos)
+  useEffect(() => {
+    const autoCleanQueue = () => {
+      setDiagnosticQueue(prev => {
+        const cleaned = filterNonExpiredQueue(prev);
+        return cleaned.length !== prev.length ? cleaned : prev;
+      });
+    };
+    autoCleanQueue();
+    const interval = setInterval(autoCleanQueue, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [filterNonExpiredQueue]);
 
   // IDs of prospects whose diagnostic just finished (for badge flash)
   const [recentlyFinishedIds, setRecentlyFinishedIds] = useState<Set<string>>(new Set());
@@ -2808,7 +2858,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        <div className="flex-1 min-h-0 overflow-y-auto pt-2 pb-24 px-2 space-y-1.5 custom-scrollbar">
           {filteredProspects.map(p => {
             const hasReport = !!p.marketingDiagnostic;
             const isArchivedItem = p.isArchived === true || p.isEntregue === true;
@@ -3095,12 +3145,15 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <h3 className="text-lg font-black text-white flex items-center gap-2">
                   <ListOrdered size={20} className="text-indigo-400" /> Fila de Diagnósticos
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {queueCounts.running > 0 && <span className="text-amber-400">⚡ {queueCounts.running} em andamento</span>}
-                  {queueCounts.waiting > 0 && <span className="ml-2 text-blue-400">🕐 {queueCounts.waiting} aguardando</span>}
-                  {queueCounts.done > 0 && <span className="ml-2 text-green-400">✅ {queueCounts.done} concluídos</span>}
-                  {queueCounts.error > 0 && <span className="ml-2 text-red-400">❌ {queueCounts.error} com erro</span>}
+                <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+                  {queueCounts.running > 0 && <span className="text-amber-400 font-medium">⚡ {queueCounts.running} em andamento</span>}
+                  {queueCounts.waiting > 0 && <span className="text-blue-400 font-medium">🕐 {queueCounts.waiting} aguardando</span>}
+                  {queueCounts.done > 0 && <span className="text-green-400 font-medium">✅ {queueCounts.done} concluídos</span>}
+                  {queueCounts.error > 0 && <span className="text-red-400 font-medium">❌ {queueCounts.error} com erro</span>}
                   {queueCounts.total === 0 && <span className="text-gray-500">Nenhum diagnóstico na fila</span>}
+                  <span className="ml-auto text-[10px] text-gray-400 bg-gray-800/80 px-2 py-0.5 rounded-md border border-gray-700/60 flex items-center gap-1" title="Itens concluídos ou com erro são removidos automaticamente após 72 horas">
+                    <Clock size={10} className="text-indigo-400 inline" /> Histórico mantido por 72h (auto-limpeza)
+                  </span>
                 </p>
               </div>
               <div className="flex items-center gap-2">
