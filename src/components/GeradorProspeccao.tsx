@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
 import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
-import { VisualCropModal } from './VisualCropModal';
+import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 
@@ -50,59 +50,27 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const editorRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
 
-  const [editingImageTarget, setEditingImageTarget] = useState<HTMLImageElement | null>(null);
-  const [showCropModalForEditor, setShowCropModalForEditor] = useState(false);
+  const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
 
-  // Escutar duplo-clique em qualquer imagem dentro do editor para abrir o recorte visual
+  // Escutar clique em qualquer imagem dentro do editor para selecionar e recortar diretamente na página
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
 
-    const handleDblClick = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target && target.tagName === 'IMG') {
         e.preventDefault();
-        setEditingImageTarget(target as HTMLImageElement);
-        setShowCropModalForEditor(true);
+        e.stopPropagation();
+        setSelectedEditorImage(target as HTMLImageElement);
+      } else if (selectedEditorImage && !(target.closest('.inline-image-cropper-overlay'))) {
+        setSelectedEditorImage(null);
       }
     };
 
-    editor.addEventListener('dblclick', handleDblClick);
-    return () => editor.removeEventListener('dblclick', handleDblClick);
-  }, [previewHtml]);
-
-  const handleApplyCropToEditorImage = (zoom: number, x: number, y: number) => {
-    if (!editingImageTarget) return;
-
-    const img = editingImageTarget;
-    let parentWrapper = img.parentElement;
-
-    if (!parentWrapper || !parentWrapper.classList.contains('crop-image-wrapper')) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'crop-image-wrapper';
-      wrapper.style.display = 'block';
-      wrapper.style.overflow = 'hidden';
-      wrapper.style.maxWidth = '100%';
-      wrapper.style.height = '360px';
-      wrapper.style.borderRadius = '10px';
-      wrapper.style.margin = '16px auto';
-      wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-      
-      img.parentNode?.insertBefore(wrapper, img);
-      wrapper.appendChild(img);
-    }
-
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'cover';
-    img.style.transform = `scale(${zoom}) translate(${x}%, ${y}%)`;
-    img.style.transition = 'transform 0.2s ease-out';
-
-    handleEditorInput();
-    setEditingImageTarget(null);
-    setShowCropModalForEditor(false);
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Imagem recortada e ajustada!', timer: 1800, showConfirmButton: false });
-  };
+    editor.addEventListener('click', handleClick);
+    return () => editor.removeEventListener('click', handleClick);
+  }, [previewHtml, selectedEditorImage]);
 
   const conteudoInicial = `<p>Escreva ou cole o texto da sua prospecção aqui...</p>`;
 
@@ -1070,20 +1038,17 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   };
 
   const handleCropSelectedImage = () => {
-    let targetImg: HTMLImageElement | null = null;
-    if (editorRef.current) {
+    let targetImg: HTMLImageElement | null = selectedEditorImage;
+    if (!targetImg && editorRef.current) {
       const imgs = editorRef.current.querySelectorAll('img');
-      if (imgs.length === 1) {
+      if (imgs.length > 0) {
         targetImg = imgs[0] as HTMLImageElement;
-      } else if (imgs.length > 1) {
-        targetImg = imgs[imgs.length - 1] as HTMLImageElement;
       }
     }
     if (targetImg) {
-      setEditingImageTarget(targetImg);
-      setShowCropModalForEditor(true);
+      setSelectedEditorImage(targetImg);
     } else {
-      Swal.fire('Atenção', 'Insira uma imagem no texto ou dê um duplo clique sobre ela para recortá-la.', 'info');
+      Swal.fire('Atenção', 'Clique em uma imagem na carta para selecioná-la e recortá-la.', 'info');
     }
   };
 
@@ -1620,7 +1585,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             </div>
 
             {/* Editor Central */}
-            <div id="editor-scroll-container" style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'white' }}>
+            <div id="editor-scroll-container" style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'white', position: 'relative' }}>
+              <InlineImageCropperOverlay
+                targetImage={selectedEditorImage}
+                editorContainer={document.getElementById('editor-scroll-container')}
+                onUpdate={handleEditorInput}
+                onDeselect={() => setSelectedEditorImage(null)}
+              />
               <div className="editor-page-wrapper" style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', margin: '0 auto', backgroundColor: 'white', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
 
                 {viewHtml && (
@@ -1763,13 +1734,6 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             handleEditorInput();
           }
         }}
-      />
-
-      <VisualCropModal
-        isOpen={showCropModalForEditor}
-        imageUrl={editingImageTarget?.src || ''}
-        onClose={() => { setShowCropModalForEditor(false); setEditingImageTarget(null); }}
-        onSave={(zoom, x, y) => handleApplyCropToEditorImage(zoom, x, y)}
       />
     </div>
   );
