@@ -1625,17 +1625,22 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <option value="ol|lower-roman">Romano (i, ii)</option>
                 <option value="ol|upper-roman">Romano (I, II)</option>
               </select>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#f8fafc', padding: '0.35rem 0.8rem', borderRadius: '20px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: '800', color: '#334155' }}>
+                <FileText size={14} style={{ color: '#6366f1' }} />
+                <span>{totalPages} {totalPages === 1 ? 'Página A4' : 'Páginas A4'}</span>
+              </div>
             </div>
 
             {/* Editor Central */}
-            <div id="editor-scroll-container" style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'white', position: 'relative' }}>
+            <div id="editor-scroll-container" style={{ flex: 1, padding: '2.5rem 1rem', overflowY: 'auto', backgroundColor: '#f1f5f9', position: 'relative' }}>
               <InlineImageCropperOverlay
                 targetImage={selectedEditorImage}
                 editorContainer={document.getElementById('editor-scroll-container')}
                 onUpdate={handleEditorInput}
                 onDeselect={() => setSelectedEditorImage(null)}
               />
-              <div className="editor-page-wrapper" style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', margin: '0 auto', backgroundColor: 'white', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div className="editor-page-wrapper" style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', margin: '0 auto', backgroundColor: 'white', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08)', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
 
                 {viewHtml && (
                   <textarea
