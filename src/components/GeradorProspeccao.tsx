@@ -3,8 +3,9 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
+import { VisualCropModal } from './VisualCropModal';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 
@@ -48,6 +49,60 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const editorRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+
+  const [editingImageTarget, setEditingImageTarget] = useState<HTMLImageElement | null>(null);
+  const [showCropModalForEditor, setShowCropModalForEditor] = useState(false);
+
+  // Escutar duplo-clique em qualquer imagem dentro do editor para abrir o recorte visual
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleDblClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === 'IMG') {
+        e.preventDefault();
+        setEditingImageTarget(target as HTMLImageElement);
+        setShowCropModalForEditor(true);
+      }
+    };
+
+    editor.addEventListener('dblclick', handleDblClick);
+    return () => editor.removeEventListener('dblclick', handleDblClick);
+  }, [previewHtml]);
+
+  const handleApplyCropToEditorImage = (zoom: number, x: number, y: number) => {
+    if (!editingImageTarget) return;
+
+    const img = editingImageTarget;
+    let parentWrapper = img.parentElement;
+
+    if (!parentWrapper || !parentWrapper.classList.contains('crop-image-wrapper')) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'crop-image-wrapper';
+      wrapper.style.display = 'block';
+      wrapper.style.overflow = 'hidden';
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.height = '360px';
+      wrapper.style.borderRadius = '10px';
+      wrapper.style.margin = '16px auto';
+      wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+      
+      img.parentNode?.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+    }
+
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.transform = `scale(${zoom}) translate(${x}%, ${y}%)`;
+    img.style.transition = 'transform 0.2s ease-out';
+
+    handleEditorInput();
+    setEditingImageTarget(null);
+    setShowCropModalForEditor(false);
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Imagem recortada e ajustada!', timer: 1800, showConfirmButton: false });
+  };
 
   const conteudoInicial = `<p>Escreva ou cole o texto da sua prospecção aqui...</p>`;
 
@@ -863,6 +918,108 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     input.click();
   };
 
+  const handleInsertTable = async () => {
+    const { value: formValues } = await Swal.fire({
+      title: 'Inserir Tabela na Carta',
+      html: `
+        <div style="display:flex; flex-direction:column; gap:12px; text-align:left; font-size:13px; margin-top:10px;">
+          <div>
+            <label style="font-weight:bold; display:block; margin-bottom:4px;">Número de Linhas:</label>
+            <input id="swal-rows" type="number" min="1" max="20" value="3" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-weight:bold; display:block; margin-bottom:4px;">Número de Colunas:</label>
+            <input id="swal-cols" type="number" min="1" max="10" value="3" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-weight:bold; display:block; margin-bottom:4px;">Estilo da Tabela:</label>
+            <select id="swal-style" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box; height:40px;">
+              <option value="modern">Moderna com Cabeçalho Roxo</option>
+              <option value="dark">Escura Elegante (Moderna)</option>
+              <option value="simple">Simples com Bordas</option>
+              <option value="minimal">Minimalista Limpa</option>
+            </select>
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Inserir Tabela',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#6366f1',
+      preConfirm: () => {
+        const rows = parseInt((document.getElementById('swal-rows') as HTMLInputElement).value || '3', 10);
+        const cols = parseInt((document.getElementById('swal-cols') as HTMLInputElement).value || '3', 10);
+        const style = (document.getElementById('swal-style') as HTMLSelectElement).value;
+        return { rows, cols, style };
+      }
+    });
+
+    if (!formValues) return;
+
+    const { rows, cols, style } = formValues;
+
+    let headerBg = '#6366f1';
+    let headerColor = '#ffffff';
+    let borderColor = '#cbd5e1';
+
+    if (style === 'dark') {
+      headerBg = '#0f172a';
+      headerColor = '#ffffff';
+      borderColor = '#334155';
+    } else if (style === 'simple') {
+      headerBg = '#f1f5f9';
+      headerColor = '#1e293b';
+      borderColor = '#94a3b8';
+    } else if (style === 'minimal') {
+      headerBg = '#ffffff';
+      headerColor = '#334155';
+      borderColor = '#e2e8f0';
+    }
+
+    let tableHtml = `<div style="margin:16px 0; overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:10pt; background:#ffffff; border:1px solid ${borderColor}; border-radius:6px; overflow:hidden;">`;
+    
+    tableHtml += `<thead style="background-color:${headerBg}; color:${headerColor}; font-weight:bold;"><tr>`;
+    for (let c = 1; c <= cols; c++) {
+      tableHtml += `<th style="padding:10px 12px; border:1px solid ${borderColor}; text-align:left;">Cabeçalho ${c}</th>`;
+    }
+    tableHtml += `</tr></thead><tbody>`;
+
+    for (let r = 1; r <= rows; r++) {
+      const bg = r % 2 === 0 ? '#f8fafc' : '#ffffff';
+      tableHtml += `<tr style="background-color:${bg};">`;
+      for (let c = 1; c <= cols; c++) {
+        tableHtml += `<td style="padding:8px 12px; border:1px solid ${borderColor}; color:#334155;">Linha ${r}, Coluna ${c}</td>`;
+      }
+      tableHtml += `</tr>`;
+    }
+    tableHtml += `</tbody></table></div><p><br></p>`;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertHTML', false, tableHtml);
+      handleEditorInput();
+    }
+  };
+
+  const handleCropSelectedImage = () => {
+    let targetImg: HTMLImageElement | null = null;
+    if (editorRef.current) {
+      const imgs = editorRef.current.querySelectorAll('img');
+      if (imgs.length === 1) {
+        targetImg = imgs[0] as HTMLImageElement;
+      } else if (imgs.length > 1) {
+        targetImg = imgs[imgs.length - 1] as HTMLImageElement;
+      }
+    }
+    if (targetImg) {
+      setEditingImageTarget(targetImg);
+      setShowCropModalForEditor(true);
+    } else {
+      Swal.fire('Atenção', 'Insira uma imagem no texto ou dê um duplo clique sobre ela para recortá-la.', 'info');
+    }
+  };
+
   const handleConfigurarEstilos = async () => {
     const { value: formValues } = await Swal.fire({
       title: 'Configurar Estilos',
@@ -1363,6 +1520,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
               <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
               <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
+              <button onClick={handleCropSelectedImage} className="editor-btn" title="Recortar & Redimensionar Imagem Visualmente (Arrastar Cantos)" style={{ color: '#8b5cf6' }}><Crop size={18} /></button>
+              <button onClick={handleInsertTable} className="editor-btn" title="Inserir Tabela Personalizada na Carta" style={{ color: '#6366f1' }}><Table size={18} /></button>
               <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Quebra de Página" style={{ color: '#ef4444' }}><Scissors size={18} /></button>
 
               <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
@@ -1537,6 +1696,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             handleEditorInput();
           }
         }}
+      />
+
+      <VisualCropModal
+        isOpen={showCropModalForEditor}
+        imageUrl={editingImageTarget?.src || ''}
+        onClose={() => { setShowCropModalForEditor(false); setEditingImageTarget(null); }}
+        onSave={(zoom, x, y) => handleApplyCropToEditorImage(zoom, x, y)}
       />
     </div>
   );
