@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Crop, Check, X, RotateCcw, ZoomIn, ZoomOut, Move, Maximize } from 'lucide-react';
+import { Crop, Check, X, RotateCcw, ZoomIn, Move, Sparkles } from 'lucide-react';
 
 interface VisualCropModalProps {
   isOpen: boolean;
@@ -21,243 +21,281 @@ export const VisualCropModal: React.FC<VisualCropModalProps> = ({
   onClose,
   onSave
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Estado do Zoom (1.0 = 100%, 3.0 = 300%)
+  const [zoom, setZoom] = useState<number>(initialZoom);
 
-  // Quadro de recorte (em porcentagem 0-100 do container)
-  // Exemplo: { x: 10, y: 10, w: 80, h: 80 }
-  const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number }>({
-    x: 10,
-    y: 10,
-    w: 80,
-    h: 80
-  });
+  // Offset X e Y em porcentagem (-50 a 50)
+  const [offsetX, setOffsetX] = useState<number>(initialOffsetX);
+  const [offsetY, setOffsetY] = useState<number>(initialOffsetY);
 
-  const [activeAction, setActiveAction] = useState<'move' | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'w' | 'e' | null>(null);
-  const dragStartRef = useRef<{ mouseX: number; mouseY: number; rect: typeof cropRect }>({
-    mouseX: 0,
-    mouseY: 0,
-    rect: { x: 10, y: 10, w: 80, h: 80 }
-  });
-
-  // Converte initialZoom e offsets de volta para rect inicial ao abrir
+  // Sincroniza ao abrir
   useEffect(() => {
     if (isOpen) {
-      const zoom = initialZoom || 1;
-      const w = Math.max(20, Math.min(100, (1 / zoom) * 100));
-      const h = w;
-      const x = Math.max(0, Math.min(100 - w, 50 - (w / 2) - (initialOffsetX * (w / 100))));
-      const y = Math.max(0, Math.min(100 - h, 50 - (h / 2) - (initialOffsetY * (h / 100))));
-      setCropRect({ x, y, w, h });
+      setZoom(initialZoom || 1.25);
+      setOffsetX(initialOffsetX || 0);
+      setOffsetY(initialOffsetY || 0);
     }
   }, [isOpen, initialZoom, initialOffsetX, initialOffsetY]);
 
-  const handleMouseDown = (
-    e: React.MouseEvent,
-    action: 'move' | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'w' | 'e'
-  ) => {
+  // Controles de Arraste (Pan & Scale)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const isScalingRef = useRef(false);
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number; startZoom: number }>({
+    mouseX: 0,
+    mouseY: 0,
+    startX: 0,
+    startY: 0,
+    startZoom: 1
+  });
+
+  // ── Arrastar a Foto (Pan) ──
+  const handleMouseDownImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setActiveAction(action);
+    isDraggingRef.current = true;
     dragStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      rect: { ...cropRect }
+      startX: offsetX,
+      startY: offsetY,
+      startZoom: zoom
     };
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!activeAction || !containerRef.current) return;
+  // ── Arrastar Cantos para Redimensionar / Zoom (Estilo Canva) ──
+  const handleMouseDownCorner = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isScalingRef.current = true;
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: offsetX,
+      startY: offsetY,
+      startZoom: zoom
+    };
+  };
 
-    const bounds = containerRef.current.getBoundingClientRect();
-    const deltaXPercent = ((e.clientX - dragStartRef.current.mouseX) / bounds.width) * 100;
-    const deltaYPercent = ((e.clientY - dragStartRef.current.mouseY) / bounds.height) * 100;
-    const initial = dragStartRef.current.rect;
+  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
+    if (!isOpen) return;
 
-    let newX = initial.x;
-    let newY = initial.y;
-    let newW = initial.w;
-    let newH = initial.h;
+    if (isDraggingRef.current && containerRef.current) {
+      const bounds = containerRef.current.getBoundingClientRect();
+      const dxPercent = ((e.clientX - dragStartRef.current.mouseX) / bounds.width) * 100;
+      const dyPercent = ((e.clientY - dragStartRef.current.mouseY) / bounds.height) * 100;
 
-    const minSize = 15; // Tamanho mínimo do quadro em %
+      // Limita deslocamento para não sumir com a imagem
+      const maxOffset = 50;
+      const newX = Math.max(-maxOffset, Math.min(maxOffset, dragStartRef.current.startX + dxPercent));
+      const newY = Math.max(-maxOffset, Math.min(maxOffset, dragStartRef.current.startY + dyPercent));
 
-    if (activeAction === 'move') {
-      newX = Math.max(0, Math.min(100 - initial.w, initial.x + deltaXPercent));
-      newY = Math.max(0, Math.min(100 - initial.h, initial.y + deltaYPercent));
-    } else {
-      if (activeAction.includes('w')) {
-        const proposedW = initial.w - deltaXPercent;
-        if (proposedW >= minSize && initial.x + deltaXPercent >= 0) {
-          newW = proposedW;
-          newX = initial.x + deltaXPercent;
-        }
-      }
-      if (activeAction.includes('e')) {
-        const proposedW = initial.w + deltaXPercent;
-        if (proposedW >= minSize && initial.x + proposedW <= 100) {
-          newW = proposedW;
-        }
-      }
-      if (activeAction.includes('n')) {
-        const proposedH = initial.h - deltaYPercent;
-        if (proposedH >= minSize && initial.y + deltaYPercent >= 0) {
-          newH = proposedH;
-          newY = initial.y + deltaYPercent;
-        }
-      }
-      if (activeAction.includes('s')) {
-        const proposedH = initial.h + deltaYPercent;
-        if (proposedH >= minSize && initial.y + proposedH <= 100) {
-          newH = proposedH;
-        }
-      }
+      setOffsetX(Number(newX.toFixed(1)));
+      setOffsetY(Number(newY.toFixed(1)));
+    } else if (isScalingRef.current) {
+      const dx = e.clientX - dragStartRef.current.mouseX;
+      const dy = e.clientY - dragStartRef.current.mouseY;
+      const dist = (dx + dy) / 2; // movimento diagonal
+      const deltaZoom = dist / 150;
+      const newZoom = Math.max(1.0, Math.min(3.5, dragStartRef.current.startZoom + deltaZoom));
+      setZoom(Number(newZoom.toFixed(2)));
     }
+  }, [isOpen]);
 
-    setCropRect({ x: newX, y: newY, w: newW, h: newH });
-  }, [activeAction]);
-
-  const handleMouseUp = useCallback(() => {
-    setActiveAction(null);
+  const handleGlobalMouseUp = useCallback(() => {
+    isDraggingRef.current = false;
+    isScalingRef.current = false;
   }, []);
 
   useEffect(() => {
-    if (activeAction) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+    if (isOpen) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
       };
     }
-  }, [activeAction, handleMouseMove, handleMouseUp]);
+  }, [isOpen, handleGlobalMouseMove, handleGlobalMouseUp]);
 
-  if (!isOpen) return null;
-
-  // Calcula os valores de zoom e offset resultantes do quadro
-  const finalZoom = Number((100 / Math.min(cropRect.w, cropRect.h)).toFixed(2));
-  const centerX = cropRect.x + cropRect.w / 2;
-  const centerY = cropRect.y + cropRect.h / 2;
-  const finalOffsetX = Number(((50 - centerX) * (100 / cropRect.w)).toFixed(1));
-  const finalOffsetY = Number(((50 - centerY) * (100 / cropRect.h)).toFixed(1));
-
+  // ── Aplicar ──
   const handleApply = () => {
-    onSave(finalZoom, finalOffsetX, finalOffsetY);
+    onSave(zoom, offsetX, offsetY);
     onClose();
   };
 
-  const handleReset = () => {
-    setCropRect({ x: 0, y: 0, w: 100, h: 100 });
+  // ── Atalhos de Presets ──
+  const handlePresetMargins = () => {
+    setZoom(1.35);
+    setOffsetX(0);
+    setOffsetY(0);
   };
 
-  const handlePresetCropMargins = () => {
-    setCropRect({ x: 12.5, y: 12.5, w: 75, h: 75 });
+  const handlePresetZoom = () => {
+    setZoom(1.6);
+    setOffsetX(0);
+    setOffsetY(0);
   };
+
+  const handlePresetReset = () => {
+    setZoom(1.0);
+    setOffsetX(0);
+    setOffsetY(0);
+  };
+
+  if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in" onClick={onClose}>
-      <div
-        className="bg-[#0f111a] w-full max-w-4xl rounded-2xl border border-gray-700 shadow-2xl flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-[#161926]">
-          <div className="flex items-center gap-2">
-            <Crop className="text-indigo-400" size={20} />
-            <h3 className="text-lg font-black text-white">Recorte & Redimensionamento Visual</h3>
+    <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-[#0b0d17] border-2 border-indigo-500/80 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        
+        {/* Cabeçalho da Janela Estilo Canva */}
+        <div className="px-6 py-4 border-b border-gray-800 bg-[#121524] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+              <Crop size={20} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                Editor de Recorte Canva Interativo
+              </h3>
+              <p className="text-xs text-gray-400">
+                Clique e arraste a imagem para enquadrar | Arraste os cantos <span className="text-indigo-400">○</span> para dar zoom
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-all">
-            <X size={18} />
+
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all cursor-pointer"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        {/* Instruções Rápidas */}
-        <div className="bg-indigo-950/40 px-6 py-2 border-b border-indigo-800/30 text-xs text-indigo-200 flex items-center justify-between">
-          <span>💡 <strong>Dica:</strong> Arraste os cantos ou bordas da caixa para redimensionar. Arraste o meio para reposicionar o corte.</span>
-          <div className="flex items-center gap-2">
-            <button onClick={handlePresetCropMargins} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2.5 py-1 rounded text-[11px] transition-all cursor-pointer">
-              ✂️ Cortar Margens (25%)
+        {/* Barra de Ações Rápidas & Zoom */}
+        <div className="px-6 py-3 bg-[#171a2c] border-b border-gray-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-gray-400 font-bold">Atalhos de Recorte:</span>
+            <button
+              type="button"
+              onClick={handlePresetMargins}
+              className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${zoom === 1.35 ? 'bg-indigo-600 text-white border-indigo-400 shadow-md' : 'bg-gray-800/80 text-gray-300 hover:text-white border-gray-700'}`}
+            >
+              ✂️ Cortar Margens (135%)
             </button>
-            <button onClick={handleReset} className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold px-2.5 py-1 rounded text-[11px] transition-all cursor-pointer">
-              <RotateCcw size={11} className="inline mr-1" /> Resetar (100%)
+            <button
+              type="button"
+              onClick={handlePresetZoom}
+              className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${zoom === 1.6 ? 'bg-indigo-600 text-white border-indigo-400 shadow-md' : 'bg-gray-800/80 text-gray-300 hover:text-white border-gray-700'}`}
+            >
+              🔎 Zoom Central (160%)
             </button>
+            <button
+              type="button"
+              onClick={handlePresetReset}
+              className="px-3 py-1.5 rounded-lg font-bold bg-gray-800 text-gray-300 hover:text-white border border-gray-700 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={12} /> Resetar (100%)
+            </button>
+          </div>
+
+          {/* Controle de Slider de Zoom */}
+          <div className="flex items-center gap-2 bg-gray-900/90 px-3 py-1.5 rounded-xl border border-gray-800">
+            <ZoomIn size={14} className="text-indigo-400" />
+            <span className="font-bold text-gray-300 w-16">Zoom ({Math.round(zoom * 100)}%):</span>
+            <input
+              type="range"
+              min="1.0"
+              max="3.0"
+              step="0.05"
+              value={zoom}
+              onChange={e => setZoom(parseFloat(e.target.value))}
+              className="w-28 accent-indigo-500 cursor-pointer"
+            />
           </div>
         </div>
 
-        {/* Área de Visualização e Edição com Canvas de Arraste */}
-        <div className="p-6 flex-1 flex items-center justify-center bg-[#090a10]">
+        {/* ÁREA CANVA INTERATIVA (MOLDURA + FOTO ARRASTÁVEL) */}
+        <div className="p-6 flex-1 overflow-auto flex items-center justify-center bg-[#05060b]">
           <div
             ref={containerRef}
-            className="relative select-none max-w-full max-h-[60vh] overflow-hidden rounded-xl border border-gray-800 shadow-2xl flex items-center justify-center"
-            style={{ touchAction: 'none' }}
+            className="relative w-full max-w-2xl h-[400px] bg-black/90 rounded-2xl overflow-hidden border-2 border-indigo-500/90 shadow-[0_0_30px_rgba(99,102,241,0.25)] select-none cursor-grab active:cursor-grabbing"
+            onMouseDown={handleMouseDownImage}
           >
+            {/* Foto Dinâmica com Transformação Estilo Canva */}
             <img
               src={imageUrl}
-              alt="Imagem para recortar"
-              className="max-h-[60vh] w-auto object-contain pointer-events-none block"
+              alt="Recorte Canva"
+              style={{
+                transform: `scale(${zoom}) translate(${offsetX}%, ${offsetY}%)`,
+                transition: isDraggingRef.current || isScalingRef.current ? 'none' : 'transform 0.1s ease-out',
+                pointerEvents: 'none'
+              }}
+              className="w-full h-full object-contain rounded-2xl select-none"
             />
 
-            {/* Mascara de fundo escuro para fora da seleção */}
-            <div className="absolute inset-0 pointer-events-none" style={{
-              background: `polygon(
-                0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
-                ${cropRect.x}% ${cropRect.y}%,
-                ${cropRect.x}% ${cropRect.y + cropRect.h}%,
-                ${cropRect.x + cropRect.w}% ${cropRect.y + cropRect.h}%,
-                ${cropRect.x + cropRect.w}% ${cropRect.y}%,
-                ${cropRect.x}% ${cropRect.y}%
-              )`
-            }}>
-              <div className="absolute inset-0 bg-black/65" />
+            {/* Guia Visual do Canva (Linhas de Terços) */}
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-25">
+              <div className="border-r border-b border-white" />
+              <div className="border-r border-b border-white" />
+              <div className="border-b border-white" />
+              <div className="border-r border-b border-white" />
+              <div className="border-r border-b border-white" />
+              <div className="border-b border-white" />
+              <div className="border-r border-white" />
+              <div className="border-r border-white" />
+              <div />
             </div>
 
-            {/* Quadro de Recorte Interativo */}
+            {/* Rótulo Flutuante com Instruções */}
+            <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md text-indigo-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-500/40 flex items-center gap-2 pointer-events-none shadow-lg">
+              <Move size={14} /> Clique e arraste para posicionar a foto
+            </div>
+
+            {/* HASTES DE CANTO ESTILO CANVA (CIRCULOS ○ DE ESCALA NAS 4 QUINAS) */}
+            {/* Canto NW */}
             <div
-              onMouseDown={e => handleMouseDown(e, 'move')}
-              className="absolute border-2 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] cursor-move group"
-              style={{
-                left: `${cropRect.x}%`,
-                top: `${cropRect.y}%`,
-                width: `${cropRect.w}%`,
-                height: `${cropRect.h}%`
-              }}
+              onMouseDown={handleMouseDownCorner}
+              className="absolute -left-2.5 -top-2.5 w-5 h-5 bg-white border-2 border-indigo-600 rounded-full cursor-nwse-resize shadow-xl pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center"
+              title="Arraste para dar Zoom (Escala)"
             >
-              {/* Rótulo de dimensões */}
-              <div className="absolute -top-7 left-0 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow">
-                {Math.round(finalZoom * 100)}% Zoom | Corte Ativo
-              </div>
+              <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+            </div>
 
-              {/* Linhas Guia da Regra dos Terços */}
-              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-40">
-                <div className="border-r border-b border-indigo-300/40" />
-                <div className="border-r border-b border-indigo-300/40" />
-                <div className="border-b border-indigo-300/40" />
-                <div className="border-r border-b border-indigo-300/40" />
-                <div className="border-r border-b border-indigo-300/40" />
-                <div className="border-b border-indigo-300/40" />
-                <div className="border-r border-indigo-300/40" />
-                <div className="border-r border-indigo-300/40" />
-                <div />
-              </div>
+            {/* Canto NE */}
+            <div
+              onMouseDown={handleMouseDownCorner}
+              className="absolute -right-2.5 -top-2.5 w-5 h-5 bg-white border-2 border-indigo-600 rounded-full cursor-nesw-resize shadow-xl pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center"
+              title="Arraste para dar Zoom (Escala)"
+            >
+              <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+            </div>
 
-              {/* Hastes e Pontos de Redimensionamento (Handles nos Cantos e Bordas) */}
-              {/* Cantos */}
-              <div onMouseDown={e => handleMouseDown(e, 'nw')} className="absolute -left-2 -top-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-sm cursor-nwse-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 'ne')} className="absolute -right-2 -top-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-sm cursor-nesw-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 'sw')} className="absolute -left-2 -bottom-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-sm cursor-nesw-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 'se')} className="absolute -right-2 -bottom-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-sm cursor-nwse-resize shadow-md hover:scale-125 transition-transform" />
+            {/* Canto SW */}
+            <div
+              onMouseDown={handleMouseDownCorner}
+              className="absolute -left-2.5 -bottom-2.5 w-5 h-5 bg-white border-2 border-indigo-600 rounded-full cursor-nesw-resize shadow-xl pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center"
+              title="Arraste para dar Zoom (Escala)"
+            >
+              <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+            </div>
 
-              {/* Bordas centralizadas */}
-              <div onMouseDown={e => handleMouseDown(e, 'n')} className="absolute left-1/2 -top-2 -translate-x-1/2 w-6 h-3 bg-white border-2 border-indigo-600 rounded-sm cursor-ns-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 's')} className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-6 h-3 bg-white border-2 border-indigo-600 rounded-sm cursor-ns-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 'w')} className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-6 bg-white border-2 border-indigo-600 rounded-sm cursor-ew-resize shadow-md hover:scale-125 transition-transform" />
-              <div onMouseDown={e => handleMouseDown(e, 'e')} className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-6 bg-white border-2 border-indigo-600 rounded-sm cursor-ew-resize shadow-md hover:scale-125 transition-transform" />
+            {/* Canto SE */}
+            <div
+              onMouseDown={handleMouseDownCorner}
+              className="absolute -right-2.5 -bottom-2.5 w-5 h-5 bg-white border-2 border-indigo-600 rounded-full cursor-nwse-resize shadow-xl pointer-events-auto hover:scale-125 transition-transform flex items-center justify-center"
+              title="Arraste para dar Zoom (Escala)"
+            >
+              <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />
             </div>
           </div>
         </div>
 
-        {/* Rodapé com Botão Aplicar */}
-        <div className="px-6 py-4 border-t border-gray-800 bg-[#161926] flex items-center justify-between">
+        {/* Rodapé com Botão Salvar */}
+        <div className="px-6 py-4 border-t border-gray-800 bg-[#121524] flex items-center justify-between">
           <div className="text-xs text-gray-400 font-mono">
-            Zoom resultante: <strong className="text-white">{Math.round(finalZoom * 100)}%</strong> | Pos X: <strong className="text-white">{finalOffsetX}%</strong> | Pos Y: <strong className="text-white">{finalOffsetY}%</strong>
+            Zoom: <strong className="text-white">{Math.round(zoom * 100)}%</strong> | Pos X: <strong className="text-white">{offsetX}%</strong> | Pos Y: <strong className="text-white">{offsetY}%</strong>
           </div>
 
           <div className="flex items-center gap-3">
@@ -270,9 +308,9 @@ export const VisualCropModal: React.FC<VisualCropModalProps> = ({
 
             <button
               onClick={handleApply}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+              className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
             >
-              <Check size={16} /> Aplicar Recorte Visual
+              <Check size={16} /> Aplicar Enquadramento Canva
             </button>
           </div>
         </div>

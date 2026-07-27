@@ -384,10 +384,77 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
 
+    const keywordTermo = (prospectData as any)?.keyword || (diagnosticData as any)?.termoPesquisado || (diagnosticData as any)?.gmn?.keyword || 'dentista';
+
+    const cardLegendaMapaHtml = `
+      <div style="background-color: #0d0f19; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #ffffff; border: 1px solid #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 10pt; font-weight: bold;">
+          <span style="color: #10b981; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
+          </span>
+          <span style="color: #f59e0b; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
+          </span>
+          <span style="color: #ef4444; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
+          </span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 10pt; color: #94a3b8; flex-wrap: wrap;">
+          <span>Searching</span>
+          <span style="background-color: #1e293b; color: #ffffff; padding: 4px 12px; border-radius: 6px; font-weight: bold; border: 1px solid #334155;">
+            "${keywordTermo}"
+          </span>
+          <span>on</span>
+          <span style="background-color: #ffffff; color: #1e293b; padding: 4px 12px; border-radius: 16px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;">
+            📍 Google Maps
+          </span>
+          <span>for:</span>
+        </div>
+      </div>
+    `;
+
+    const cardBuscaGoogleHtml = `
+      <div style="background-color: #0d0f19; padding: 20px; border-radius: 16px; font-family: sans-serif; text-align: center; margin: 20px 0; color: #ffffff; border: 1px solid #1e293b; box-shadow: 0 8px 20px rgba(0,0,0,0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 10pt; font-weight: bold;">
+          <span style="color: #10b981; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
+          </span>
+          <span style="color: #f59e0b; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
+          </span>
+          <span style="color: #ef4444; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
+          </span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11pt; color: #94a3b8; margin-bottom: 18px; flex-wrap: wrap;">
+          <span>Searching</span>
+          <span style="background-color: #1e293b; color: #ffffff; padding: 4px 14px; border-radius: 8px; font-weight: bold; border: 1px solid #334155;">
+            "${keywordTermo}"
+          </span>
+          <span>on</span>
+          <span style="background-color: #ffffff; color: #1e293b; padding: 4px 14px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;">
+            📍 Google Maps
+          </span>
+          <span>for:</span>
+        </div>
+        <div style="background-color: #ffffff; color: #0f172a; padding: 20px; border-radius: 14px; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <div style="font-size: 16pt; font-weight: 800; margin-bottom: 6px; color: #0f172a;">${clinica || prospectData?.clinicName || 'Clínica Odontológica'}</div>
+          <div style="font-size: 9.5pt; color: #475569; margin-bottom: 12px; line-height: 1.4;">${enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || 'Endereço não informado'}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+            <span>${prospectData?.gmnRating || '4.9'}</span>
+            <span style="color: #f59e0b;">★★★★★</span>
+            <span style="color: #64748b; font-weight: normal; font-size: 9.5pt;">(${prospectData?.gmnReviewsCount || 0})</span>
+          </div>
+        </div>
+      </div>
+    `;
+
     let html = editorRef.current.innerHTML;
     let appended = '';
 
     const visualTags: Record<string, string> = {
+      '{{IA_CARD_BUSCA_GOOGLE}}': cardBuscaGoogleHtml,
+      '{{IA_CARD_LEGENDA_MAPA}}': cardLegendaMapaHtml,
       '{{IA_MAPA_CALOR}}': mapaCalorHtml,
       '{{IA_FICHA_CLINICA}}': fichaClinicaHtml,
       '{{IA_PLACAR_PILARES}}': placarPilaresHtml,

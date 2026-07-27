@@ -172,6 +172,18 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     exampleValue: (p) => `dentista em ${p?.location?.split('-')[0]?.trim() || 'sua região'}`
   },
   {
+    code: '{{IA_CARD_BUSCA_GOOGLE}}',
+    category: 'SEO & Google Maps',
+    description: 'Insere o cabeçalho completo com a legenda (Top 3, 4-10, 11+), termo buscado e cartão da clínica',
+    exampleValue: () => '[Cartão de Busca no Google Maps com Legenda e Ficha da Clínica]'
+  },
+  {
+    code: '{{IA_CARD_LEGENDA_MAPA}}',
+    category: 'SEO & Google Maps',
+    description: 'Insere a barra com legenda de posições (Top 3, 4-10, 11+) e busca no Google Maps',
+    exampleValue: () => '[Legenda de Posições e Busca no Google Maps]'
+  },
+  {
     code: '{{IA_MAPA_CALOR}}',
     category: 'SEO & Google Maps',
     description: 'Insere a imagem real do mapa da varredura do Local Falcon',
