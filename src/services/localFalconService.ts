@@ -19,7 +19,8 @@ export interface LocalFalconCompetitor {
 export interface LocalFalconResult {
   success: boolean;
   solv?: number;              // Share of Local Voice %
-  avgRank?: number;           // Average Rank Position (arp)
+  avgRank?: number;           // Average Rank Position (ARP), a technical grid metric
+  clientRank?: number;        // Integer position among businesses returned by Local Falcon
   gridPoints?: Array<{ lat: number; lng: number; rank: number | false }>;
   scanId?: string;            // report_key
   mapImageUrl?: string;       // URL da imagem do mapa
@@ -28,6 +29,98 @@ export interface LocalFalconResult {
   competitors?: LocalFalconCompetitor[]; // Concorrentes reais extraídos dos data_points
   error?: string;
 }
+
+const normalizeBusinessName = (name: string) => name
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]/g, '');
+
+const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetName = '') => {
+  const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
+
+  for (const point of dataPoints) {
+    const results = Array.isArray(point.results) ? point.results : typeof point.results === 'object' && point.results !== null ? Object.values(point.results) : [];
+    for (const result of results as any[]) {
+      const rank = Number(result.rank ?? result.position);
+      const name = result.name || result.business_name || result.title;
+      const placeId = result.place_id || result.placeId || result.google_place_id || result.cid || name;
+      if (!placeId || !name || !Number.isFinite(rank) || rank <= 0) continue;
+      if (!competitorMap[placeId]) {
+        competitorMap[placeId] = { nome: name, totalRank: 0, count: 0 };
+      }
+      competitorMap[placeId].totalRank += rank;
+      competitorMap[placeId].count += 1;
+    }
+  }
+
+  const rankedBusinesses = Object.entries(competitorMap)
+    .map(([placeId, value]) => ({
+      placeId,
+      nome: value.nome,
+      averageRank: value.totalRank / value.count,
+      aparecimentos: value.count
+    }))
+    .sort((a, b) => a.averageRank - b.averageRank);
+
+  const normalizedTargetName = normalizeBusinessName(targetName);
+  const clientIndex = rankedBusinesses.findIndex((business) =>
+    business.placeId === targetPlaceId ||
+    (!!normalizedTargetName && (() => {
+      const normalizedBusinessName = normalizeBusinessName(business.nome);
+      return normalizedBusinessName === normalizedTargetName ||
+        normalizedBusinessName.includes(normalizedTargetName) ||
+        normalizedTargetName.includes(normalizedBusinessName);
+    })())
+  );
+
+  return {
+    competitors: rankedBusinesses.map(({ averageRank, ...business }, index) => ({
+      ...business,
+      posicao: index + 1
+    })).slice(0, 10),
+    clientRank: clientIndex >= 0 ? clientIndex + 1 : undefined
+  };
+};
+
+const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', targetName = '') => {
+  const businesses = Array.isArray(reportData?.businesses) ? reportData.businesses : [];
+  const normalizedTargetName = normalizeBusinessName(targetName);
+  const rankedBusinesses = businesses
+    .map((business: any) => {
+      const dataPoints = Array.isArray(business.data_points) ? business.data_points : [];
+      const ranks = dataPoints
+        .map((point: any) => Number(point.rank))
+        .filter((rank: number) => Number.isFinite(rank) && rank > 0);
+      return {
+        placeId: business.place_id || business.placeId || business.cid || business.name,
+        nome: business.name || business.business_name || 'Empresa sem nome',
+        solv: Number.isFinite(Number(business.solv)) ? Number(business.solv) : 0,
+        arp: Number.isFinite(Number(business.arp)) ? Number(business.arp) : Number.MAX_SAFE_INTEGER,
+        aparecimentos: ranks.length,
+        nota: Number.isFinite(Number(business.rating)) ? Number(business.rating) : undefined,
+        avaliacoes: Number.isFinite(Number(business.reviews)) ? Number(business.reviews) : undefined,
+        endereco: business.address || undefined
+      };
+    })
+    .filter((business: any) => business.placeId && business.nome)
+    // Replicates the Local Falcon competitor table when the SoLV column is sorted descending.
+    .sort((a: any, b: any) => (b.solv - a.solv) || (a.arp - b.arp));
+
+  const clientIndex = rankedBusinesses.findIndex((business: any) => {
+    const normalizedBusinessName = normalizeBusinessName(business.nome);
+    return business.placeId === targetPlaceId ||
+      (!!normalizedTargetName && (normalizedBusinessName === normalizedTargetName || normalizedBusinessName.includes(normalizedTargetName) || normalizedTargetName.includes(normalizedBusinessName)));
+  });
+
+  return {
+    competitors: rankedBusinesses.map(({ solv, arp, ...business }: any, index: number) => ({
+      ...business,
+      posicao: index + 1
+    })).slice(0, 20),
+    clientRank: clientIndex >= 0 ? clientIndex + 1 : undefined
+  };
+};
 
 // Helper: fetch com timeout (padrão 60s)
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 60000): Promise<Response> => {
@@ -139,6 +232,11 @@ const normStr = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const stripBusinessSuffixes = (name: string) => normStr(name)
+  .replace(/\b(odontologia|odonto|clinica|dental|estetica|saude|consultorio)\b/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 /**
  * Verifica se dois nomes de empresa são similares usando múltiplas estratégias:
  * - Match exato
@@ -164,7 +262,7 @@ const isSimilarName = (candidate: string, target: string): boolean => {
  * Busca a localização nas Saved Locations do Local Falcon pelo nome da empresa.
  * Usa matching fuzzy para tolerar diferenças de formatação.
  */
-const findSavedLocation = async (key: string, locationName: string): Promise<{ placeId: string; lat: string; lng: string; name: string } | null> => {
+const findSavedLocation = async (key: string, locationName: string, exactOnly = false): Promise<{ placeId: string; lat: string; lng: string; name: string } | null> => {
   try {
     // Tenta com o nome completo primeiro, depois com uma versão simplificada
     const namesToTry = [locationName];
@@ -187,7 +285,14 @@ const findSavedLocation = async (key: string, locationName: string): Promise<{ p
       const locations = data?.data?.locations || [];
       if (locations.length === 0) continue;
 
-      const matchedLoc = locations.find((loc: any) => isSimilarName(loc.name || '', locationName));
+      const targetBaseName = stripBusinessSuffixes(locationName);
+      const matchedLoc = locations.find((loc: any) => {
+        if (!exactOnly) return isSimilarName(loc.name || '', locationName);
+        const candidateName = normStr(loc.name || '');
+        const candidateBaseName = stripBusinessSuffixes(loc.name || '');
+        return candidateName === normStr(locationName) ||
+          (!!targetBaseName && candidateBaseName === targetBaseName);
+      });
       if (matchedLoc) {
         console.log('[LocalFalcon] Match encontrado nas Saved Locations:', matchedLoc.name, '→ query usada:', nameQuery);
         return {
@@ -377,33 +482,13 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 
         const dataPoints = extractDataPointsArray(scanData);
         if (dataPoints.length > 0) {
-          const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
-          for (const pt of dataPoints) {
-            const results = Array.isArray(pt.results) ? pt.results : typeof pt.results === 'object' && pt.results !== null ? Object.values(pt.results) : [];
-            for (const result of (results as any[])) {
-              if (!result.place_id || !result.name) continue;
-              if (!competitorMap[result.place_id]) {
-                competitorMap[result.place_id] = { nome: result.name, totalRank: 0, count: 0 };
-              }
-              competitorMap[result.place_id].totalRank += result.rank || 0;
-              competitorMap[result.place_id].count += 1;
-            }
-          }
-
-          const competitors = Object.entries(competitorMap)
-            .map(([cPlaceId, v]) => ({
-              placeId: cPlaceId,
-              nome: v.nome,
-              posicao: Math.round(v.totalRank / v.count),
-              aparecimentos: v.count
-            }))
-            .sort((a, b) => a.posicao - b.posicao)
-            .slice(0, 10);
+          const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId, params.locationName);
 
           return {
             success: true,
             solv: isNaN(solv) ? 0 : solv,
             avgRank: isNaN(avgRank) ? 0 : avgRank,
+            clientRank,
             gridPoints: dataPoints.map((pt: any) => ({
               lat: parseFloat(pt.lat),
               lng: parseFloat(pt.lng),
@@ -471,8 +556,14 @@ export const fetchLocalFalconReportHistory = async (params: {
 
   try {
     // 1. Tentar encontrar local registrado
-    const savedLoc = await findSavedLocation(key, params.locationName);
+    const savedLoc = await findSavedLocation(key, params.locationName, true);
     const placeId = savedLoc?.placeId || '';
+    if (!placeId) {
+      return {
+        success: false,
+        error: `Nenhuma localização exata foi encontrada no Local Falcon para "${params.locationName}". Nenhum relatório foi importado.`
+      };
+    }
 
     // 2. Buscar relatórios existentes na conta
     const formBody: Record<string, string> = { api_key: key, limit: '30' };
@@ -496,13 +587,28 @@ export const fetchLocalFalconReportHistory = async (params: {
       };
     }
 
-    // Normalização para comparar palavra-chave ou nome
+    // O relatório só pode ser importado quando pertence ao Place ID da ficha atual.
     const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-    let matchedReport = reports[0];
-    if (params.keyword) {
-      const targetKw = norm(params.keyword);
-      const found = reports.find((r: any) => norm(r.keyword || r.name || '').includes(targetKw));
-      if (found) matchedReport = found;
+    const reportsForLocation = reports.filter((report: any) => {
+      const reportPlaceId = report.place_id || report.location?.place_id || report.location?.placeId || '';
+      return reportPlaceId === placeId;
+    });
+    if (reportsForLocation.length === 0) {
+      return {
+        success: false,
+        error: `Nenhum relatório do Local Falcon pertence à empresa "${params.locationName}". Nenhum dado foi alterado.`
+      };
+    }
+
+    const targetKeyword = norm(params.keyword || '');
+    const matchedReport = targetKeyword
+      ? reportsForLocation.find((report: any) => norm(report.keyword || '') === targetKeyword)
+      : reportsForLocation[0];
+    if (!matchedReport) {
+      return {
+        success: false,
+        error: `Não existe relatório do Local Falcon para "${params.locationName}" com a palavra-chave "${params.keyword}". Nenhum dado foi alterado.`
+      };
     }
 
     const reportKey = matchedReport.report_key || matchedReport.scan_id || matchedReport.id;
@@ -510,14 +616,21 @@ export const fetchLocalFalconReportHistory = async (params: {
       return { success: false, error: 'Relatório encontrado no histórico, mas sem chave única de visualização.' };
     }
 
-    // 3. Obter dados detalhados do relatório já gerado via /v1/report/
+    // 3. Obter os dados detalhados e o ranking real de concorrentes do relatório.
     console.log('[LocalFalcon History] Carregando dados do report_key:', reportKey);
-    const detailRes = await postForm('/api-proxy/localfalcon/v1/report/', { api_key: key, report_key: reportKey }, 30000);
+    const detailRes = await postForm(`/api-proxy/localfalcon/v1/reports/${reportKey}/`, { api_key: key }, 30000);
+    const competitorRes = await postForm(`/api-proxy/localfalcon/v1/competitor-reports/${reportKey}`, { api_key: key }, 30000);
 
     let detailData: any = matchedReport;
     if (detailRes.ok) {
       const json = await detailRes.json();
-      detailData = json?.data?.report || json?.data?.scan || json?.data || json || matchedReport;
+      detailData = json?.data || json || matchedReport;
+    }
+
+    let competitorReportData: any = null;
+    if (competitorRes.ok) {
+      const json = await competitorRes.json();
+      competitorReportData = json?.data || null;
     }
 
     const mapImageUrl = detailData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
@@ -525,35 +638,19 @@ export const fetchLocalFalconReportHistory = async (params: {
     const solv = parseFloat(detailData.solv || detailData.share_of_local_voice || matchedReport.solv || '0');
     const avgRank = parseFloat(detailData.arp || detailData.atrp || detailData.average_rank || matchedReport.arp || '0');
 
-    // Concorrentes extraídos dos data_points se disponíveis
     const dataPoints = extractDataPointsArray(detailData);
-    const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
-    for (const pt of dataPoints) {
-      const results = Array.isArray(pt.results) ? pt.results : typeof pt.results === 'object' && pt.results !== null ? Object.values(pt.results) : [];
-      for (const result of (results as any[])) {
-        if (!result.place_id || !result.name) continue;
-        if (!competitorMap[result.place_id]) {
-          competitorMap[result.place_id] = { nome: result.name, totalRank: 0, count: 0 };
-        }
-        competitorMap[result.place_id].totalRank += result.rank || 0;
-        competitorMap[result.place_id].count += 1;
-      }
-    }
-
-    const competitors = Object.entries(competitorMap)
-      .map(([cPlaceId, v]) => ({
-        placeId: cPlaceId,
-        nome: v.nome,
-        posicao: Math.round(v.totalRank / v.count),
-        aparecimentos: v.count
-      }))
-      .sort((a, b) => a.posicao - b.posicao)
-      .slice(0, 10);
+    const pointRanking = extractCompetitorRanking(dataPoints, placeId, params.locationName);
+    const competitorReportRanking = extractCompetitorReportRanking(competitorReportData, placeId || matchedReport.place_id, params.locationName);
+    const competitors = competitorReportRanking.competitors.length > 0
+      ? competitorReportRanking.competitors
+      : pointRanking.competitors;
+    const clientRank = competitorReportRanking.clientRank ?? pointRanking.clientRank;
 
     return {
       success: true,
       solv: isNaN(solv) ? 0 : solv,
       avgRank: isNaN(avgRank) ? 0 : avgRank,
+      clientRank,
       gridPoints: dataPoints.map((pt: any) => ({
         lat: parseFloat(pt.lat || 0),
         lng: parseFloat(pt.lng || 0),

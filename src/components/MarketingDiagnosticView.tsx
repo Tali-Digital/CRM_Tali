@@ -428,6 +428,41 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     enqueueDiagnostic(selectedProspect, 'rerun_module', moduleName);
   };
 
+  const handleConfirmMetaAds = async (hasActiveAds: boolean) => {
+    if (!selectedProspect || !diagnosticData) return;
+    const confirmation = await Swal.fire({
+      icon: 'question',
+      title: hasActiveAds ? 'Confirmar anúncios ativos?' : 'Confirmar ausência de anúncios?',
+      text: 'Use esta confirmação somente após verificar a empresa na Biblioteca de Anúncios da Meta.',
+      showCancelButton: true,
+      confirmButtonText: 'Confirmar verificação',
+      cancelButtonText: 'Cancelar'
+    });
+    if (!confirmation.isConfirmed) return;
+
+    const updatedDiag = {
+      ...diagnosticData,
+      placar: {
+        ...(diagnosticData.placar || {}),
+        ads: hasActiveAds ? 100 : 0
+      },
+      anuncios: {
+        ...(diagnosticData.anuncios || {}),
+        clienteAnunciaMeta: hasActiveAds,
+        metaVerified: true,
+        metaVerificationSource: 'manual',
+        metaVerifiedAt: new Date().toISOString(),
+        oportunidade1: hasActiveAds
+          ? 'A empresa possui anúncios ativos confirmados na Biblioteca da Meta.'
+          : 'A verificação manual não encontrou anúncios ativos na Biblioteca da Meta.'
+      }
+    };
+
+    setDiagnosticData(updatedDiag);
+    await updateProspect(selectedProspect.id, { marketingDiagnostic: updatedDiag });
+    Swal.fire({ icon: 'success', title: 'Verificação registrada', timer: 1800, showConfirmButton: false });
+  };
+
   const handleRefetchCompetitors = async () => {
     if (!selectedProspect || !diagnosticData) return;
 
@@ -621,7 +656,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       const gmnSection = formData.modules.gmn
         ? {
             resumo1: hasSolv
-              ? `Ao pesquisar por "${formData.keyword}" na região de ${formData.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${localFalconResult.solv}% e posição média #${localFalconResult.avgRank}.`
+              ? `Ao pesquisar por "${formData.keyword}" na região de ${formData.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${localFalconResult.solv}% e está na posição #${localFalconResult.clientRank || 'sem dados'}.`
               : (existingDiag.resumo1 || `Sem dados do Local Falcon para a palavra-chave "${formData.keyword}".`),
             resumo2: hasSolv
               ? `Sua empresa aparece em posição de destaque (Top 3) em ${localFalconResult.solv}% dos pontos analisados no mapa local.`
@@ -632,8 +667,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   placeId: c.placeId,
                   posicao: c.posicao,
                   aparecimentos: c.aparecimentos,
-                  nota: null,
-                  avaliacoes: null,
+                  nota: c.nota ?? null,
+                  avaliacoes: c.avaliacoes ?? null,
+                  endereco: c.endereco ?? null,
                   anunciaGoogle: null,
                   anunciaMeta: null,
                   respondeAvaliacoes: null,
@@ -641,13 +677,14 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   siteRapido: null
                 }))
               : (existingDiag.concorrentes || []),
-            posicaoCliente: hasSolv ? localFalconResult.avgRank : (existingDiag.posicaoCliente ?? null),
+            posicaoCliente: hasSolv ? (localFalconResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
             gmn: {
               top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'),
-              posicaoMedia: hasSolv ? localFalconResult.avgRank : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'),
+              posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'),
               foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'),
               scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null,
               mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null,
+              locationName: formData.companyName,
               keyword: formData.keyword,
               oportunidade1: `Palavra-chave rastreada no Local Falcon: "${formData.keyword}".`,
               oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura (Local Falcon não configurado).')
@@ -706,15 +743,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         },
         anuncios: formData.modules.ads ? {
           clienteAnunciaGoogle: false,
-          clienteAnunciaMeta: metaAdsResult?.clienteAnunciaMeta ?? false,
+          clienteAnunciaMeta: metaAdsResult?.success ? metaAdsResult.clienteAnunciaMeta : (existingDiag.anuncios?.metaVerificationSource === 'manual' ? existingDiag.anuncios.clienteAnunciaMeta : null),
+          metaVerified: metaAdsResult?.success === true || existingDiag.anuncios?.metaVerificationSource === 'manual',
+          metaCompetitorsVerified: metaAdsResult?.competitorsVerified === true,
+          ...(metaAdsResult?.success
+            ? { metaVerificationSource: 'api' }
+            : existingDiag.anuncios?.metaVerificationSource
+              ? { metaVerificationSource: existingDiag.anuncios.metaVerificationSource }
+              : {}),
           concorrentesGoogle: 3,
           concorrentesMeta: metaAdsResult?.concorrentesMeta ?? 0,
-          oportunidade1: metaAdsResult?.clienteAnunciaMeta
-            ? `Manter e otimizar campanhas ativas no Meta.`
-            : `Criar anúncios focados em "${formData.keyword}" no Instagram/Facebook.`,
-          oportunidade2: (metaAdsResult?.concorrentesMeta || 0) > 0
-            ? `${metaAdsResult.concorrentesMeta} concorrentes ativos no Meta na sua região.`
-            : `Aproveitar a ausência de concorrentes anunciando no Instagram na região.`
+          oportunidade1: metaAdsResult?.success
+            ? (metaAdsResult.clienteAnunciaMeta ? 'Manter e otimizar campanhas ativas no Meta.' : `Criar anúncios focados em "${formData.keyword}" no Instagram/Facebook.`)
+            : 'Status dos anúncios na Meta não confirmado pela API.',
+          oportunidade2: metaAdsResult?.success
+            ? ((metaAdsResult.concorrentesMeta || 0) > 0 ? `${metaAdsResult.concorrentesMeta} concorrentes ativos no Meta na sua região.` : 'A consulta não encontrou concorrentes ativos no Meta na região.')
+            : 'Consulte a Biblioteca de Anúncios da Meta para confirmar os resultados.'
         } : (existingDiag.anuncios || {})
       };
 
@@ -867,27 +911,45 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           if (!historyResult.success) {
             addQueueLog(queueId, `❌ ${historyResult.error || 'Nenhum relatório anterior localizado'}`, 'error', historyDur);
             updateQueueItem(queueId, { status: 'error', error: historyResult.error, finishedAt: Date.now(), duration: historyDur });
+            const emptyGmnDiag = {
+              ...existingDiag,
+              concorrentes: [],
+              posicaoCliente: null,
+              gmn: {
+                top3Percent: 'sem dados',
+                posicaoMedia: 'sem dados',
+                foraTop20Percent: 'sem dados',
+                scanId: null,
+                mapaCalorImg: null,
+                locationName: form.companyName,
+                keyword: form.keyword
+              }
+            };
+            await updateProspect(prospect.id, { marketingDiagnostic: emptyGmnDiag });
+            if (selectedProspect?.id === prospect.id) {
+              setDiagnosticData(emptyGmnDiag);
+            }
             continue;
           }
 
-          addQueueLog(queueId, `✅ Relatório gravado localizado! SoLV: ${historyResult.solv}%, Posição: #${historyResult.avgRank} (0 Créditos consumidos)`, 'done', historyDur);
+          addQueueLog(queueId, `✅ Relatório gravado localizado! SoLV: ${historyResult.solv}%, Posição: #${historyResult.clientRank ?? 'sem dados'} (0 Créditos consumidos)`, 'done', historyDur);
 
           const hasSolv = historyResult.solv !== undefined;
           const updatedDiag = {
             ...existingDiag,
-            resumo1: hasSolv ? `Ao pesquisar por "${form.keyword}" na região de ${form.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${historyResult.solv}% e posição média #${historyResult.avgRank}.` : existingDiag.resumo1,
+            resumo1: hasSolv ? `Ao pesquisar por "${form.keyword}" na região de ${form.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${historyResult.solv}% e está na posição #${historyResult.clientRank || 'sem dados'}.` : existingDiag.resumo1,
             resumo2: hasSolv ? `Sua empresa aparece em posição de destaque (Top 3) em ${historyResult.solv}% dos pontos analisados no mapa local.` : existingDiag.resumo2,
             concorrentes: hasSolv && historyResult.competitors && historyResult.competitors.length > 0
               ? historyResult.competitors.map((c: any) => ({
                   nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos,
-                  nota: null, avaliacoes: null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null
+                  nota: c.nota ?? null, avaliacoes: c.avaliacoes ?? null, endereco: c.endereco ?? null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null
                 }))
               : (existingDiag.concorrentes || []),
-            posicaoCliente: hasSolv ? historyResult.avgRank : (existingDiag.posicaoCliente ?? null),
+            posicaoCliente: hasSolv ? (historyResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
             placar: { ...(existingDiag.placar || {}), google: hasSolv ? historyResult.solv : (existingDiag.placar?.google ?? 'sem dados') },
             gmn: {
               top3Percent: hasSolv ? historyResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'),
-              posicaoMedia: hasSolv ? historyResult.avgRank : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'),
+              posicaoMedia: hasSolv ? (historyResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'),
               foraTop20Percent: hasSolv ? Math.max(0, 100 - historyResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'),
               scanId: historyResult.scanId || existingDiag.gmn?.scanId || null,
               mapaCalorImg: historyResult.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null,
@@ -955,7 +1017,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             });
             const lfDur = Date.now() - lfStart;
             if (localFalconResult?.success) {
-              addQueueLog(queueId, `✅ Local Falcon OK — SoLV: ${localFalconResult.solv}%, Posição: #${localFalconResult.avgRank}`, 'done', lfDur);
+              addQueueLog(queueId, `✅ Local Falcon OK — SoLV: ${localFalconResult.solv}%, Posição: #${localFalconResult.clientRank ?? 'sem dados'}`, 'done', lfDur);
             } else {
               addQueueLog(queueId, `⚠️ Local Falcon sem dados: ${localFalconResult?.error || 'sem resposta'}`, 'error', lfDur);
             }
@@ -1020,13 +1082,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
         const gmnSection = runModules.gmn
           ? {
-              resumo1: hasSolv ? `Ao pesquisar por "${form.keyword}" na região de ${form.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${localFalconResult.solv}% e posição média #${localFalconResult.avgRank}.` : (existingDiag.resumo1 || `Sem dados do Local Falcon para a palavra-chave "${form.keyword}".`),
+              resumo1: hasSolv ? `Ao pesquisar por "${form.keyword}" na região de ${form.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${localFalconResult.solv}% e está na posição #${localFalconResult.clientRank || 'sem dados'}.` : (existingDiag.resumo1 || `Sem dados do Local Falcon para a palavra-chave "${form.keyword}".`),
               resumo2: hasSolv ? `Sua empresa aparece em posição de destaque (Top 3) em ${localFalconResult.solv}% dos pontos analisados no mapa local.` : (existingDiag.resumo2 || `Sem dados de posição no mapa local para "${form.keyword}".`),
               concorrentes: hasSolv && localFalconResult.competitors?.length > 0
-                ? localFalconResult.competitors.map((c: any) => ({ nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos, nota: null, avaliacoes: null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null }))
+                ? localFalconResult.competitors.map((c: any) => ({ nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos, nota: c.nota ?? null, avaliacoes: c.avaliacoes ?? null, endereco: c.endereco ?? null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null }))
                 : (existingDiag.concorrentes || []),
-              posicaoCliente: hasSolv ? localFalconResult.avgRank : (existingDiag.posicaoCliente ?? null),
-              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? localFalconResult.avgRank : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, keyword: form.keyword, oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}".`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
+              posicaoCliente: hasSolv ? (localFalconResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
+              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}".`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
             }
           : { resumo1: existingDiag.resumo1, resumo2: existingDiag.resumo2, concorrentes: existingDiag.concorrentes || [], posicaoCliente: existingDiag.posicaoCliente ?? null, gmn: existingDiag.gmn || {} };
 
@@ -1051,19 +1113,26 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             reputacao: prospect.gmnRating ? Math.round(parseFloat(prospect.gmnRating) * 20) : (existingDiag.placar?.reputacao ?? 'sem dados'),
             instagram: runModules.instagram ? (form.instagramUrl ? 75 : (existingDiag.placar?.instagram ?? 'sem dados')) : (existingDiag.placar?.instagram ?? 'sem dados'),
             site: runModules.site ? (hasPageSpeed && typeof pageSpeedResult.velocidade === 'number' ? pageSpeedResult.velocidade : (existingDiag.placar?.site ?? 'sem dados')) : (existingDiag.placar?.site ?? 'sem dados'),
-            ads: runModules.ads ? (metaAdsResult?.clienteAnunciaMeta ? 100 : 0) : (existingDiag.placar?.ads ?? 'sem dados')
+            ads: runModules.ads ? (metaAdsResult?.success ? (metaAdsResult.clienteAnunciaMeta ? 100 : 0) : 'sem dados') : (existingDiag.placar?.ads ?? 'sem dados')
           },
           anuncios: runModules.ads ? {
             clienteAnunciaGoogle: false,
-            clienteAnunciaMeta: metaAdsResult?.clienteAnunciaMeta ?? false,
+            clienteAnunciaMeta: metaAdsResult?.success ? metaAdsResult.clienteAnunciaMeta : (existingDiag.anuncios?.metaVerificationSource === 'manual' ? existingDiag.anuncios.clienteAnunciaMeta : null),
+            metaVerified: metaAdsResult?.success === true || existingDiag.anuncios?.metaVerificationSource === 'manual',
+            metaCompetitorsVerified: metaAdsResult?.competitorsVerified === true,
+            ...(metaAdsResult?.success
+              ? { metaVerificationSource: 'api' }
+              : existingDiag.anuncios?.metaVerificationSource
+                ? { metaVerificationSource: existingDiag.anuncios.metaVerificationSource }
+                : {}),
             concorrentesGoogle: 3,
             concorrentesMeta: metaAdsResult?.concorrentesMeta ?? 0,
-            oportunidade1: metaAdsResult?.clienteAnunciaMeta
-              ? `Manter e otimizar campanhas ativas no Meta.`
-              : `Criar anúncios focados em "${form.keyword}" no Instagram/Facebook.`,
-            oportunidade2: (metaAdsResult?.concorrentesMeta || 0) > 0
-              ? `${metaAdsResult.concorrentesMeta} concorrentes ativos no Meta na sua região.`
-              : `Aproveitar a ausência de concorrentes anunciando no Instagram na região.`
+            oportunidade1: metaAdsResult?.success
+              ? (metaAdsResult.clienteAnunciaMeta ? 'Manter e otimizar campanhas ativas no Meta.' : `Criar anúncios focados em "${form.keyword}" no Instagram/Facebook.`)
+              : 'Status dos anúncios na Meta não confirmado pela API.',
+            oportunidade2: metaAdsResult?.success
+              ? ((metaAdsResult.concorrentesMeta || 0) > 0 ? `${metaAdsResult.concorrentesMeta} concorrentes ativos no Meta na sua região.` : 'A consulta não encontrou concorrentes ativos no Meta na região.')
+              : 'Consulte a Biblioteca de Anúncios da Meta para confirmar os resultados.'
           } : (existingDiag.anuncios || {})
         };
 
@@ -1635,6 +1704,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     const scoreGeral = notaGoogle > 4.5 ? 65 : (notaGoogle > 4.0 ? 44 : 25);
     const competitors = Array.isArray(diagnosticData?.concorrentes) ? diagnosticData.concorrentes : [];
     const clientNameNorm = (selectedProspect.clinicName || '').toLowerCase().trim();
+    const clientRank = Number(diagnosticData?.posicaoCliente ?? diagnosticData?.gmn?.posicaoMedia);
+    const hasValidClientRank = Number.isInteger(clientRank) && clientRank > 0;
 
     let parsedCompetitors: any[] = competitors
       .filter((c: any) => {
@@ -1648,29 +1719,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         return list.findIndex((item: any) => (item.placeId || item.nome.trim().toLowerCase()) === key) === index;
       });
 
-    const fallbackNames = [
-      `Clínica Odontológica Líder ${formData.cityName || 'Local'}`,
-      `OdontoCenter ${formData.cityName || 'Local'}`,
-      `Rede Odonto ${formData.neighborhoodName || formData.cityName}`
-    ];
-
-    while (parsedCompetitors.length < 3) {
-      const idx = parsedCompetitors.length;
-      parsedCompetitors.push({
-        nome: fallbackNames[idx] || `Concorrente #${idx + 1} no Google`,
-        posicao: idx + 1,
-        nota: 4.8 - (idx * 0.1),
-        avaliacoes: 150 - (idx * 30),
-        endereco: `${formData.cityName || 'Brasília'} - ${formData.stateUf || 'DF'}`,
-        anunciaGoogle: true,
-        anunciaMeta: idx === 0,
-        respondeAvaliacoes: null,
-        postaFrequencia: null,
-        siteRapido: null
-      });
-    }
-
-    const topCompetitors: any[] = parsedCompetitors.slice(0, 3);
+    const topCompetitors: any[] = hasValidClientRank
+      ? parsedCompetitors.filter((competitor: any) => clientRank === 1
+        ? Number(competitor.posicao) > clientRank
+        : Number(competitor.posicao) < clientRank
+      ).slice(0, 3)
+      : [];
     const siteUrl = selectedProspect.site || (selectedProspect as any).websiteUrl || diagnosticData.siteUrl || '';
     const hasValidSite = (() => {
       try {
@@ -1682,6 +1736,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     })();
     const isSiteDataMissing = !hasValidSite || !diagnosticData.site || diagnosticData.site.velocidade === 'sem dados' || diagnosticData.site.velocidade === undefined;
     const isGmnDataMissing = !diagnosticData.gmn || diagnosticData.gmn.top3Percent === 'sem dados' || diagnosticData.gmn.top3Percent === undefined;
+    const metaAdsVerified = diagnosticData.anuncios?.metaVerified === true;
+    const metaAdsStatus = metaAdsVerified ? diagnosticData.anuncios?.clienteAnunciaMeta : null;
+    const metaCompetitorsVerified = diagnosticData.anuncios?.metaCompetitorsVerified === true;
+    const regionalCompetitorCount = parsedCompetitors.length;
 
     return (
       <div id="printable-diagnostic-content" className="bg-[#0d0f19] text-gray-100 min-h-screen p-8 rounded-2xl shadow-2xl font-sans">
@@ -1938,23 +1996,38 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
         {/* Google Meu Negócio Section */}
         <div className="mb-10">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4 rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-950/50 via-[#141626] to-[#141626] p-4 shadow-lg">
             <div>
-              <h2 className="text-2xl font-black text-white">Google Meu Negócio</h2>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="rounded-full border border-blue-400/30 bg-blue-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-200">Local Falcon API</span>
+                <h2 className="text-xl font-black text-white">Google Meu Negócio</h2>
+              </div>
               <p className="text-xs text-gray-400">
                 Como ler: o quanto o seu perfil do Google está completo e ativo, na mesma régua usada para comparar com o concorrente que mais aparece na sua região.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => handleRerunSingleModule('gmn')}
-              disabled={isGenerating}
-              className="bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-200 border border-indigo-500/40 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all no-print cursor-pointer active:scale-95 shadow-md"
-              title="Refazer apenas a varredura do Local Falcon no Google"
-            >
-              <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-              <span>🔄 Refazer apenas Local Falcon (Google)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 no-print">
+              <button
+                type="button"
+                onClick={() => handleRerunSingleModule('gmn')}
+                disabled={isGenerating}
+                className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/40 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-md disabled:opacity-50"
+                title="Refazer apenas a varredura do Local Falcon no Google"
+              >
+                <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
+                <span>Nova varredura</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => selectedProspect && enqueueDiagnostic(selectedProspect, 'fetch_existing_gmn')}
+                disabled={isGenerating}
+                className="bg-[#0d0f19] hover:bg-sky-950/60 text-sky-200 border border-sky-500/40 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                title="Buscar novamente o último relatório salvo no Local Falcon, sem executar uma nova varredura"
+              >
+                <Download size={14} />
+                <span>Puxar relatório existente</span>
+              </button>
+            </div>
           </div>
 
             <div className="bg-[#141626] p-4 md:p-8 rounded-2xl border border-gray-800 shadow-xl">
@@ -2123,16 +2196,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
         {/* Quem aparece na frente de você (Ranking de Concorrentes) */}
         <div className="bg-[#141626] p-8 rounded-2xl border border-gray-800 shadow-xl mb-10">
-          <h3 className="text-xl font-black text-white mb-1">Quem aparece na frente de você</h3>
+          <h3 className="text-xl font-black text-white mb-1">{clientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}</h3>
           <p className="text-xs text-gray-400 mb-6">
             Como ler: esta é a lista que o cliente vê no Google ao buscar na sua região. Quem está no topo leva o clique e o pedido.
           </p>
 
           <div className="space-y-3">
-            {topCompetitors.map((c: any, i: number) => (
+            {clientRank !== 1 && topCompetitors.map((c: any, i: number) => (
               <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
                 <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
-                  {i + 1}
+                  {c.posicao}
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-white text-sm">{c.nome}</h4>
@@ -2145,11 +2218,15 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             ))}
 
+            {hasValidClientRank && topCompetitors.length === 0 && (
+              <p className="text-sm text-emerald-400 font-medium">Sua empresa está em 1º lugar entre os resultados analisados.</p>
+            )}
+
             {/* Ficha da própria clínica destacada */}
-            {diagnosticData.gmn?.posicaoMedia && diagnosticData.gmn?.posicaoMedia !== 'sem dados' ? (
+            {hasValidClientRank ? (
               <div className="bg-amber-950/40 p-4 rounded-xl border-2 border-amber-500/50 flex items-start gap-4 mt-4">
                 <div className="w-8 h-8 rounded-full bg-amber-600 text-white font-black flex items-center justify-center text-sm shrink-0">
-                  {diagnosticData.gmn.posicaoMedia}
+                  {clientRank}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -2161,7 +2238,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <span className="text-amber-400 font-bold text-xs">{selectedProspect.gmnRating || '—'} ★</span>
                     <span className="text-amber-200/70 text-xs">({selectedProspect.gmnReviewsCount || '—'} avaliações)</span>
                   </div>
-                  <p className="text-xs font-bold text-amber-400 mt-2">Posição média no Google (Local Falcon): #{diagnosticData.gmn.posicaoMedia}</p>
+                  <p className="text-xs font-bold text-amber-400 mt-2">Posição no Google (Local Falcon): #{clientRank}</p>
                 </div>
               </div>
             ) : (
@@ -2169,6 +2246,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 Sem dados de posição real — execute a varredura do Local Falcon para ver sua posição no mapa.
               </div>
             )}
+
+            {clientRank === 1 && topCompetitors.map((c: any, i: number) => (
+              <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
+                  {c.posicao}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-white text-sm">{c.nome}</h4>
+                  <p className="text-xs text-gray-400">{c.endereco || 'Endereço não informado'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-amber-400 font-bold text-xs">{c.nota || 4.8} ★</span>
+                    <span className="text-gray-500 text-xs">({c.avaliacoes || 0} avaliações)</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -2233,18 +2326,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <tr className="border-b border-gray-800/60 hover:bg-white/5 transition-colors">
                   <td className="py-3.5 px-4 text-gray-300 font-bold text-xs">Anuncia no Instagram/Facebook?</td>
                   <td className="py-3.5 px-4 text-center bg-amber-950/20 border-x border-amber-500/20">
-                    {diagnosticData.anuncios?.clienteAnunciaMeta ? (
+                    {metaAdsStatus === true ? (
                       <span className="text-emerald-400 font-black text-base">✓</span>
-                    ) : (
+                    ) : metaAdsStatus === false ? (
                       <span className="text-red-500 font-black text-base">✗</span>
+                    ) : (
+                      <span className="text-gray-400 font-bold">?</span>
                     )}
                   </td>
                   {topCompetitors.map((c: any, idx: number) => (
                     <td key={idx} className="py-3.5 px-4 text-center">
-                      {c.anunciaMeta ? (
+                      {c.anunciaMeta === true ? (
                         <span className="text-emerald-400 font-black text-base">✓</span>
-                      ) : (
+                      ) : c.anunciaMeta === false ? (
                         <span className="text-red-500 font-black text-base">✗</span>
+                      ) : (
+                        <span className="text-gray-400 font-bold">?</span>
                       )}
                     </td>
                   ))}
@@ -2305,9 +2402,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
         {/* Site Section (Unificado: Velocidade, SEO e Rastreamento) */}
         <div className="mb-10">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#141626] to-[#141626] p-4 shadow-lg">
             <div>
-              <h2 className="text-2xl font-black text-white">Site</h2>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="rounded-full border border-emerald-400/30 bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-200">PageSpeed API</span>
+                <h2 className="text-xl font-black text-white">Site</h2>
+              </div>
               <p className="text-xs text-gray-400">
                 Como ler: notas oficiais do Google PageSpeed Insights (Mobile) para velocidade, otimização e medição de visitantes.
               </p>
@@ -2316,11 +2416,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               type="button"
               onClick={() => handleRerunSingleModule('site')}
               disabled={isGenerating}
-              className="bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-200 border border-emerald-500/40 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all no-print cursor-pointer active:scale-95 shadow-md"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all no-print cursor-pointer active:scale-95 shadow-md disabled:opacity-50"
               title="Refazer apenas a análise de velocidade do Google PageSpeed"
             >
               <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-              <span>🔄 Refazer apenas PageSpeed (Site)</span>
+              <span>Refazer análise PageSpeed</span>
             </button>
           </div>
 
@@ -2534,10 +2634,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         {/* Seção Exclusiva: Anúncios na Meta (Facebook & Instagram) */}
         {diagnosticData.anuncios && (
           <div className="bg-[#141626] p-8 rounded-2xl border border-gray-800 shadow-xl mb-10">
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+            <div className="-mx-4 -mt-4 md:-mx-4 md:-mt-4 mb-6 flex items-center justify-between flex-wrap gap-4 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/50 via-[#171526] to-[#141626] p-4 shadow-lg">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                  <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
                     Meta Ad Library API
                   </span>
                   <h3 className="text-xl font-black text-white">Anúncios na Meta (Facebook & Instagram)</h3>
@@ -2546,9 +2646,23 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   Análise de campanhas de tráfego pago na Biblioteca Pública de Anúncios da Meta para a sua empresa e concorrentes locais.
                 </p>
               </div>
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-xs text-emerald-300 font-bold">API Conectada</span>
+              <div className="flex flex-wrap items-center gap-2 no-print">
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${metaAdsStatus == null ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+                  <span className={`w-2 h-2 rounded-full ${metaAdsStatus == null ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}></span>
+                  <span className={`text-xs font-bold ${metaAdsStatus == null ? 'text-amber-300' : 'text-emerald-300'}`}>
+                    {metaAdsStatus == null ? 'Verificação necessária' : 'API Conectada'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRerunSingleModule('ads')}
+                  disabled={isGenerating}
+                  className="bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/40 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-md disabled:opacity-50"
+                  title="Consultar novamente a Meta Ad Library para esta empresa"
+                >
+                  <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
+                  <span>Refazer análise Meta Ads</span>
+                </button>
               </div>
             </div>
 
@@ -2557,32 +2671,79 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <div className="bg-[#0d0f19] p-5 rounded-xl border border-gray-800">
                 <span className="text-xs text-gray-400 block mb-1 font-semibold">Sua Presença no Meta Ads</span>
                 <div className="flex items-center gap-2 mt-1">
-                  {diagnosticData.anuncios.clienteAnunciaMeta ? (
+                  {metaAdsStatus === true ? (
                     <>
                       <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
                       <span className="text-lg font-black text-emerald-400">ATIVO (Anunciando)</span>
                     </>
-                  ) : (
+                  ) : metaAdsStatus === false ? (
                     <>
                       <span className="w-3 h-3 rounded-full bg-red-500"></span>
                       <span className="text-lg font-black text-red-400">INATIVO (Não Anuncia)</span>
                     </>
+                  ) : (
+                    <>
+                      <span className="w-3 h-3 rounded-full bg-amber-500"></span>
+                      <span className="text-lg font-black text-amber-400">NÃO CONFIRMADO</span>
+                    </>
                   )}
                 </div>
                 <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-                  {diagnosticData.anuncios.clienteAnunciaMeta
+                  {metaAdsStatus === true
                     ? 'Sua clínica possui anúncios ativos rodando no Instagram e Facebook.'
-                    : 'Sua empresa não está veiculando anúncios pagos no Instagram ou Facebook no momento.'}
+                    : metaAdsStatus === false
+                      ? 'A consulta da API não encontrou anúncios ativos para esta empresa.'
+                      : 'A API não conseguiu confirmar o status. Use a Biblioteca da Meta para verificar os anúncios diretamente.'}
                 </p>
+                <a
+                  href={`https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q=${encodeURIComponent(selectedProspect.clinicName || formData.companyName)}&search_type=keyword_unordered&media_type=all`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-blue-500/40 bg-blue-500/15 px-3 py-2 text-[11px] font-bold text-blue-200 transition-colors hover:bg-blue-500/30 no-print"
+                  title="Abrir a busca desta empresa na Biblioteca de Anúncios da Meta"
+                >
+                  <Search size={13} />
+                  Verificar na Biblioteca da Meta
+                </a>
+                {metaAdsStatus == null && (
+                  <div className="mt-3 border-t border-gray-800 pt-3 no-print">
+                    <p className="mb-2 text-[10px] leading-relaxed text-gray-500">Após conferir a Biblioteca, registre o resultado real:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmMetaAds(true)}
+                        className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-[11px] font-bold text-emerald-200 transition-colors hover:bg-emerald-500/30"
+                      >
+                        Possui anúncios ativos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmMetaAds(false)}
+                        className="rounded-lg border border-gray-600 bg-gray-800/60 px-3 py-2 text-[11px] font-bold text-gray-300 transition-colors hover:bg-gray-700"
+                      >
+                        Não possui anúncios
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {metaAdsVerified && diagnosticData.anuncios.metaVerificationSource === 'manual' && (
+                  <p className="mt-3 text-[10px] font-semibold text-emerald-400">Status confirmado manualmente na Biblioteca da Meta.</p>
+                )}
               </div>
 
               <div className="bg-[#0d0f19] p-5 rounded-xl border border-gray-800">
-                <span className="text-xs text-gray-400 block mb-1 font-semibold">Concorrentes no Meta (Região)</span>
+                <span className="text-xs text-gray-400 block mb-1 font-semibold">Concorrentes identificados na região</span>
                 <span className="text-2xl font-black text-amber-400">
-                  {diagnosticData.anuncios.concorrentesMeta || 0} concorrentes
+                  {regionalCompetitorCount > 0
+                    ? `${regionalCompetitorCount} ${regionalCompetitorCount === 1 ? 'concorrente' : 'concorrentes'}`
+                    : 'Concorrência presente'}
                 </span>
                 <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-                  Empresas do segmento de {formData.keyword || 'saúde'} ativas no Meta Ads em {formData.cityName || 'sua região'}.
+                  {metaCompetitorsVerified
+                    ? `${diagnosticData.anuncios.concorrentesMeta || 0} deles foram confirmados com anúncios ativos na Meta.`
+                    : regionalCompetitorCount > 0
+                      ? 'A presença regional foi confirmada pelo Local Falcon; a atividade desses concorrentes na Meta ainda não foi confirmada.'
+                      : 'Existem empresas concorrentes na região, mas a quantidade e a atividade na Meta ainda não foram consolidadas pelas APIs.'}
                 </p>
               </div>
 
@@ -2607,9 +2768,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <span>Diagnóstico Estratégico Meta Ads</span>
               </h4>
               <p className="text-xs text-gray-300 leading-relaxed">
-                {diagnosticData.anuncios.clienteAnunciaMeta
+                {metaAdsStatus === true
                   ? `Sua clínica já possui anúncios rodando na Meta. Recomendamos monitorar a taxa de clique (CTR) e otimizar os criativos de vídeo para atrair pacientes da região de ${formData.cityName}.`
-                  : `O Instagram e o Facebook são os principais canais visuais para captação de pacientes na região de ${formData.cityName}. Como sua empresa atualmente não possui anúncios ativos na Meta, você está deixando de impactar pessoas que buscam por ${formData.keyword} diariamente.`}
+                  : metaAdsStatus === false
+                    ? `A consulta da Meta Ad Library não encontrou anúncios ativos para esta empresa. Confirme o resultado pela Biblioteca da Meta antes de utilizar esta informação comercialmente.`
+                    : 'Não foi possível confirmar o status pela API. Abra a Biblioteca da Meta para consultar os anúncios ativos diretamente.'}
               </p>
             </div>
           </div>
@@ -2641,8 +2804,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   <Sparkles className="w-6 h-6 text-pink-400" />
                 </div>
                 <div>
-                  <h4 className={`text-2xl font-black ${diagnosticData.anuncios.clienteAnunciaMeta ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {diagnosticData.anuncios.clienteAnunciaMeta ? 'Sim' : 'Não'}
+                  <h4 className={`text-2xl font-black ${metaAdsStatus === true ? 'text-emerald-400' : metaAdsStatus === false ? 'text-red-400' : 'text-amber-400'}`}>
+                    {metaAdsStatus === true ? 'Sim' : metaAdsStatus === false ? 'Não' : 'N/A'}
                   </h4>
                   <p className="text-xs text-gray-400 font-medium">você anuncia no Meta</p>
                 </div>
@@ -2665,7 +2828,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   <Layers className="w-6 h-6 text-purple-400" />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-purple-400">{diagnosticData.anuncios.concorrentesMeta}/3</h4>
+                  <h4 className="text-2xl font-black text-purple-400">{metaCompetitorsVerified ? `${diagnosticData.anuncios.concorrentesMeta}/3` : 'N/A'}</h4>
                   <p className="text-xs text-gray-400 font-medium">concorrentes no Meta</p>
                 </div>
               </div>
@@ -2675,7 +2838,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <p className="text-orange-400 font-bold text-sm">
                 {diagnosticData.anuncios.clienteAnunciaGoogle
                   ? "Você já anuncia e isso está bem feito, é um ativo que podemos usar para recuperar pacientes rapidamente."
-                  : "Você não está anunciando, o que significa que seus concorrentes estão recebendo todos os pacientes que buscam por dentista hoje."}
+                  : `A consulta indica que você não anuncia no Google. Status no Meta: ${metaAdsStatus === true ? 'ativo' : metaAdsStatus === false ? 'inativo' : 'não confirmado'}.`}
               </p>
             </div>
 
@@ -2683,8 +2846,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <div>
                 <h4 className="text-sm font-bold text-purple-400 mb-2 uppercase">O que os números mostram</h4>
                 <ul className="list-disc pl-4 space-y-2 text-sm text-gray-300">
-                  <li>Você anuncia no Google e no Meta: Google ativo: {diagnosticData.anuncios.clienteAnunciaGoogle ? 'sim' : 'não'} | Meta ativo: {diagnosticData.anuncios.clienteAnunciaMeta ? 'sim' : 'não'}.</li>
-                  <li>Concorrentes anunciando no Google na região: {diagnosticData.anuncios.concorrentesGoogle} | concorrentes anunciando no Meta: {diagnosticData.anuncios.concorrentesMeta}.</li>
+                  <li>Você anuncia no Google e no Meta: Google ativo: {diagnosticData.anuncios.clienteAnunciaGoogle ? 'sim' : 'não'} | Meta ativo: {metaAdsStatus === true ? 'sim' : metaAdsStatus === false ? 'não' : 'não confirmado'}.</li>
+                  <li>Concorrentes anunciando no Google na região: {diagnosticData.anuncios.concorrentesGoogle} | concorrentes anunciando no Meta: {metaCompetitorsVerified ? diagnosticData.anuncios.concorrentesMeta : 'não confirmado'}.</li>
                 </ul>
               </div>
               <div>
@@ -3652,15 +3815,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                       </div>
 
                       <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-                        {(diagnosticData.gmn?.concorrentes && diagnosticData.gmn.concorrentes.length > 0
-                          ? diagnosticData.gmn.concorrentes
-                          : (diagnosticData.concorrentes && diagnosticData.concorrentes.length > 0
-                              ? diagnosticData.concorrentes
-                              : [])
-                        ).slice(0, 5).map((c: any, idx: number) => (
+                        {topCompetitors.map((c: any, idx: number) => (
                           <div key={idx} className="flex items-center justify-between p-3.5 bg-gray-900/80 rounded-xl text-sm border border-gray-800">
                             <div className="min-w-0 flex-1 pr-3">
-                              <span className="font-bold text-gray-100 block truncate">#{idx + 1} {c.nome || c.name || 'Concorrente'}</span>
+                              <span className="font-bold text-gray-100 block truncate">#{c.posicao} {c.nome || c.name || 'Concorrente'}</span>
                               <span className="text-xs text-gray-400 block truncate">{c.endereco || (formData.cityName ? `${formData.cityName} - DF` : 'Localidade')}</span>
                             </div>
                             <span className="text-amber-400 font-bold shrink-0 text-right text-sm">
@@ -3674,12 +3832,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                         <div className="p-4 bg-amber-950/40 border border-amber-500/50 rounded-xl text-sm">
                           <div className="flex items-center justify-between">
                             <span className="font-black text-amber-300 text-base truncate">
-                              {diagnosticData.gmn?.posicaoMedia || (selectedProspect as any).gmnRankPosition || '#1'}. {selectedProspect.clinicName} (VOCÊ)
+                              #{hasValidClientRank ? clientRank : '—'} {selectedProspect.clinicName} (VOCÊ)
                             </span>
                             <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500 text-gray-950 uppercase shrink-0">VOCÊ</span>
                           </div>
                           <p className="text-xs text-amber-200/80 mt-1">
-                            {selectedProspect.location || (formData.cityName ? `${formData.cityName} - DF` : 'Sua região')} | Posição média Local Falcon
+                            {selectedProspect.location || (formData.cityName ? `${formData.cityName} - DF` : 'Sua região')} | Posição Local Falcon
                           </p>
                         </div>
                       </div>

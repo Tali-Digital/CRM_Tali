@@ -7,8 +7,9 @@ import { getGlobalSettings } from './firestoreService';
 
 export interface MetaAdsResult {
   success: boolean;
-  clienteAnunciaMeta: boolean;
+  clienteAnunciaMeta?: boolean;
   concorrentesMeta: number;
+  competitorsVerified?: boolean;
   adCount?: number;
   error?: string;
 }
@@ -27,10 +28,9 @@ export const checkMetaAds = async (companyName: string, keyword: string): Promis
   const token = settings?.metaAdsKey || '';
 
   if (!token || !token.trim()) {
-    console.warn('[MetaAds] Access Token da Meta não configurado no Admin. Retornando estimativa.');
+    console.warn('[MetaAds] Access Token da Meta não configurado no Admin.');
     return {
-      success: true,
-      clienteAnunciaMeta: false,
+      success: false,
       concorrentesMeta: 0,
       error: 'Access Token da Meta Ad Library não configurado no Admin.'
     };
@@ -38,12 +38,13 @@ export const checkMetaAds = async (companyName: string, keyword: string): Promis
 
   try {
     // 1. Verificar se a empresa específica possui anúncios ativos na Meta
-    const companyUrl = `https://graph.facebook.com/v19.0/ads_archive?search_terms=${encodeURIComponent(companyName.trim())}&ad_reached_countries=['BR']&active_status=ACTIVE&limit=5&access_token=${encodeURIComponent(token.trim())}`;
+    const fields = 'id,page_id,page_name,ad_delivery_start_time,ad_delivery_stop_time';
+    const companyUrl = `https://graph.facebook.com/v23.0/ads_archive?search_terms=${encodeURIComponent(companyName.trim())}&ad_reached_countries=${encodeURIComponent('["BR"]')}&active_status=ACTIVE&ad_type=ALL&fields=${encodeURIComponent(fields)}&limit=100&access_token=${encodeURIComponent(token.trim())}`;
     
     console.log('[MetaAds] Consultando anúncios da empresa:', companyName);
     const companyRes = await fetch(companyUrl).catch(() => null);
 
-    let clienteAnunciaMeta = false;
+    let clienteAnunciaMeta: boolean | undefined;
     let companyAdCount = 0;
 
     if (companyRes && companyRes.ok) {
@@ -55,12 +56,24 @@ export const checkMetaAds = async (companyName: string, keyword: string): Promis
     } else if (companyRes) {
       const errTxt = await companyRes.text();
       console.warn('[MetaAds] Resposta da API Meta para empresa:', companyRes.status, errTxt);
+      return {
+        success: false,
+        concorrentesMeta: 0,
+        error: `Meta Ad Library API (${companyRes.status}): não foi possível confirmar anúncios ativos.`
+      };
+    } else {
+      return {
+        success: false,
+        concorrentesMeta: 0,
+        error: 'Meta Ad Library API: sem resposta ao consultar anúncios ativos.'
+      };
     }
 
     // 2. Verificar quantos concorrentes na região estão anunciando no Meta para a palavra-chave
     let concorrentesMeta = 0;
+    let competitorsVerified = false;
     if (keyword && keyword.trim()) {
-      const kwUrl = `https://graph.facebook.com/v19.0/ads_archive?search_terms=${encodeURIComponent(keyword.trim())}&ad_reached_countries=['BR']&active_status=ACTIVE&limit=20&access_token=${encodeURIComponent(token.trim())}`;
+      const kwUrl = `https://graph.facebook.com/v23.0/ads_archive?search_terms=${encodeURIComponent(keyword.trim())}&ad_reached_countries=${encodeURIComponent('["BR"]')}&active_status=ACTIVE&ad_type=ALL&fields=${encodeURIComponent(fields)}&limit=100&access_token=${encodeURIComponent(token.trim())}`;
       
       console.log('[MetaAds] Consultando concorrentes para keyword:', keyword);
       const kwRes = await fetch(kwUrl).catch(() => null);
@@ -71,6 +84,7 @@ export const checkMetaAds = async (companyName: string, keyword: string): Promis
         // Contar páginas únicas de concorrentes
         const uniquePages = new Set(kwAds.map((a: any) => a.page_id || a.page_name).filter(Boolean));
         concorrentesMeta = Math.min(uniquePages.size, 10);
+        competitorsVerified = true;
         console.log('[MetaAds] Concorrentes únicos ativos no Meta:', concorrentesMeta);
       }
     }
@@ -79,13 +93,13 @@ export const checkMetaAds = async (companyName: string, keyword: string): Promis
       success: true,
       clienteAnunciaMeta,
       concorrentesMeta,
+      competitorsVerified,
       adCount: companyAdCount
     };
   } catch (err: any) {
     console.error('[MetaAds] Exceção ao consultar Meta Ad Library:', err);
     return {
       success: false,
-      clienteAnunciaMeta: false,
       concorrentesMeta: 0,
       error: err.message || 'Erro ao consultar Meta Ad Library'
     };

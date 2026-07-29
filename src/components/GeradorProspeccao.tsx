@@ -383,10 +383,16 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
     const { resumo1 = '', resumo2 = '', resumo3 = '', placar, site, anuncios, gmn } = diagnosticData || {};
     const planoAcao = Array.isArray(diagnosticData?.planoAcao) ? diagnosticData.planoAcao : [];
+    const clientRank = Number(diagnosticData?.posicaoCliente ?? gmn?.posicaoMedia);
+    const hasValidClientRank = Number.isInteger(clientRank) && clientRank > 0;
     const concorrentes = Array.from(
       new Map(
         (Array.isArray(diagnosticData?.concorrentes) ? diagnosticData.concorrentes : [])
           .filter((competitor: any) => competitor?.nome && !competitor.nome.startsWith('Concorrente Local'))
+          .filter((competitor: any) => hasValidClientRank && (clientRank === 1
+            ? Number(competitor.posicao) > clientRank
+            : Number(competitor.posicao) < clientRank
+          ))
           .sort((a: any, b: any) => (a.posicao ?? Number.MAX_SAFE_INTEGER) - (b.posicao ?? Number.MAX_SAFE_INTEGER))
           .map((competitor: any) => [competitor.placeId || competitor.nome.trim().toLowerCase(), competitor])
       ).values()
@@ -528,11 +534,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         </div>
       </div>
     ` : '';
-    const rankingHtml = concorrentes.length ? `
+    const clientRankingHtml = `<div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${clientRank}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição no Google (Local Falcon)</span></div>`;
+    const rankingHtml = hasValidClientRank ? `
       <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">Quem aparece na frente de você</h3>
-        ${concorrentes.map((c: any, index: number) => `<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#0f172a; font-size:10pt;">${index + 1}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#475569;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('')}
-        <div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${gmn?.posicaoMedia || '—'}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição média no Google (Local Falcon)</span></div>
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">${clientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}</h3>
+        ${clientRank === 1 ? clientRankingHtml : ''}
+        ${concorrentes.length ? concorrentes.map((c: any) => `<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#0f172a; font-size:10pt;">${c.posicao}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#475569;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('') : '<p style="color:#059669; font-size:10pt; font-weight:700;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
+        ${clientRank !== 1 ? clientRankingHtml : ''}
       </div>
     ` : '';
     const pageSpeedHtml = site ? `
