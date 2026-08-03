@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
-import { subscribeToProspects, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
+import { subscribeToProspects, subscribeToProspeccaoDocs, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
 import { enrichSingleLeadWithOutscraper } from '../services/outscraperEnrichment';
 import { geocodeAndSaveProspect } from '../utils/geocode';
@@ -458,10 +458,49 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     tableContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
-
   useEffect(() => {
-    const unsubscribe = subscribeToProspects(companyId, (data) => {
-      const normalizedData = data.map(p => {
+    let onlineList: Prospect[] = [];
+    let presencialList: any[] = [];
+
+    const mergeAndSet = () => {
+      const onlineIds = new Set(onlineList.map(p => p.id));
+      const onlineNames = new Set(onlineList.map(p => (p.clinicName || '').toLowerCase().trim()));
+
+      const syntheticProspects: Prospect[] = presencialList
+        .filter(doc => {
+          if (doc.clienteId && onlineIds.has(doc.clienteId)) return false;
+          const name = (doc.clinicName || doc.clinica || doc.titulo || '').toLowerCase().trim();
+          if (name && onlineNames.has(name)) return false;
+          return true;
+        })
+        .map(doc => ({
+          id: doc.id,
+          companyId: companyId,
+          clinicName: doc.clinicName || doc.clinica || doc.titulo || 'Sem Nome',
+          ownerName: doc.ownerName || doc.clienteNome || doc.cliente || '',
+          location: doc.location || doc.cidadeEstado || doc.cidade || '',
+          responsible: doc.responsible || doc.responsavel || '',
+          status: doc.isEntregue ? 'Entregue' : (doc.status || 'Presencial'),
+          reconhecimento: doc.reconhecimento || '',
+          statusGeral: doc.statusGeral || '',
+          gmnRating: doc.gmnRating || '4.8',
+          gmnReviewsCount: doc.gmnReviewsCount || 0,
+          clinicInstagram: doc.clinicInstagram || '',
+          site: doc.site || '',
+          notes: doc.notes || doc.conteudo || '',
+          isInPerson: true,
+          hasPresencialFicha: true,
+          marketingDiagnostic: doc.marketingDiagnostic || doc.diagnosticData || null,
+          createdAt: doc.createdAt || new Date().toISOString(),
+          order: 9999
+        } as unknown as Prospect));
+
+      setProspects([...onlineList, ...syntheticProspects]);
+      setLoading(false);
+    };
+
+    const unsubscribeProspects = subscribeToProspects(companyId, (data) => {
+      onlineList = data.map(p => {
         let recon = p.reconhecimento || '';
         let stat = p.status || '';
         let geral = p.statusGeral || '';
@@ -490,8 +529,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
         return { ...p, reconhecimento: recon, status: stat, statusGeral: geral };
       });
-      setProspects(normalizedData);
-      setLoading(false);
+      mergeAndSet();
+    });
+
+    const unsubscribeDocs = subscribeToProspeccaoDocs((docs) => {
+      presencialList = docs;
+      mergeAndSet();
     });
 
     // Load global API Key if needed
@@ -501,7 +544,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeProspects();
+      unsubscribeDocs();
+    };
   }, [companyId]);
 
   const processedProspects = useMemo(() => {
@@ -2134,7 +2180,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         {isModalOpen && (
           <div
             onClick={handleCloseAndSave}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-2 sm:p-4"
           >
             <div
               onClick={(e) => e.stopPropagation()}

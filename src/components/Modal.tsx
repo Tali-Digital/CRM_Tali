@@ -14,7 +14,7 @@ export const Modal: React.FC<Props> = ({ isOpen, onClose, title, children, maxWi
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-nunito">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 font-nunito">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

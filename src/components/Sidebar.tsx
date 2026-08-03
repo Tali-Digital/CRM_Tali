@@ -136,49 +136,70 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
 
   const renderItem = (item: any, isBottom: boolean = false) => {
     if (item.isGroup) {
-      const isOpen = openMenus[item.id] || (isCollapsed && !isMobileOpen); // keep visual state for collapsed
-      
-      // Auto expand se algum filho está ativo
+      if (isCollapsed && !isMobileOpen) {
+        return (
+          <div key={item.id} className="space-y-1 mb-2 border-t border-white/5 pt-2">
+            {item.children.map((child: any) => {
+              const isActive = activeTab === child.id;
+              const ChildIcon = child.icon;
+              return (
+                <a
+                  key={child.id}
+                  data-sidebar-tab={child.id}
+                  href={`#/${child.id}`}
+                  onClick={() => {
+                    onTabChange(child.id);
+                    if (window.innerWidth < 768 && onClose) onClose();
+                  }}
+                  className={`w-full flex items-center justify-center p-3 rounded-xl transition-all relative ${
+                    isActive 
+                      ? activeItemClasses 
+                      : itemHoverClasses
+                  }`}
+                  title={child.label}
+                >
+                  <ChildIcon size={20} className={`shrink-0 ${isActive ? 'text-white' : (child.iconColor || 'text-white/70')}`} />
+                </a>
+              );
+            })}
+          </div>
+        );
+      }
+
+      const isOpen = openMenus[item.id];
       const isChildActive = item.children?.some((c: any) => c.id === activeTab);
       const shouldOpen = isOpen || isChildActive;
 
       return (
         <div key={item.id} className="mb-2">
           <button 
-            onClick={() => {
-              if (isCollapsed && !isMobileOpen) {
-                onToggleCollapse(); // expande a sidebar primeiro
-              }
-              toggleMenu(item.id);
-            }} 
-            className={`w-full flex items-center ${isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-between'} px-4 py-3 rounded-xl transition-all ${itemHoverClasses} ${isChildActive ? 'bg-white/5' : ''}`}
-            title={isCollapsed ? item.label : ''}
+            onClick={() => toggleMenu(item.id)} 
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${itemHoverClasses} ${isChildActive ? 'bg-white/5' : ''}`}
+            title={item.label}
           >
             <div className="flex items-center space-x-3">
                <item.icon size={20} className={`shrink-0 ${isChildActive ? 'text-[#5271FF]' : ''}`} />
-               {(!isCollapsed || isMobileOpen) && <span className="text-sm font-bold truncate">{item.label}</span>}
+               <span className="text-sm font-bold truncate">{item.label}</span>
             </div>
-            {(!isCollapsed || isMobileOpen) && (
-               <div className="flex items-center gap-1">
-                  {item.onAdd && (
-                    <div 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        e.preventDefault();
-                        if(item.onAdd) item.onAdd(); 
-                      }} 
-                      className="p-1 hover:bg-[#5271FF] rounded-md transition-colors"
-                      title="Adicionar"
-                    >
-                      <Plus size={16} />
-                    </div>
-                  )}
-                  <ChevronDown size={16} className={`transition-transform duration-300 ${shouldOpen ? 'rotate-180' : ''}`} />
-               </div>
-            )}
+            <div className="flex items-center gap-1">
+              {item.onAdd && (
+                <div 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    e.preventDefault();
+                    if(item.onAdd) item.onAdd(); 
+                  }} 
+                  className="p-1 hover:bg-[#5271FF] rounded-md transition-colors"
+                  title="Adicionar"
+                >
+                  <Plus size={16} />
+                </div>
+              )}
+              <ChevronDown size={16} className={`transition-transform duration-300 ${shouldOpen ? 'rotate-180' : ''}`} />
+            </div>
           </button>
           
-          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${shouldOpen && (!isCollapsed || isMobileOpen) ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${shouldOpen ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
             <div className="pl-4 pr-1 space-y-1 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10">
               {item.children.map((child: any) => {
                  const isActive = activeTab === child.id;

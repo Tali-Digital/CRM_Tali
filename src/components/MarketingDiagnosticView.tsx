@@ -63,6 +63,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [activeTab, setActiveTab] = useState<'ativas' | 'arquivados' | 'lixeira'>(() => getSavedViewState('activeTab', 'ativas'));
   const [responsibleFilter, setResponsibleFilter] = useState(() => getSavedViewState('responsibleFilter', ''));
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
   const [showPresentationModal, setShowPresentationModal] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -2166,6 +2167,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   src={diagnosticData.gmn?.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn?.scanId}`}
                   alt="Mapa de Calor Local Falcon Real"
                   className="block w-full h-auto rounded-xl"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
                 />
               </div>
             ) : (
@@ -3076,127 +3080,149 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   );
 };
 
+  const topCompetitors = diagnosticData?.concorrentes || diagnosticData?.gmn?.concorrentes || [];
+  const clientRank = diagnosticData?.posicaoCliente || diagnosticData?.gmn?.posicaoMedia || '—';
+  const hasValidClientRank = clientRank !== '—' && clientRank !== undefined && clientRank !== null;
+
   return (
     <div className="flex h-screen flex-col md:flex-row bg-stone-50 p-2 gap-2 relative overflow-y-auto md:overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`w-full md:w-96 lg:w-[420px] shrink-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm h-[68vh] md:h-auto md:max-h-none ${isFullscreen ? 'hidden' : 'flex'}`}>
+      <div className={`w-full ${isLeftPanelCollapsed ? 'md:w-16' : 'md:w-80 lg:w-[360px]'} shrink-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm transition-all duration-300 h-[68vh] md:h-auto md:max-h-none ${isFullscreen ? 'hidden' : 'flex'}`}>
         <div className="p-3 md:p-4 border-b border-stone-100">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-black text-stone-800 flex items-center gap-2">
-              <Activity className="text-[#5271FF]" /> Diagnósticos
-            </h2>
-            <button
-              onClick={() => setShowQueueModal(true)}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md border cursor-pointer ${
-                queueCounts.running > 0
-                  ? 'bg-amber-500 border-amber-400 text-white animate-pulse shadow-amber-500/30'
-                  : 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500 shadow-blue-500/20'
-              }`}
-              title="Fila de Diagnósticos"
-            >
-              <ListOrdered size={16} />
-              <span>Fila</span>
-              {queueCounts.total > 0 && (
-                <span className="ml-0.5 px-2 py-0.5 rounded-full text-xs font-black bg-white/20 text-white">
-                  {queueCounts.waiting + queueCounts.running}
-                </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <button 
+                onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
+                className="p-1 rounded-lg hover:bg-stone-100 text-stone-500 hidden md:block shrink-0"
+                title={isLeftPanelCollapsed ? "Expandir painel" : "Recolher painel"}
+              >
+                {isLeftPanelCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              </button>
+              {!isLeftPanelCollapsed && (
+                <h2 className="text-lg font-black text-stone-800 flex items-center gap-2 truncate">
+                  <Activity className="text-[#5271FF] shrink-0" /> Diagnósticos
+                </h2>
               )}
-              {queueCounts.running > 0 && (
-                <Loader2 size={14} className="animate-spin" />
-              )}
-            </button>
+            </div>
+            {!isLeftPanelCollapsed && (
+              <button
+                onClick={() => setShowQueueModal(true)}
+                className={`relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md border cursor-pointer shrink-0 ${
+                  queueCounts.running > 0
+                    ? 'bg-amber-500 border-amber-400 text-white animate-pulse shadow-amber-500/30'
+                    : 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500 shadow-blue-500/20'
+                }`}
+                title="Fila de Diagnósticos"
+              >
+                <ListOrdered size={16} />
+                <span className="hidden sm:inline">Fila</span>
+                {queueCounts.total > 0 && (
+                  <span className="ml-0.5 px-2 py-0.5 rounded-full text-xs font-black bg-white/20 text-white">
+                    {queueCounts.waiting + queueCounts.running}
+                  </span>
+                )}
+                {queueCounts.running > 0 && (
+                  <Loader2 size={14} className="animate-spin" />
+                )}
+              </button>
+            )}
           </div>
-          <p className="text-xs text-stone-500 mb-3">Prospecções Presenciais marcadas</p>
+          {!isLeftPanelCollapsed && <p className="text-xs text-stone-500 mb-3">Prospecções Presenciais marcadas</p>}
 
-          {/* Abas Pill: Ativas / Arquivados / Lixeira */}
-            <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl gap-1 shadow-inner border border-[#1e3a8a]/10 mb-2 md:mb-3 text-xs w-full overflow-hidden">
-            <button
-              onClick={() => setActiveTab('ativas')}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'ativas' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-stone-500 hover:text-[#1e3a8a]'}`}
-            >
-              <Layers size={11} className="shrink-0" />
-              <span className="truncate">Ativas ({countAtivas})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('arquivados')}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'arquivados' ? 'bg-blue-600 shadow-sm text-white' : 'text-stone-500 hover:text-blue-600'}`}
-            >
-              <Archive size={11} className="shrink-0" />
-              <span className="truncate">Arquivados ({countArquivados})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('lixeira')}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm text-white' : 'text-stone-500 hover:text-red-500'}`}
-            >
-              <Trash2 size={11} className="shrink-0" />
-              <span className="truncate">Lixeira ({countLixeira})</span>
-            </button>
-          </div>
+          {!isLeftPanelCollapsed && (
+            <>
+              {/* Abas Pill: Ativas / Arquivados / Lixeira */}
+              <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl gap-1 shadow-inner border border-[#1e3a8a]/10 mb-2 md:mb-3 text-xs w-full overflow-hidden">
+                <button
+                  onClick={() => setActiveTab('ativas')}
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'ativas' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-stone-500 hover:text-[#1e3a8a]'}`}
+                >
+                  <Layers size={11} className="shrink-0" />
+                  <span className="truncate">Ativas ({countAtivas})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('arquivados')}
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'arquivados' ? 'bg-blue-600 shadow-sm text-white' : 'text-stone-500 hover:text-blue-600'}`}
+                >
+                  <Archive size={11} className="shrink-0" />
+                  <span className="truncate">Arquivados ({countArquivados})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('lixeira')}
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap rounded-lg transition-all ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm text-white' : 'text-stone-500 hover:text-red-500'}`}
+                >
+                  <Trash2 size={11} className="shrink-0" />
+                  <span className="truncate">Lixeira ({countLixeira})</span>
+                </button>
+              </div>
 
-          {/* Busca por Nome */}
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-stone-400" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar clínica..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5271FF]"
-            />
-          </div>
+              {/* Busca por Nome */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-stone-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Buscar clínica..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5271FF]"
+                />
+              </div>
 
-          <div className="flex gap-2 mt-2">
-            <select
-              value={responsibleFilter}
-              onChange={e => setResponsibleFilter(e.target.value)}
-              className="min-w-0 flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#5271FF]"
-            >
-              <option value="">Todos os líderes</option>
-              {responsibles.map(responsible => <option key={responsible} value={responsible}>{responsible}</option>)}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setResponsibleFilter('');
-                setActiveTab('ativas');
-                setDiagFilter('todos');
-              }}
-              className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#5271FF] border border-[#5271FF]/20 rounded-xl hover:bg-[#5271FF]/5"
-            >
-              Limpar
-            </button>
-          </div>
+              <div className="flex gap-2 mt-2">
+                <select
+                  value={responsibleFilter}
+                  onChange={e => setResponsibleFilter(e.target.value)}
+                  className="min-w-0 flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#5271FF]"
+                >
+                  <option value="">Todos os líderes</option>
+                  {responsibles.map(responsible => <option key={responsible} value={responsible}>{responsible}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setResponsibleFilter('');
+                    setActiveTab('ativas');
+                    setDiagFilter('todos');
+                  }}
+                  className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#5271FF] border border-[#5271FF]/20 rounded-xl hover:bg-[#5271FF]/5"
+                >
+                  Limpar
+                </button>
+              </div>
 
-          {/* Filtro 50/50: Com Diagnóstico vs Sem Diagnóstico */}
-          <div className="grid grid-cols-2 gap-1.5 mt-2">
-            <button
-              onClick={() => setDiagFilter(current => current === 'com_diag' ? 'todos' : 'com_diag')}
-              className={`py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                diagFilter === 'com_diag'
-                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                  : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
-              }`}
-            >
-              <Sparkles size={11} className={diagFilter === 'com_diag' ? 'text-white' : 'text-emerald-500'} />
-              <span className="truncate">Com Diagnóstico ({countComDiag})</span>
-            </button>
+              {/* Filtro 50/50: Com Diagnóstico vs Sem Diagnóstico */}
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <button
+                  onClick={() => setDiagFilter(current => current === 'com_diag' ? 'todos' : 'com_diag')}
+                  className={`py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    diagFilter === 'com_diag'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                      : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
+                  }`}
+                >
+                  <Sparkles size={11} className={diagFilter === 'com_diag' ? 'text-white' : 'text-emerald-500'} />
+                  <span className="truncate">Com ({countComDiag})</span>
+                </button>
 
-            <button
-              onClick={() => setDiagFilter(current => current === 'sem_diag' ? 'todos' : 'sem_diag')}
-              className={`py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                diagFilter === 'sem_diag'
-                  ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
-                  : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
-              }`}
-            >
-              <AlertCircle size={11} className={diagFilter === 'sem_diag' ? 'text-white' : 'text-amber-500'} />
-              <span className="truncate">Sem Diagnóstico ({countSemDiag})</span>
-            </button>
-          </div>
+                <button
+                  onClick={() => setDiagFilter(current => current === 'sem_diag' ? 'todos' : 'sem_diag')}
+                  className={`py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    diagFilter === 'sem_diag'
+                      ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
+                      : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
+                  }`}
+                >
+                  <AlertCircle size={11} className={diagFilter === 'sem_diag' ? 'text-white' : 'text-amber-500'} />
+                  <span className="truncate">Sem ({countSemDiag})</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto pt-1 md:pt-2 pb-4 md:pb-24 px-2 space-y-1.5 custom-scrollbar">
+        {!isLeftPanelCollapsed ? (
+          <div className="flex-1 min-h-0 overflow-y-auto pt-1 md:pt-2 pb-4 md:pb-24 px-2 space-y-1.5 custom-scrollbar">
           {filteredProspects.map(p => {
             const hasReport = !!p.marketingDiagnostic;
             const isArchivedItem = p.isArchived === true || p.isEntregue === true;
@@ -3288,6 +3314,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
           )}
         </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-start pt-6 space-y-4">
+            <button 
+              onClick={() => setIsLeftPanelCollapsed(false)}
+              className="p-3.5 rounded-2xl bg-[#5271FF]/10 text-[#5271FF] hover:bg-[#5271FF]/20 transition-colors shadow-sm"
+              title="Expandir Lista de Diagnósticos"
+            >
+              <Activity size={22} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -3788,6 +3825,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                           src={diagnosticData.gmn.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}`}
                           alt="Mapa de calor real do Local Falcon"
                           className="max-h-[380px] w-auto object-contain rounded-xl border border-gray-800 shadow-xl"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
                         />
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Varredura Local Falcon</span>

@@ -1334,6 +1334,28 @@ export const addProspeccaoDoc = async (data: Omit<import('../types').EditorProsp
     ...data,
     createdAt: new Date().toISOString()
   });
+
+  try {
+    const clinicName = data.clinicName || (data as any).clinica || data.titulo || '';
+    if (clinicName && !data.clienteId) {
+      await addDoc(collection(db, 'prospects'), {
+        companyId: (data as any).companyId || 'default',
+        clinicName: clinicName,
+        ownerName: data.ownerName || (data as any).clienteNome || '',
+        location: data.location || (data as any).cidadeEstado || '',
+        responsible: data.responsible || (data as any).responsavel || '',
+        status: data.isEntregue ? 'Entregue' : (data.status || 'Presencial'),
+        isInPerson: true,
+        hasPresencialFicha: true,
+        prospeccaoDocId: docRef.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    console.warn("Nao foi possivel sincronizar prospect:", err);
+  }
+
   return docRef.id;
 };
 

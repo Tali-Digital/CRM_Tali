@@ -317,43 +317,43 @@ export default function GestaoProspeccaoEditor() {
 
   return (
     <div className="p-4 sm:p-8 pb-32 bg-slate-50 h-full overflow-y-auto custom-scrollbar">
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-4 mb-6">
-        <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-fit gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-6">
+        <div className="flex bg-[#1e3a8a]/5 p-1 rounded-xl w-full lg:w-auto max-w-full gap-1 shadow-inner border border-[#1e3a8a]/10 overflow-x-auto custom-scrollbar shrink-0">
           <button
             onClick={() => setActiveTab('ativos')}
-            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
+            className={`flex shrink-0 min-w-max items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white shadow-sm text-[#1e3a8a] border border-[#1e3a8a]/10' : 'text-[#1e3a8a]/60 hover:text-[#1e3a8a]'}`}
           >
             <Layers size={14} />
             Ativas ({countAtivos})
           </button>
           <button
             onClick={() => setActiveTab('entregues')}
-            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'entregues' ? 'bg-green-500 shadow-sm shadow-green-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-green-500'}`}
+            className={`flex shrink-0 min-w-max items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'entregues' ? 'bg-green-500 shadow-sm shadow-green-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-green-500'}`}
           >
             <CheckCircle size={14} />
             Entregues ({countEntregues})
           </button>
           <button
             onClick={() => setActiveTab('aguardando')}
-            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'aguardando' ? 'bg-amber-500 shadow-sm shadow-amber-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-amber-600'}`}
+            className={`flex shrink-0 min-w-max items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'aguardando' ? 'bg-amber-500 shadow-sm shadow-amber-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-amber-600'}`}
           >
             <Clock size={14} />
             Aguardando ({countAguardando})
           </button>
           <button
             onClick={() => setActiveTab('lixeira')}
-            className={`flex items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
+            className={`flex shrink-0 min-w-max items-center justify-center px-3 sm:px-4 gap-2 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${activeTab === 'lixeira' ? 'bg-red-500 shadow-sm shadow-red-500/20 text-white' : 'text-[#1e3a8a]/60 hover:text-red-500'}`}
           >
             <Trash2 size={14} />
             Lixeira ({countLixeira})
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto items-center">
-          <button onClick={() => setIsGerenciadorOpen(true)} className="flex items-center justify-center gap-1.5 sm:gap-2 bg-white border border-slate-200 text-slate-700 px-2 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50 shadow-sm text-[11px] sm:text-sm text-center">
-            <Settings size={14} className="shrink-0" /> <span className="truncate">Modelos</span>
+        <div className="flex flex-row gap-2 sm:gap-3 w-full lg:w-auto items-center justify-end shrink-0">
+          <button onClick={() => setIsGerenciadorOpen(true)} className="flex-1 lg:flex-none items-center justify-center gap-1.5 sm:gap-2 bg-white border border-slate-200 text-slate-700 px-3 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-slate-50 shadow-sm text-[11px] sm:text-sm text-center flex shrink-0">
+            <Settings size={14} className="shrink-0" /> <span className="whitespace-nowrap">Modelos</span>
           </button>
-          <button onClick={() => setIsGeradorOpen(true)} className="flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-600 text-white border-none px-2 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-blue-700 shadow-sm text-[11px] sm:text-sm text-center">
-            <Plus size={14} className="shrink-0" /> <span className="truncate">Nova Prospecção</span>
+          <button onClick={() => setIsGeradorOpen(true)} className="flex-1 lg:flex-none items-center justify-center gap-1.5 sm:gap-2 bg-blue-600 text-white border-none px-3 sm:px-4 py-2.5 rounded-lg font-semibold transition-all hover:bg-blue-700 shadow-sm text-[11px] sm:text-sm text-center flex shrink-0">
+            <Plus size={14} className="shrink-0" /> <span className="whitespace-nowrap">Nova Prospecção</span>
           </button>
         </div>
       </div>
