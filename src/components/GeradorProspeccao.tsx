@@ -7,54 +7,18 @@ import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, Al
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
-export const generateFalconSvgHeatmap = (gridPoints?: any[], clientRank?: number, solv?: number): string => {
-  const points = (gridPoints && gridPoints.length > 0) ? gridPoints : [
-    { rank: clientRank || 7 }, { rank: 1 }, { rank: 2 }, { rank: 3 }, { rank: 4 },
-    { rank: 5 }, { rank: clientRank || 7 }, { rank: 8 }, { rank: 9 }, { rank: 12 },
-    { rank: 15 }, { rank: 3 }, { rank: clientRank || 7 }, { rank: 18 }, { rank: 20 },
-    { rank: 2 }, { rank: 6 }, { rank: 11 }, { rank: 14 }, { rank: 19 },
-    { rank: 4 }, { rank: 9 }, { rank: 16 }, { rank: 22 }, { rank: 25 }
-  ];
-
-  const cols = 5;
-  const rows = Math.ceil(points.length / cols);
-  const width = 600;
-  const height = 380;
-  const paddingX = 70;
-  const paddingY = 55;
-  const stepX = (width - paddingX * 2) / (cols - 1);
-  const stepY = (height - paddingY * 2) / (Math.max(rows - 1, 1));
-
-  let svgPins = '';
-  points.slice(0, 25).forEach((pt: any, index: number) => {
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const x = paddingX + col * stepX;
-    const y = paddingY + row * stepY;
-
-    const rank = pt.rank === false ? 20 : (Number(pt.rank) || clientRank || 7);
-    let color = '#EF4444'; // Red
-    if (rank <= 3) color = '#10B981'; // Green
-    else if (rank <= 10) color = '#F59E0B'; // Yellow
-
-    const text = rank > 20 ? '20+' : String(rank);
-
-    svgPins += `
-      <g transform="translate(${Math.round(x)}, ${Math.round(y)})">
-        <circle r="17" fill="${color}" stroke="#ffffff" stroke-width="2.5" />
-        <text y="4.5" fill="#ffffff" font-size="12" font-weight="bold" font-family="Arial, sans-serif" text-anchor="middle">${text}</text>
-      </g>
-    `;
-  });
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="auto" style="border-radius:12px; background:#0f172a; overflow:hidden; font-family:Arial,sans-serif;"><rect width="100%" height="100%" fill="#0f172a"/><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/></pattern><rect width="100%" height="100%" fill="url(#grid)"/><path d="M 0 90 Q 200 140 400 70 T 600 110" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.25"/><path d="M 110 0 Q 170 190 120 380" fill="none" stroke="#94a3b8" stroke-width="4" opacity="0.15"/>${svgPins}<rect y="${height - 36}" width="100%" height="36" fill="#1e293b" opacity="0.95"/><text x="16" y="${height - 13}" fill="#94a3b8" font-size="10" font-weight="bold">VARREDURA DE PROSPECÇÃO GOOGLE MAPS (LOCAL FALCON)</text><text x="${width - 16}" y="${height - 13}" fill="#38bdf8" font-size="10" font-weight="bold" text-anchor="end">SoLV: ${solv || 38.78}%</text></svg>`;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
+import Swal from 'sweetalert2';
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
   let cleaned = rawHtml;
+
+  // Corrigir URLs HTTP de imagens antigas do servidor Hostinger para HTTPS (evita bloqueio de mixed content)
+  cleaned = cleaned.replace(/src="http:\/\/crm\.talidigital\.com\.br/gi, 'src="https://crm.talidigital.com.br');
+  cleaned = cleaned.replace(/src='http:\/\/crm\.talidigital\.com\.br/gi, "src='https://crm.talidigital.com.br");
+
+  // Corrigir caminhos relativos de imagens (ex: src="uploads/...")
+  cleaned = cleaned.replace(/src="(?!\/|https?:\/\/|data:|blob:)([^"]+)"/gi, 'src="https://crm.talidigital.com.br/$1"');
+  cleaned = cleaned.replace(/src='(?!\/|https?:\/\/|data:|blob:)([^']+)'/gi, "src='https://crm.talidigital.com.br/$1'");
 
   // Substituir sequências de interrogações em nomes/textos por textos limpos (ex: ????????????????????)
   cleaned = cleaned.replace(/Dr\.\s*\?{2,}/gi, 'Dr. Proprietário');
@@ -65,7 +29,16 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
     const doc = parser.parseFromString(cleaned, 'text/html');
 
     doc.querySelectorAll('img').forEach(img => {
-      const src = img.getAttribute('src')?.trim() || '';
+      let src = img.getAttribute('src')?.trim() || '';
+
+      if (src.startsWith('http://crm.talidigital.com.br')) {
+        src = src.replace('http://', 'https://');
+        img.setAttribute('src', src);
+      } else if (!src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('blob:') && src.length > 0) {
+        src = `https://crm.talidigital.com.br/${src.replace(/^\//, '')}`;
+        img.setAttribute('src', src);
+      }
+
       if (!src || src === 'undefined' || src === 'null' || src === 'about:blank') {
         img.remove();
       } else {
@@ -580,14 +553,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
 
-    const fallbackHeatmapSvg = generateFalconSvgHeatmap(gmn?.gridPoints, clientRank, solv);
-    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '') || fallbackHeatmapSvg;
-    const mapaCalorHtml = `
+    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '');
+    const mapaCalorHtml = mapImageUrl ? `
       <div style="margin: 24px 0; text-align: center;">
-        <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" onerror="this.onerror=null;this.src='${fallbackHeatmapSvg}';" />
+        <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" />
         <p style="margin: 8px 0 0; color: #475569; font-size: 9pt;">Mapa da varredura Local Falcon${gmn?.scanId ? ` | Scan: ${gmn.scanId}` : ''}</p>
       </div>
-    `;
+    ` : '';
     const fichaClinicaHtml = `
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; color:#0f172a;">
         <div style="font-size:18pt; font-weight:800; margin-bottom:6px;">${clinica || prospectData?.clinicName || 'Clínica'}</div>
@@ -799,7 +771,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleSaveModeloOnly = async () => {
     if (!editorRef.current) return;
-    const html = getCanonicalHtml();
+    const rawHtml = getCanonicalHtml();
 
     if (!nomeModeloState.trim()) {
       Swal.fire('Nome Obrigatório', 'Por favor, informe o nome do modelo.', 'warning');
@@ -808,6 +780,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
     setIsSaving(true);
     try {
+      const html = await processAndUploadAllImagesInHtml(rawHtml);
       if (selectedModeloId) {
         await updateModeloProspeccao(selectedModeloId, {
           nome: nomeModeloState.trim(),
@@ -843,51 +816,67 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleSaveModelo = async () => {
     if (!editorRef.current) return;
-    const html = getCanonicalHtml();
     const currentModel = modelos.find(m => m.id === selectedModeloId);
 
     const { value: nome } = await Swal.fire({
-      title: 'Salvar Modelo',
-      text: 'Digite o nome deste modelo:',
+      title: 'Salvar Modelo de Prospecção',
+      text: 'Digite o nome para identificar este modelo:',
       input: 'text',
       inputValue: currentModel ? currentModel.nome : '',
       showCancelButton: true,
-      confirmButtonText: 'Salvar',
+      confirmButtonText: 'Salvar Modelo',
       cancelButtonText: 'Cancelar',
-      inputValidator: (value) => { if (!value) return 'Você precisa digitar um nome!'; }
+      inputValidator: (value) => { if (!value || !value.trim()) return 'Você precisa digitar um nome!'; }
     });
 
     if (!nome) return;
 
-    const existingIndex = modelos.findIndex(m => m.nome.trim().toLowerCase() === nome.trim().toLowerCase());
-    let newSelectedId = '';
+    try {
+      const rawHtml = getCanonicalHtml();
+      const html = await processAndUploadAllImagesInHtml(rawHtml);
+      const existingIndex = modelos.findIndex(m => m.nome.trim().toLowerCase() === nome.trim().toLowerCase());
+      let newSelectedId = '';
 
-    if (existingIndex >= 0) {
-      const { isConfirmed } = await Swal.fire({
-        title: 'Modelo já existe',
-        text: `Já existe um modelo chamado "${nome}". Deseja sobrescrevê-lo?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sim, sobrescrever',
-        cancelButtonText: 'Cancelar'
+      if (existingIndex >= 0) {
+        const { isConfirmed } = await Swal.fire({
+          title: 'Modelo já existe',
+          text: `Já existe um modelo chamado "${nome}". Deseja atualizar o conteúdo dele com a versão atual?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sim, atualizar modelo',
+          cancelButtonText: 'Cancelar'
+        });
+        if (!isConfirmed) return;
+        await updateModeloProspeccao(modelos[existingIndex].id, {
+          nome: nome.trim(),
+          conteudo: html,
+          updatedAt: new Date().toISOString()
+        });
+        newSelectedId = modelos[existingIndex].id;
+      } else {
+        newSelectedId = await addModeloProspeccao({
+          nome: nome.trim(),
+          descricao: '',
+          conteudo: html,
+          ordem: modelos.length,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      setSelectedModeloId(newSelectedId);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Modelo "${nome.trim()}" salvo com sucesso!`,
+        showConfirmButton: false,
+        timer: 2500,
+        timerProgressBar: true
       });
-      if (!isConfirmed) return;
-      await updateModeloProspeccao(modelos[existingIndex].id, { conteudo: html });
-      newSelectedId = modelos[existingIndex].id;
-    } else {
-      newSelectedId = await addModeloProspeccao({ nome, conteudo: html });
+    } catch (err: any) {
+      console.error('Erro ao salvar modelo:', err);
+      Swal.fire('Erro ao Salvar', err.message || 'Não foi possível salvar o modelo no banco de dados.', 'error');
     }
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Modelo salvo com sucesso!',
-      showConfirmButton: false,
-      timer: 2000,
-      timerProgressBar: true
-    });
-    setSelectedModeloId(newSelectedId);
   };
 
   const handleLoadModelo = (modeloId: string) => {
@@ -1118,6 +1107,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   };
 
   const uploadImageToHostinger = async (base64Image: string): Promise<string> => {
+    if (!base64Image || !base64Image.startsWith('data:image')) return base64Image;
     try {
       const response = await fetch('https://crm.talidigital.com.br/upload.php', {
         method: 'POST',
@@ -1126,12 +1116,38 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       });
       const data = await response.json();
       if (data.success && data.url) {
-        return data.url;
+        const secureUrl = data.url.replace(/^http:\/\//i, 'https://');
+        return secureUrl;
       }
     } catch (error) {
-      console.warn('Upload para Hostinger falhou, preservando base64 local:', error);
+      console.warn('Upload para Hostinger falhou:', error);
     }
     return base64Image;
+  };
+
+  const processAndUploadAllImagesInHtml = async (rawHtml: string): Promise<string> => {
+    if (!rawHtml) return '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = rawHtml;
+    const images = Array.from(tempDiv.querySelectorAll('img'));
+
+    let hasUploaded = false;
+    for (const img of images) {
+      const src = img.getAttribute('src')?.trim() || '';
+      if (src.startsWith('data:image')) {
+        hasUploaded = true;
+        const uploadedUrl = await uploadImageToHostinger(src);
+        if (uploadedUrl && uploadedUrl.startsWith('http')) {
+          img.setAttribute('src', uploadedUrl);
+        }
+      }
+    }
+
+    if (hasUploaded && editorRef.current) {
+      editorRef.current.innerHTML = tempDiv.innerHTML;
+    }
+
+    return tempDiv.innerHTML;
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
