@@ -552,11 +552,18 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
   const processedProspects = useMemo(() => {
     let result = prospects.filter(p => {
+      const hasSearch = searchTerm.trim() !== '';
       const matchesSearch =
+        !hasSearch ||
         (p.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         ((p.responsible || '').toLowerCase().includes(searchTerm.toLowerCase()));
+
+      if (hasSearch) {
+        // Se estiver pesquisando por texto, ignorar filtros de status/líder para encontrar o registro
+        return matchesSearch;
+      }
 
       const matchesFilters = Object.entries(filters).every(([key, value]) => {
         if (!value) return true;
@@ -1518,7 +1525,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               onClick={() => {
                 setFilters({});
                 setSearchTerm('');
-                setQuickFilter('active');
+                setQuickFilter('all');
+                setSortConfig(null);
+                try {
+                  const uid = auth?.currentUser?.uid || 'guest';
+                  localStorage.removeItem(`prospecting_filters_${uid}_filters`);
+                  localStorage.removeItem(`prospecting_filters_${uid}_searchTerm`);
+                  localStorage.removeItem(`prospecting_filters_${uid}_quickFilter`);
+                } catch(e) {}
               }}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 shrink-0"
               style={{ height: '38px' }}
