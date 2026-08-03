@@ -4,7 +4,7 @@ import {
   Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
-import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, createNotification } from '../services/firestoreService';
+import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic } from '../services/geminiService';
 import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
@@ -85,8 +85,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showPresentationModal]);
 
-  // ── Queue System State (Com histórico persistente e auto-exclusão de 72h) ──
-  const QUEUE_STORAGE_KEY = 'tali_diagnostic_queue_history_v1';
+  // ── Queue System State (Compartilhado via Firestore com auto-exclusão de 72h) ──
   const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
 
   const filterNonExpiredQueue = useCallback((items: DiagnosticQueueItem[]): DiagnosticQueueItem[] => {
@@ -98,38 +97,31 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     });
   }, [SEVENTY_TWO_HOURS_MS]);
 
-  const [diagnosticQueue, setDiagnosticQueue] = useState<DiagnosticQueueItem[]>(() => {
-    try {
-      const stored = localStorage.getItem('tali_diagnostic_queue_history_v1');
-      if (!stored) return [];
-      const parsed: DiagnosticQueueItem[] = JSON.parse(stored);
-      const now = Date.now();
-      return parsed.filter(item => {
-        if (item.status === 'waiting' || item.status === 'running') return true;
-        const refTime = item.finishedAt || item.addedAt;
-        return (now - refTime) < (72 * 60 * 60 * 1000);
-      });
-    } catch (e) {
-      console.error('[Queue] Erro ao carregar fila do localStorage:', e);
-      return [];
-    }
-  });
+  const [diagnosticQueue, setDiagnosticQueue] = useState<DiagnosticQueueItem[]>([]);
 
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [terminalOpenId, setTerminalOpenId] = useState<string | null>(null);
+  const [queueSearchTerm, setQueueSearchTerm] = useState('');
   const isProcessingRef = useRef(false);
   const queueRef = useRef<DiagnosticQueueItem[]>([]);
+  const isLocalUpdateRef = useRef(false);
   
-  // Sincroniza ref e salva no localStorage limpando itens com mais de 72h
+  // Inscrição Firestore para fila compartilhada
+  useEffect(() => {
+    const unsub = subscribeToDiagnosticQueue(companyId, (items) => {
+      if (isLocalUpdateRef.current) {
+        isLocalUpdateRef.current = false;
+        return;
+      }
+      setDiagnosticQueue(items as DiagnosticQueueItem[]);
+    });
+    return () => unsub();
+  }, [companyId]);
+
+  // Sincroniza ref
   useEffect(() => {
     queueRef.current = diagnosticQueue;
-    try {
-      const validItems = filterNonExpiredQueue(diagnosticQueue);
-      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(validItems));
-    } catch (e) {
-      console.error('[Queue] Erro ao salvar fila no localStorage:', e);
-    }
-  }, [diagnosticQueue, filterNonExpiredQueue]);
+  }, [diagnosticQueue]);
 
   // Limpeza automática periódica (a cada 5 minutos)
   useEffect(() => {
@@ -853,17 +845,27 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   // ── Queue System Functions ──
 
   const addQueueLog = useCallback((queueId: string, step: string, status: QueueLogEntry['status'], duration?: number) => {
-    setDiagnosticQueue(prev => prev.map(item =>
-      item.id === queueId
-        ? { ...item, logs: [...item.logs, { timestamp: Date.now(), step, status, duration }] }
-        : item
-    ));
+    setDiagnosticQueue(prev => {
+      const updated = prev.map(item =>
+        item.id === queueId
+          ? { ...item, logs: [...item.logs, { timestamp: Date.now(), step, status, duration }] }
+          : item
+      );
+      const target = updated.find(i => i.id === queueId);
+      if (target) saveDiagnosticQueueItem(target);
+      return updated;
+    });
   }, []);
 
   const updateQueueItem = useCallback((queueId: string, updates: Partial<DiagnosticQueueItem>) => {
-    setDiagnosticQueue(prev => prev.map(item =>
-      item.id === queueId ? { ...item, ...updates } : item
-    ));
+    setDiagnosticQueue(prev => {
+      const updated = prev.map(item =>
+        item.id === queueId ? { ...item, ...updates } : item
+      );
+      const target = updated.find(i => i.id === queueId);
+      if (target) saveDiagnosticQueueItem(target);
+      return updated;
+    });
   }, []);
 
   const enqueueDiagnostic = useCallback((
@@ -912,7 +914,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     };
 
     setDiagnosticQueue(prev => [...prev, queueItem]);
-    setShowQueueModal(true); // Abre o popup da fila imediatamente
+    saveDiagnosticQueueItem(queueItem);
+    setShowQueueModal(true);
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${prospect.clinicName}: adicionado à fila!`, showConfirmButton: false, timer: 2500 });
   }, [formData]);
 
@@ -1270,10 +1273,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const removeFromQueue = useCallback((queueId: string) => {
     setDiagnosticQueue(prev => prev.filter(q => q.id !== queueId));
+    deleteDiagnosticQueueItem(queueId);
   }, []);
 
   const clearFinished = useCallback(() => {
     setDiagnosticQueue(prev => prev.filter(q => q.status === 'waiting' || q.status === 'running'));
+    clearFinishedDiagnosticQueue();
   }, []);
 
   const formatDuration = (ms: number) => {
@@ -3124,32 +3129,29 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 };
 
   const handleCancelOrRemoveQueueItem = (id: string) => {
-    setDiagnosticQueue(prev => {
-      const target = prev.find(item => item.id === id);
-      if (target && target.status === 'running') {
-        return prev.map(item => {
-          if (item.id === id) {
-            return {
-              ...item,
-              status: 'error',
-              error: 'Diagnóstico cancelado manualmente pelo usuário.',
-              finishedAt: Date.now(),
-              duration: item.startedAt ? Date.now() - item.startedAt : 0,
-              logs: [
-                ...(item.logs || []),
-                {
-                  timestamp: Date.now(),
-                  step: '🛑 Diagnóstico cancelado pelo usuário.',
-                  status: 'error'
-                }
-              ]
-            };
+    const target = diagnosticQueue.find(item => item.id === id);
+    if (target && target.status === 'running') {
+      const cancelledItem = {
+        ...target,
+        status: 'error' as const,
+        error: 'Diagnóstico cancelado manualmente pelo usuário.',
+        finishedAt: Date.now(),
+        duration: target.startedAt ? Date.now() - target.startedAt : 0,
+        logs: [
+          ...(target.logs || []),
+          {
+            timestamp: Date.now(),
+            step: '🛑 Diagnóstico cancelado pelo usuário.',
+            status: 'error' as const
           }
-          return item;
-        });
-      }
-      return prev.filter(item => item.id !== id);
-    });
+        ]
+      };
+      setDiagnosticQueue(prev => prev.map(item => item.id === id ? cancelledItem : item));
+      saveDiagnosticQueueItem(cancelledItem);
+    } else {
+      setDiagnosticQueue(prev => prev.filter(item => item.id !== id));
+      deleteDiagnosticQueueItem(id);
+    }
 
     isProcessingRef.current = false;
     setIsGenerating(false);
@@ -3157,6 +3159,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const handleClearFinishedQueue = () => {
     setDiagnosticQueue(prev => prev.filter(item => item.status === 'running' || item.status === 'waiting'));
+    clearFinishedDiagnosticQueue();
   };
 
   const topCompetitors = diagnosticData?.concorrentes || diagnosticData?.gmn?.concorrentes || [];
@@ -3656,6 +3659,20 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             </div>
 
+            {/* Search */}
+            <div className="px-4 pt-3 pb-1">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar diagnóstico por nome ou local..."
+                  value={queueSearchTerm}
+                  onChange={e => setQueueSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-gray-900/80 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            </div>
+
             {/* List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {diagnosticQueue.length === 0 ? (
@@ -3665,7 +3682,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   <p className="text-xs mt-1">Selecione uma clínica e clique em "Adicionar à Fila" para iniciar.</p>
                 </div>
               ) : (
-                diagnosticQueue.map(item => (
+                diagnosticQueue
+                  .filter(item => {
+                    if (!queueSearchTerm.trim()) return true;
+                    const q = queueSearchTerm.toLowerCase();
+                    return (item.clinicName || '').toLowerCase().includes(q) || (item.location || '').toLowerCase().includes(q);
+                  })
+                  .map(item => (
                   <div key={item.id} className={`rounded-xl border p-3 transition-all ${
                     item.status === 'running' ? 'bg-amber-950/30 border-amber-500/40' :
                     item.status === 'done' ? 'bg-emerald-950/20 border-emerald-500/30' :

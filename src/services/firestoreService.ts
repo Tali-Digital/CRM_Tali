@@ -1404,3 +1404,56 @@ export const deleteModeloProspeccao = async (id: string) => {
   await deleteDoc(doc(db, 'modelos_prospeccoes', id));
 };
 
+// --- DIAGNOSTIC QUEUE (COMPARTILHADA 72H) ---
+export const subscribeToDiagnosticQueue = (companyId: string, callback: (items: any[]) => void) => {
+  const q = query(collection(db, 'diagnostic_queue'));
+  return onSnapshot(q, (snapshot) => {
+    const now = Date.now();
+    const cutoff = 72 * 60 * 60 * 1000; // 72 horas
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(item => {
+        if (item.status === 'running' || item.status === 'waiting') return true;
+        const refTime = item.finishedAt || item.addedAt || now;
+        return (now - refTime) < cutoff;
+      });
+
+    items.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    callback(items);
+  }, (err) => {
+    console.error("Erro ao assinar fila de diagnósticos no Firestore:", err);
+  });
+};
+
+export const saveDiagnosticQueueItem = async (item: any) => {
+  try {
+    const docRef = doc(db, 'diagnostic_queue', item.id);
+    await setDoc(docRef, item, { merge: true });
+  } catch (err) {
+    console.error("Erro ao salvar item na fila compartilhada:", err);
+  }
+};
+
+export const deleteDiagnosticQueueItem = async (id: string) => {
+  try {
+    await deleteDoc(doc(db, 'diagnostic_queue', id));
+  } catch (err) {
+    console.error("Erro ao remover item da fila compartilhada:", err);
+  }
+};
+
+export const clearFinishedDiagnosticQueue = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'diagnostic_queue'));
+    const promises = snapshot.docs
+      .filter(d => {
+        const data = d.data();
+        return data.status === 'done' || data.status === 'error';
+      })
+      .map(d => deleteDoc(doc(db, 'diagnostic_queue', d.id)));
+    await Promise.all(promises);
+  } catch (err) {
+    console.error("Erro ao limpar fila de diagnósticos no Firestore:", err);
+  }
+};
+
