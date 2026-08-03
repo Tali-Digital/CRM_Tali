@@ -4,7 +4,7 @@ import {
   Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
-import { subscribeToProspects, updateProspect, createNotification } from '../services/firestoreService';
+import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, createNotification } from '../services/firestoreService';
 import { generateMarketingDiagnostic } from '../services/geminiService';
 import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
@@ -234,27 +234,70 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribeToProspects(companyId, (data) => {
-      // Filter only those marked for in-person / diagnostic
-      const presencial = data.filter(p => p.hasPresencialFicha || p.isInPerson);
-      setProspects(presencial);
+    let onlineList: Prospect[] = [];
+    let presencialList: any[] = [];
 
-      // If a prospect is currently selected, update its data to reflect Firestore changes
-      setProspects(currentProspects => {
-        const selectedId = selectedProspect?.id;
-        if (selectedId) {
-          const updatedSelected = presencial.find(p => p.id === selectedId);
-          if (updatedSelected) {
-            setSelectedProspect(updatedSelected);
-            if (updatedSelected.marketingDiagnostic && !diagnosticData) {
-              setDiagnosticData(updatedSelected.marketingDiagnostic);
-            }
+    const mergeAndSet = () => {
+      const onlineIds = new Set(onlineList.map(p => p.id));
+      const onlineNames = new Set(onlineList.map(p => (p.clinicName || '').toLowerCase().trim()));
+
+      const syntheticProspects = presencialList
+        .filter(doc => {
+          if (doc.clienteId && onlineIds.has(doc.clienteId)) return false;
+          const name = (doc.clinicName || doc.clinica || doc.titulo || '').toLowerCase().trim();
+          if (name && onlineNames.has(name)) return false;
+          return true;
+        })
+        .map(doc => ({
+          id: doc.id,
+          companyId: companyId,
+          clinicName: doc.clinicName || doc.clinica || doc.titulo || 'Sem Nome',
+          ownerName: doc.ownerName || doc.clienteNome || doc.cliente || '',
+          location: doc.location || doc.cidadeEstado || doc.cidade || '',
+          responsible: doc.responsible || doc.responsavel || '',
+          status: doc.isEntregue ? 'Entregue' : (doc.status || 'Presencial'),
+          reconhecimento: doc.reconhecimento || '',
+          statusGeral: doc.statusGeral || '',
+          gmnRating: doc.gmnRating || '4.8',
+          gmnReviewsCount: doc.gmnReviewsCount || 0,
+          clinicInstagram: doc.clinicInstagram || '',
+          site: doc.site || '',
+          notes: doc.notes || doc.conteudo || '',
+          isInPerson: true,
+          hasPresencialFicha: true,
+          marketingDiagnostic: doc.marketingDiagnostic || doc.diagnosticData || null,
+          createdAt: doc.createdAt || new Date().toISOString(),
+          order: 9999
+        } as unknown as Prospect));
+
+      const unified = [...onlineList, ...syntheticProspects];
+      setProspects(unified);
+
+      if (selectedProspect?.id) {
+        const updatedSelected = unified.find(p => p.id === selectedProspect.id);
+        if (updatedSelected) {
+          setSelectedProspect(updatedSelected);
+          if (updatedSelected.marketingDiagnostic && !diagnosticData) {
+            setDiagnosticData(updatedSelected.marketingDiagnostic);
           }
         }
-        return presencial;
-      });
+      }
+    };
+
+    const unsubscribeProspects = subscribeToProspects(companyId, (data) => {
+      onlineList = data;
+      mergeAndSet();
     });
-    return () => unsubscribe();
+
+    const unsubscribeDocs = subscribeToProspeccaoDocs((docs) => {
+      presencialList = docs;
+      mergeAndSet();
+    });
+
+    return () => {
+      unsubscribeProspects();
+      unsubscribeDocs();
+    };
   }, [companyId]);
 
   useEffect(() => {
