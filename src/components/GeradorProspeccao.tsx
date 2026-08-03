@@ -60,20 +60,16 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
   cleaned = cleaned.replace(/Dr\.\s*\?{2,}/gi, 'Dr. Proprietário');
   cleaned = cleaned.replace(/\?{3,}/g, '');
 
-  const defaultSvg = generateFalconSvgHeatmap();
-
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(cleaned, 'text/html');
 
     doc.querySelectorAll('img').forEach(img => {
       const src = img.getAttribute('src')?.trim() || '';
-      if (!src || src === 'undefined' || src === 'null' || src === 'about:blank' || src.includes('lf-static-v2.localfalcon.com/image/null') || src.includes('lf-static-v2.localfalcon.com/image/undefined') || src.length < 5) {
-        img.setAttribute('src', defaultSvg);
-        img.style.display = 'block';
-        img.style.maxWidth = '100%';
+      if (!src || src === 'undefined' || src === 'null' || src === 'about:blank') {
+        img.remove();
       } else {
-        img.setAttribute('onerror', `this.onerror=null;this.src='${defaultSvg}';this.style.display='block';`);
+        img.style.maxWidth = '100%';
       }
     });
 
@@ -1122,7 +1118,6 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   };
 
   const uploadImageToHostinger = async (base64Image: string): Promise<string> => {
-    Swal.fire({ title: 'Enviando imagem...', text: 'Aguarde um momento.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
       const response = await fetch('https://crm.talidigital.com.br/upload.php', {
         method: 'POST',
@@ -1131,16 +1126,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       });
       const data = await response.json();
       if (data.success && data.url) {
-        Swal.close();
         return data.url;
-      } else {
-        throw new Error(data.message || 'Erro no upload');
       }
     } catch (error) {
-      console.error('Upload falhou:', error);
-      Swal.fire('Erro!', 'Falha ao enviar a imagem para o servidor. Inserindo localmente.', 'error');
-      return base64Image; // Fallback para base64 se falhar
+      console.warn('Upload para Hostinger falhou, preservando base64 local:', error);
     }
+    return base64Image;
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
