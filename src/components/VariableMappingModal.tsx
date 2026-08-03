@@ -102,8 +102,8 @@ export const VariableMappingModal: React.FC<Props> = ({
   const resolveSourceValue = (sourceId: string, p?: Prospect | null, d?: any, fixedVal?: string) => {
     if (!p && !d) return fixedVal || '[Exemplo de Valor]';
     switch (sourceId) {
-      case 'clinicName': return p?.clinicName || 'Clínica Exemplo';
-      case 'ownerName': return p?.ownerName || 'Dr. Proprietário';
+      case 'clinicName': return (p?.clinicName && !p.clinicName.includes('???')) ? p.clinicName : 'Sua Clínica';
+      case 'ownerName': return (p?.ownerName && !p.ownerName.includes('???')) ? p.ownerName : 'Proprietário';
       case 'cnpj': return p?.cnpj || '00.000.000/0001-00';
       case 'location': return p?.location || 'Brasília - DF';
       case 'fullAddress': return p?.fullAddress || p?.location || 'Endereço da Clínica';

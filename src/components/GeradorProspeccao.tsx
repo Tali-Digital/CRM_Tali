@@ -7,7 +7,36 @@ import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, Al
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
-import Swal from 'sweetalert2';
+export const cleanDocumentHtml = (rawHtml: string): string => {
+  if (!rawHtml) return '';
+  let cleaned = rawHtml;
+
+  // Substituir sequências de interrogações em nomes/textos por textos limpos (ex: ????????????????????)
+  cleaned = cleaned.replace(/Dr\.\s*\?{2,}/gi, 'Dr. Proprietário');
+  cleaned = cleaned.replace(/\?{3,}/g, '');
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(cleaned, 'text/html');
+
+    doc.querySelectorAll('img').forEach(img => {
+      const src = img.getAttribute('src')?.trim() || '';
+      if (!src || src === 'undefined' || src === 'null' || src === 'about:blank' || src.includes('lf-static-v2.localfalcon.com/image/null') || src.includes('lf-static-v2.localfalcon.com/image/undefined') || src.length < 5) {
+        const parent = img.parentElement;
+        img.remove();
+        if (parent && (parent.tagName === 'DIV' || parent.tagName === 'P') && parent.children.length === 0 && !parent.textContent?.trim()) {
+          parent.remove();
+        }
+      } else {
+        img.setAttribute('onerror', "this.style.display='none';if(this.parentElement&&(this.parentElement.tagName==='DIV'||this.parentElement.tagName==='P')&&this.parentElement.children.length===1)this.parentElement.style.display='none';");
+      }
+    });
+
+    return doc.body.innerHTML;
+  } catch (e) {
+    return cleaned;
+  }
+};
 
 interface GeradorProspeccaoProps {
   onClose: () => void;
@@ -353,8 +382,9 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const setEditorHtml = (html: string) => {
     if (!editorRef.current) return;
-    editorRef.current.innerHTML = html;
-    setPreviewHtml(html);
+    const sanitized = cleanDocumentHtml(html);
+    editorRef.current.innerHTML = sanitized;
+    setPreviewHtml(sanitized);
     schedulePagination();
   };
 
