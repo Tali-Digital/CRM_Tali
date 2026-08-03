@@ -3080,6 +3080,42 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   );
 };
 
+  const handleCancelOrRemoveQueueItem = (id: string) => {
+    setDiagnosticQueue(prev => {
+      const target = prev.find(item => item.id === id);
+      if (target && target.status === 'running') {
+        return prev.map(item => {
+          if (item.id === id) {
+            return {
+              ...item,
+              status: 'error',
+              error: 'Diagnóstico cancelado manualmente pelo usuário.',
+              finishedAt: Date.now(),
+              duration: item.startedAt ? Date.now() - item.startedAt : 0,
+              logs: [
+                ...(item.logs || []),
+                {
+                  timestamp: Date.now(),
+                  step: '🛑 Diagnóstico cancelado pelo usuário.',
+                  status: 'error'
+                }
+              ]
+            };
+          }
+          return item;
+        });
+      }
+      return prev.filter(item => item.id !== id);
+    });
+
+    isProcessingRef.current = false;
+    setIsGenerating(false);
+  };
+
+  const handleClearFinishedQueue = () => {
+    setDiagnosticQueue(prev => prev.filter(item => item.status === 'running' || item.status === 'waiting'));
+  };
+
   const topCompetitors = diagnosticData?.concorrentes || diagnosticData?.gmn?.concorrentes || [];
   const clientRank = diagnosticData?.posicaoCliente || diagnosticData?.gmn?.posicaoMedia || '—';
   const hasValidClientRank = clientRank !== '—' && clientRank !== undefined && clientRank !== null;
@@ -3567,7 +3603,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
               <div className="flex items-center gap-2">
                 {(queueCounts.done > 0 || queueCounts.error > 0) && (
-                  <button onClick={clearFinished} className="text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-all" title="Limpar finalizados">
+                  <button onClick={handleClearFinishedQueue} className="text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-all" title="Limpar finalizados">
                     <Trash2 size={11} className="inline mr-1" />Limpar
                   </button>
                 )}
@@ -3627,10 +3663,19 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                             <Terminal size={13} />
                           </button>
                         )}
-                        {(item.status === 'done' || item.status === 'error' || item.status === 'waiting') && (
+                        {item.status === 'running' ? (
                           <button
-                            onClick={() => removeFromQueue(item.id)}
-                            className="p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-all"
+                            onClick={() => handleCancelOrRemoveQueueItem(item.id)}
+                            className="px-2 py-1 rounded-lg bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-500/40 transition-all text-xs font-bold flex items-center gap-1 shrink-0"
+                            title="Cancelar este diagnóstico em andamento"
+                          >
+                            <X size={13} className="text-red-300" />
+                            <span className="text-[10px] uppercase font-black tracking-wider">Cancelar</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleCancelOrRemoveQueueItem(item.id)}
+                            className="p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-all shrink-0"
                             title="Remover da fila"
                           >
                             <X size={13} />
