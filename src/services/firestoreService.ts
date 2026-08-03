@@ -1166,13 +1166,14 @@ export const deleteQuickLink = async (id: string) => {
 
 // --- PROSPECTS ---
 export const subscribeToProspects = (companyId: string, callback: (prospects: Prospect[]) => void) => {
-  const q = query(
-    collection(db, 'prospects'),
-    where('companyId', '==', companyId),
-    orderBy('order', 'asc')
-  );
+  const q = query(collection(db, 'prospects'));
   return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Prospect)));
+    const allProspects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Prospect));
+    const filtered = allProspects.filter(p => !p.companyId || p.companyId === companyId || p.companyId === 'default' || !companyId);
+    filtered.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
+    callback(filtered);
+  }, (error) => {
+    console.error("Erro ao assinar coleção prospects:", error);
   });
 };
 
