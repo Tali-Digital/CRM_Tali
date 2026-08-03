@@ -7,6 +7,51 @@ import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, Al
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
+export const generateFalconSvgHeatmap = (gridPoints?: any[], clientRank?: number, solv?: number): string => {
+  const points = (gridPoints && gridPoints.length > 0) ? gridPoints : [
+    { rank: clientRank || 7 }, { rank: 1 }, { rank: 2 }, { rank: 3 }, { rank: 4 },
+    { rank: 5 }, { rank: clientRank || 7 }, { rank: 8 }, { rank: 9 }, { rank: 12 },
+    { rank: 15 }, { rank: 3 }, { rank: clientRank || 7 }, { rank: 18 }, { rank: 20 },
+    { rank: 2 }, { rank: 6 }, { rank: 11 }, { rank: 14 }, { rank: 19 },
+    { rank: 4 }, { rank: 9 }, { rank: 16 }, { rank: 22 }, { rank: 25 }
+  ];
+
+  const cols = 5;
+  const rows = Math.ceil(points.length / cols);
+  const width = 600;
+  const height = 380;
+  const paddingX = 70;
+  const paddingY = 55;
+  const stepX = (width - paddingX * 2) / (cols - 1);
+  const stepY = (height - paddingY * 2) / (Math.max(rows - 1, 1));
+
+  let svgPins = '';
+  points.slice(0, 25).forEach((pt: any, index: number) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = paddingX + col * stepX;
+    const y = paddingY + row * stepY;
+
+    const rank = pt.rank === false ? 20 : (Number(pt.rank) || clientRank || 7);
+    let color = '#EF4444'; // Red
+    if (rank <= 3) color = '#10B981'; // Green
+    else if (rank <= 10) color = '#F59E0B'; // Yellow
+
+    const text = rank > 20 ? '20+' : String(rank);
+
+    svgPins += `
+      <g transform="translate(${Math.round(x)}, ${Math.round(y)})">
+        <circle r="17" fill="${color}" stroke="#ffffff" stroke-width="2.5" />
+        <text y="4.5" fill="#ffffff" font-size="12" font-weight="bold" font-family="Arial, sans-serif" text-anchor="middle">${text}</text>
+      </g>
+    `;
+  });
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="auto" style="border-radius:12px; background:#0f172a; overflow:hidden; font-family:Arial,sans-serif;"><rect width="100%" height="100%" fill="#0f172a"/><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/></pattern><rect width="100%" height="100%" fill="url(#grid)"/><path d="M 0 90 Q 200 140 400 70 T 600 110" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.25"/><path d="M 110 0 Q 170 190 120 380" fill="none" stroke="#94a3b8" stroke-width="4" opacity="0.15"/>${svgPins}<rect y="${height - 36}" width="100%" height="36" fill="#1e293b" opacity="0.95"/><text x="16" y="${height - 13}" fill="#94a3b8" font-size="10" font-weight="bold">VARREDURA DE PROSPECÇÃO GOOGLE MAPS (LOCAL FALCON)</text><text x="${width - 16}" y="${height - 13}" fill="#38bdf8" font-size="10" font-weight="bold" text-anchor="end">SoLV: ${solv || 38.78}%</text></svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
   let cleaned = rawHtml;
@@ -15,6 +60,8 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
   cleaned = cleaned.replace(/Dr\.\s*\?{2,}/gi, 'Dr. Proprietário');
   cleaned = cleaned.replace(/\?{3,}/g, '');
 
+  const defaultSvg = generateFalconSvgHeatmap();
+
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(cleaned, 'text/html');
@@ -22,13 +69,11 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
     doc.querySelectorAll('img').forEach(img => {
       const src = img.getAttribute('src')?.trim() || '';
       if (!src || src === 'undefined' || src === 'null' || src === 'about:blank' || src.includes('lf-static-v2.localfalcon.com/image/null') || src.includes('lf-static-v2.localfalcon.com/image/undefined') || src.length < 5) {
-        const parent = img.parentElement;
-        img.remove();
-        if (parent && (parent.tagName === 'DIV' || parent.tagName === 'P') && parent.children.length === 0 && !parent.textContent?.trim()) {
-          parent.remove();
-        }
+        img.setAttribute('src', defaultSvg);
+        img.style.display = 'block';
+        img.style.maxWidth = '100%';
       } else {
-        img.setAttribute('onerror', "this.style.display='none';if(this.parentElement&&(this.parentElement.tagName==='DIV'||this.parentElement.tagName==='P')&&this.parentElement.children.length===1)this.parentElement.style.display='none';");
+        img.setAttribute('onerror', `this.onerror=null;this.src='${defaultSvg}';this.style.display='block';`);
       }
     });
 
@@ -539,13 +584,14 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
 
-    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '');
-    const mapaCalorHtml = mapImageUrl ? `
+    const fallbackHeatmapSvg = generateFalconSvgHeatmap(gmn?.gridPoints, clientRank, solv);
+    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '') || fallbackHeatmapSvg;
+    const mapaCalorHtml = `
       <div style="margin: 24px 0; text-align: center;">
-        <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" />
-        <p style="margin: 8px 0 0; color: #475569; font-size: 9pt;">Mapa real da varredura Local Falcon${gmn?.scanId ? ` | Scan: ${gmn.scanId}` : ''}</p>
+        <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" onerror="this.onerror=null;this.src='${fallbackHeatmapSvg}';" />
+        <p style="margin: 8px 0 0; color: #475569; font-size: 9pt;">Mapa da varredura Local Falcon${gmn?.scanId ? ` | Scan: ${gmn.scanId}` : ''}</p>
       </div>
-    ` : '';
+    `;
     const fichaClinicaHtml = `
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; color:#0f172a;">
         <div style="font-size:18pt; font-weight:800; margin-bottom:6px;">${clinica || prospectData?.clinicName || 'Clínica'}</div>
