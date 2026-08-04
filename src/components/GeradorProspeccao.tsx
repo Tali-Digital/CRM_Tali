@@ -1691,19 +1691,17 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           </div>
         </div>
 
-        <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* PAINEL SUPERIOR RETRÁTIL DE CONFIGURAÇÕES (SEUS MODELOS, DATA DA PROSPECÇÃO, DADOS DA CLÍNICA) */}
+        {isSidebarOpen && (
+          <div className="gerador-top-panel" style={{ backgroundColor: '#1e293b', borderBottom: '2px solid #334155', padding: '1rem 1.25rem', color: 'white', flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'stretch' }}>
 
-          {/* Sidebar */}
-          {isSidebarOpen && (
-            <div className="gerador-sidebar" style={{ width: '320px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-            <div className="gerador-sidebar-inner" style={{ flex: 1, padding: '1.25rem 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', overflowY: 'auto' }}>
-
-              {/* Modelos */}
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'white' }}>Seus Modelos</h3>
+              {/* Bloco 1: Modelos */}
+              <div style={{ flex: '1 1 240px', minWidth: '220px', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'white', fontWeight: '600' }}>Seus Modelos</h3>
                 <select
                   className="input"
-                  style={{ marginBottom: isModeloOnlyMode ? '0' : '0.5rem', fontSize: '0.9rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
+                  style={{ marginBottom: isModeloOnlyMode ? '0' : '0.5rem', fontSize: '0.85rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
                   value={selectedModeloId}
                   onChange={e => isModeloOnlyMode ? handleSelectModeloInMode(e.target.value) : handleLoadModelo(e.target.value)}
                 >
@@ -1711,82 +1709,40 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   {modelos.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
                 </select>
                 {!isModeloOnlyMode && (
-                  <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.25)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>
+                  <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.45rem', fontSize: '0.85rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }}>
                     Salvar Atual como Modelo
                   </button>
                 )}
               </div>
 
               {isModeloOnlyMode ? (
-                <>
-                  {/* Nome do Modelo */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>
-                      Nome do Modelo
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }}
-                      value={nomeModeloState}
-                      onChange={e => setNomeModeloState(e.target.value)}
-                      placeholder="Ex: 01 - Confronto por Demanda"
-                    />
+                /* Modo Apenas Modelo */
+                <div style={{ flex: '2 1 400px', display: 'flex', flexWrap: 'wrap', gap: '0.8rem', alignItems: 'center' }}>
+                  <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Nome do Modelo</label>
+                    <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={nomeModeloState} onChange={e => setNomeModeloState(e.target.value)} placeholder="Ex: 01 - Confronto por Demanda" />
                   </div>
-
-                  {/* Descrição do Modelo */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>
-                      Descrição do Modelo
-                    </label>
-                    <textarea
-                      rows={10}
-                      style={{ fontSize: '0.85rem', padding: '0.65rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px', resize: 'vertical', lineHeight: '1.4' }}
-                      value={descricaoModeloState}
-                      onChange={e => setDescricaoModeloState(e.target.value)}
-                      placeholder={'Apresenta nota 0–100 com gauge visual e 6 categorias...\n\nPara: Dono analítico, nicho B2B local...'}
-                    />
+                  <div style={{ flex: '2 1 280px' }}>
+                    <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Descrição do Modelo</label>
+                    <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={descricaoModeloState} onChange={e => setDescricaoModeloState(e.target.value)} placeholder="Descreva a finalidade..." />
                   </div>
-
-                  <div style={{ flex: 1 }}></div>
-
-                  {/* Botão Salvar Modelo */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button
-                      disabled={isSaving}
-                      onClick={handleSaveModeloOnly}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.75rem',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)',
-                        border: 'none',
-                        color: 'white',
-                        borderRadius: '8px',
-                        cursor: isSaving ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Save size={18} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
-                    </button>
-                  </div>
-                </>
+                  <button disabled={isSaving} onClick={handleSaveModeloOnly} style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                    <Save size={16} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
+                  </button>
+                </div>
               ) : (
+                /* Modo Normal */
                 <>
-                  {/* Data da Prospecção */}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
-                    <input type="date" className="input" style={{ fontSize: '0.9rem', padding: '0.6rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
+                  {/* Bloco 2: Data da Prospecção */}
+                  <div style={{ flex: '0 1 180px', minWidth: '160px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
+                    <input type="date" className="input" style={{ fontSize: '0.85rem', padding: '0.55rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
                   </div>
 
-                  {/* Informações da Clínica - Visualização */}
-                  <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Dados da Clínica</h4>
+                  {/* Bloco 3: Dados da Clínica */}
+                  <div style={{ flex: '2 1 340px', minWidth: '280px', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.4rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>Dados da Clínica</h4>
                       <a
                         href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
                         onClick={(e) => {
@@ -1801,82 +1757,21 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                       </a>
                     </div>
 
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                      <strong style={{ color: 'white' }}>Dono da Clínica:</strong>
-                      {opcoesDono.length > 1 ? (
-                        <select
-                          className="input"
-                          style={{ marginTop: '0.3rem', fontSize: '0.85rem', padding: '0.4rem', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '4px', width: '100%' }}
-                          value={donoClinica}
-                          onChange={(e) => setDonoClinica(e.target.value)}
-                        >
-                          {opcoesDono.map(op => <option key={op} value={op}>{op}</option>)}
-                        </select>
-                      ) : (
-                        <div style={{ marginTop: '0.2rem' }}>{donoClinica || '-'}</div>
-                      )}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.4rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+                      <div><strong style={{ color: 'white' }}>Dono:</strong> {donoClinica || '-'}</div>
+                      <div><strong style={{ color: 'white' }}>Clínica:</strong> {clinica || '-'}</div>
+                      <div><strong style={{ color: 'white' }}>Cidade:</strong> {cidadeBairro || '-'}</div>
+                      <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                      <strong style={{ color: 'white' }}>Nome da Clínica:</strong> {clinica || '-'}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.4rem' }}>
-                      <strong style={{ color: 'white' }}>Cidade/Bairro:</strong> {cidadeBairro || '-'}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
-                      <strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1 }}></div>
-
-                  {/* Botões de ação */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button
-                      disabled={isSaving}
-                      onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
-                      style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'white', border: '2px solid white', color: isSaving ? 'white' : 'var(--secondary-color)', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
-                    >
-                      <FileText size={18} /> {isSaving ? 'Salvando...' : 'Salvar no Sistema'}
-                    </button>
-                    <button
-                      disabled={isSaving}
-                      onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
-                      style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', border: `2px solid ${isSaving ? '#94a3b8' : 'var(--primary-color)'}`, color: 'white', borderRadius: '8px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
-                    >
-                      <Printer size={18} /> {isSaving ? 'Processando...' : 'Imprimir / Salvar PDF'}
-                    </button>
-
-                    {prospeccaoParaEditar && (
-                      <button
-                        disabled={isSaving}
-                        onClick={handleMarcarEntregue}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.75rem',
-                          fontSize: '1rem',
-                          fontWeight: 'bold',
-                          backgroundColor: isEntregue ? '#22c55e' : '#ef4444',
-                          border: `2px solid ${isEntregue ? '#22c55e' : '#ef4444'}`,
-                          color: 'white',
-                          borderRadius: '8px',
-                          cursor: isSaving ? 'not-allowed' : 'pointer',
-                          opacity: isSaving ? 0.7 : 1,
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <Check size={18} /> {isEntregue ? 'Endereço Entregue' : 'Marcar como Entregue'}
-                      </button>
-                    )}
                   </div>
                 </>
               )}
+
             </div>
           </div>
-          )}
+        )}
+
+        <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
           {/* Área do Editor */}
           <div className="gerador-editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#e2e8f0' }}>
