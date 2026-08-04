@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
@@ -70,6 +70,10 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [isSaving, setIsSaving] = useState(false);
   const [isEntregue, setIsEntregue] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth > 1050 && window.innerWidth >= window.innerHeight;
+  });
 
   const [selectedModeloId, setSelectedModeloId] = useState('');
   const [nomeModeloState, setNomeModeloState] = useState('');
@@ -578,13 +582,14 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         </div>
       </div>
     ` : '';
-    const clientRankingHtml = `<div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${clientRank}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição no Google (Local Falcon)</span></div>`;
-    const rankingHtml = hasValidClientRank ? `
+    const effectiveClientRank = hasValidClientRank ? clientRank : (gmn?.posicaoMedia ? Number(gmn.posicaoMedia) : 7);
+    const clientRankingHtml = `<div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${effectiveClientRank}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição no Google (Local Falcon)</span></div>`;
+    const rankingHtml = (hasValidClientRank || concorrentes.length > 0) ? `
       <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">${clientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}</h3>
-        ${clientRank === 1 ? clientRankingHtml : ''}
+        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}</h3>
+        ${effectiveClientRank === 1 ? clientRankingHtml : ''}
         ${concorrentes.length ? concorrentes.map((c: any) => `<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#0f172a; font-size:10pt;">${c.posicao}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#475569;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('') : '<p style="color:#059669; font-size:10pt; font-weight:700;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
-        ${clientRank !== 1 ? clientRankingHtml : ''}
+        ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
       </div>
     ` : '';
     const pageSpeedHtml = site ? `
@@ -1625,18 +1630,75 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
       <div onClick={e => e.stopPropagation()} className="gerador-modal-container" style={{ backgroundColor: '#f8fafc', width: '96%', maxWidth: '1600px', height: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', transition: 'all 0.3s' }}>
 
         {/* Header */}
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileText size={24} color="var(--primary-color)" />
-            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>Gerador de Prospecção & Automação de Cartas</h2>
+        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title={isSidebarOpen ? "Ocultar Painel de Configurações" : "Mostrar Painel de Configurações"}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.45rem 0.8rem',
+                backgroundColor: isSidebarOpen ? '#f1f5f9' : '#5271FF',
+                color: isSidebarOpen ? '#334155' : 'white',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: isSidebarOpen ? 'none' : '0 2px 4px rgba(82, 113, 255, 0.3)'
+              }}
+            >
+              <Layers size={16} />
+              <span>{isSidebarOpen ? 'Ocultar Painel' : 'Mostrar Painel'}</span>
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={22} color="var(--primary-color)" />
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>Gerador de Prospecção & Automação de Cartas</h2>
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} color="var(--text-secondary)" /></button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              disabled={isSaving}
+              onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
+              title="Salvar no Sistema"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+            >
+              <FileText size={14} /> <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+            </button>
+
+            <button
+              disabled={isSaving}
+              onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
+              title="Imprimir / Salvar PDF"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+            >
+              <Printer size={14} /> <span>Imprimir PDF</span>
+            </button>
+
+            {prospeccaoParaEditar && (
+              <button
+                disabled={isSaving}
+                onClick={handleMarcarEntregue}
+                title={isEntregue ? "Endereço Entregue" : "Marcar como Entregue"}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: isEntregue ? '#22c55e' : '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+              >
+                <Check size={14} /> <span>{isEntregue ? 'Entregue' : 'Marcar Entregue'}</span>
+              </button>
+            )}
+
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '0.25rem' }}><X size={24} color="var(--text-secondary)" /></button>
+          </div>
         </div>
 
         <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
           {/* Sidebar */}
-          <div className="gerador-sidebar" style={{ width: '320px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          {isSidebarOpen && (
+            <div className="gerador-sidebar" style={{ width: '320px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <div className="gerador-sidebar-inner" style={{ flex: 1, padding: '1.25rem 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', overflowY: 'auto' }}>
 
               {/* Modelos */}
@@ -1817,6 +1879,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               )}
             </div>
           </div>
+          )}
 
           {/* Área do Editor */}
           <div className="gerador-editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#e2e8f0' }}>
@@ -1913,14 +1976,14 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             </div>
 
             {/* Editor Central */}
-            <div id="editor-scroll-container" style={{ flex: 1, padding: '2.5rem 1rem', overflowY: 'auto', backgroundColor: '#f1f5f9', position: 'relative' }}>
+            <div id="editor-scroll-container" style={{ flex: 1, padding: '1.5rem 0.75rem', overflowY: 'auto', overflowX: 'auto', backgroundColor: '#f1f5f9', position: 'relative' }}>
               <InlineImageCropperOverlay
                 targetImage={selectedEditorImage}
                 editorContainer={document.getElementById('editor-scroll-container')}
                 onUpdate={handleEditorInput}
                 onDeselect={() => setSelectedEditorImage(null)}
               />
-              <div ref={paginationFrameRef} className="editor-page-wrapper" style={{ width: '210mm', minWidth: '210mm', margin: '0 auto', overflow: 'visible' }}>
+              <div ref={paginationFrameRef} className="editor-page-wrapper" style={{ width: '210mm', minWidth: 'min(100%, 210mm)', maxWidth: '100%', margin: '0 auto', overflow: 'visible', boxSizing: 'border-box' }}>
 
                 {viewHtml && (
                   <textarea
@@ -2128,14 +2191,14 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         .editor-content ul { padding-left: ${estilos.list.indent}px !important; list-style-type: disc !important; }
         .editor-content ol { padding-left: ${estilos.list.indent}px !important; list-style-type: decimal !important; }
         .editor-content li { margin-bottom: ${estilos.list.spacing}px !important; display: list-item !important; }
-        @media (max-width: 768px) {
+        @media (max-width: 1050px), (orientation: portrait) {
           .gerador-modal-container { width: 100vw !important; height: 100vh !important; max-width: 100vw !important; border-radius: 0 !important; }
           .gerador-main-content { flex-direction: column !important; overflow-y: auto !important; }
-          .gerador-sidebar { width: 100% !important; border-left: none !important; border-bottom: 1px solid var(--border-color) !important; }
+          .gerador-sidebar { width: 100% !important; border-left: none !important; border-bottom: 1px solid var(--border-color) !important; max-height: 40vh; overflow-y: auto; }
           .gerador-sidebar-inner { overflow-y: visible !important; }
           .gerador-editor { width: 100% !important; overflow-y: visible !important; }
-          .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; }
-          .editor-page-wrapper { min-height: auto !important; }
+          .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; padding: 0.5rem !important; }
+          .editor-page-wrapper { min-width: min(100%, 210mm) !important; max-width: 100% !important; min-height: auto !important; }
         }
       `}</style>
 

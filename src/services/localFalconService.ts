@@ -512,26 +512,22 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 
     // 4. FALLBACK AUTOMÁTICO VIA HISTÓRICO DA CONTA:
     // O Local Falcon agenda e gera o relatório no servidor mesmo se o socket HTTP expirar no proxy.
-    // Tenta recuperar o relatório recém-gerado via histórico.
-    console.log('[LocalFalcon] Conexão direta não retornou pontos. Verificando histórico da conta...');
-    await new Promise(r => setTimeout(r, 4000));
-    let historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
-    if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
-      console.log('[LocalFalcon] Recupetado com SUCESSO via histórico do Local Falcon!');
-      return historyCheck;
-    }
-
-    console.log('[LocalFalcon] Segunda tentativa de busca no histórico...');
-    await new Promise(r => setTimeout(r, 6000));
-    historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
-    if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
-      console.log('[LocalFalcon] Recuperado com SUCESSO na segunda tentativa de histórico!');
-      return historyCheck;
+    // Polling robusto: tenta até 12 vezes (~5 minutos) com intervalos crescentes para dar tempo ao Local Falcon de concluir o scan.
+    console.log('[LocalFalcon] Conexão direta não retornou pontos. Iniciando polling robusto no histórico da conta...');
+    const pollIntervals = [10000, 15000, 20000, 25000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000]; // ~5.5 minutos total
+    for (let i = 0; i < pollIntervals.length; i++) {
+      console.log(`[LocalFalcon] Tentativa ${i + 1}/${pollIntervals.length} de busca no histórico (aguardando ${pollIntervals[i] / 1000}s)...`);
+      await new Promise(r => setTimeout(r, pollIntervals[i]));
+      const historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
+      if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
+        console.log(`[LocalFalcon] Recuperado com SUCESSO via histórico do Local Falcon na tentativa ${i + 1}!`);
+        return historyCheck;
+      }
     }
 
     return {
       success: false,
-      error: `A API do Local Falcon não concluiu a resposta a tempo. (${scanErrorMsg})`
+      error: `A API do Local Falcon está demorando mais que o normal para processar o relatório. Tente buscar pelo histórico em alguns instantes. (${scanErrorMsg})`
     };
   } catch (err: any) {
     console.error('[LocalFalcon] Erro geral no scan:', err);

@@ -39,7 +39,10 @@ import {
   LayoutGrid,
   Grid,
   ArrowUp,
-  HelpCircle
+  HelpCircle,
+  Archive,
+  ArchiveRestore,
+  Briefcase
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
@@ -108,6 +111,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Prospect; direction: 'asc' | 'desc' } | null>(() => getSavedFilter('sortConfig', null));
   const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => getSavedFilter('viewMode', 'table'));
+  const [showArchivedOnly, setShowArchivedOnly] = useState<boolean>(() => getSavedFilter('showArchivedOnly', false));
   const [isProgressFilterOpen, setIsProgressFilterOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +136,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     localStorage.setItem(`prospecting_filters_${uid}_quickFilter`, JSON.stringify(quickFilter));
     localStorage.setItem(`prospecting_filters_${uid}_sortConfig`, JSON.stringify(sortConfig));
     localStorage.setItem(`prospecting_filters_${uid}_viewMode`, JSON.stringify(viewMode));
-  }, [searchTerm, filters, quickFilter, sortConfig, viewMode]);
+    localStorage.setItem(`prospecting_filters_${uid}_showArchivedOnly`, JSON.stringify(showArchivedOnly));
+  }, [searchTerm, filters, quickFilter, sortConfig, viewMode, showArchivedOnly]);
   const progressFilterRef = useRef<HTMLDivElement>(null);
 
   // Fechar dropdown de progresso ao clicar fora
@@ -266,6 +271,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     fullAddress: '',
     isInPerson: false,
     hasPresencialFicha: false,
+    offerSpotWork: false,
   });
 
   // Refs para salvar de forma automática ao clicar fora ou apertar ESC
@@ -577,6 +583,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         matchesQuickFilter = !inactive.includes(p.status) && !inactive.includes(p.reconhecimento || '') && !inactive.includes(p.statusGeral || '');
       } else if (quickFilter === 'all') {
         matchesQuickFilter = true;
+      } else if (quickFilter === 'Trabalhos Pontuais') {
+        matchesQuickFilter = !!p.offerSpotWork;
       } else {
         matchesQuickFilter =
           p.status === quickFilter ||
@@ -584,7 +592,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
           p.statusGeral === quickFilter;
       }
 
-      return matchesSearch && matchesFilters && matchesQuickFilter;
+      // Archived filter: show only archived if showArchivedOnly is true, else show only non-archived
+      const matchesArchived = showArchivedOnly ? !!p.isArchived : !p.isArchived;
+
+      return matchesSearch && matchesFilters && matchesQuickFilter && matchesArchived;
     });
 
     if (sortConfig) {
@@ -598,7 +609,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     }
 
     return result;
-  }, [prospects, searchTerm, filters, sortConfig, quickFilter]);
+  }, [prospects, searchTerm, filters, sortConfig, quickFilter, showArchivedOnly]);
+
+  const archivedCount = useMemo(() => prospects.filter((p) => p.isArchived).length, [prospects]);
+
+  const spotWorkCount = useMemo(() => {
+    return prospects.filter(p => !!p.offerSpotWork && (showArchivedOnly ? !!p.isArchived : !p.isArchived)).length;
+  }, [prospects, showArchivedOnly]);
 
   const duplicateIds = useMemo(() => {
     const ids = new Set<string>();
@@ -652,6 +669,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         fullAddress: prospect.fullAddress || '',
         isInPerson: !!prospect.isInPerson,
         hasPresencialFicha: !!prospect.hasPresencialFicha,
+        offerSpotWork: !!prospect.offerSpotWork,
       });
     } else {
       setAiSubTab('preenchimento');
@@ -691,6 +709,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         fullAddress: '',
         isInPerson: false,
         hasPresencialFicha: false,
+        offerSpotWork: false,
       });
     }
     setIsModalOpen(true);
@@ -1070,6 +1089,17 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     }
   };
 
+  const handleToggleArchive = async (prospect: Prospect, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newArchived = !prospect.isArchived;
+    try {
+      await updateProspect(prospect.id, { isArchived: newArchived });
+    } catch (error) {
+      console.error('Error toggling archive:', error);
+      alert('Erro ao arquivar/desarquivar registro.');
+    }
+  };
+
   const handleQuickUpdate = async (id: string, field: keyof Prospect, value: any) => {
     await updateProspect(id, { [field]: value });
   };
@@ -1446,6 +1476,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                         }).length, dotColor: 'bg-blue-900'
                       },
                       { key: 'all', label: 'Mostrar Todos', count: prospects.length, dotColor: 'bg-gray-400' },
+                      { key: 'Trabalhos Pontuais', label: 'Trabalhos Pontuais', count: spotWorkCount, dotColor: 'bg-amber-500' },
 
                       { group: 'Reconhecimento da Clínica' },
                       { key: 'Verificar ICP', label: 'Verificar ICP', count: prospects.filter(p => p.reconhecimento === 'Verificar ICP').length, dotColor: 'bg-pink-500' },
@@ -1549,6 +1580,56 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
           {/* Grupo 2: Ações */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setQuickFilter(quickFilter === 'Trabalhos Pontuais' ? 'active' : 'Trabalhos Pontuais');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold border shrink-0 ${
+                quickFilter === 'Trabalhos Pontuais'
+                  ? 'bg-amber-600 text-white border-amber-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+              }`}
+              style={{ height: '38px' }}
+              title={
+                quickFilter === 'Trabalhos Pontuais'
+                  ? 'Voltar para todas as clínicas'
+                  : showArchivedOnly
+                  ? 'Ver Clínicas Arquivadas e Pontuais'
+                  : 'Ver Clínicas Pontuais Ativas'
+              }
+            >
+              <Briefcase size={14} className={quickFilter === 'Trabalhos Pontuais' ? 'text-white' : 'text-amber-600'} />
+              <span>Pontuais</span>
+              {spotWorkCount > 0 && (
+                <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  quickFilter === 'Trabalhos Pontuais' ? 'bg-amber-700 text-white' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {spotWorkCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold border shrink-0 ${
+                showArchivedOnly
+                  ? 'bg-amber-600 text-white border-amber-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+              }`}
+              style={{ height: '38px' }}
+              title={showArchivedOnly ? 'Voltar para Clínicas Ativas' : 'Ver Clínicas Arquivadas'}
+            >
+              {showArchivedOnly ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+              <span>Arquivados</span>
+              {archivedCount > 0 && (
+                <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  showArchivedOnly ? 'bg-amber-700 text-white' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {archivedCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={startRemoveDuplicates}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 text-xs font-semibold bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shrink-0"
@@ -1872,13 +1953,26 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setDeletingId(p.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all inline-flex justify-center"
-                            title="Excluir Registro"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => handleToggleArchive(p, e)}
+                              className={`p-1.5 rounded-xl transition-all inline-flex justify-center ${
+                                p.isArchived
+                                  ? 'text-amber-600 hover:bg-amber-50'
+                                  : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                              }`}
+                              title={p.isArchived ? 'Desarquivar Clínica' : 'Arquivar Clínica'}
+                            >
+                              {p.isArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(p.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all inline-flex justify-center"
+                              title="Excluir Registro"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -1890,10 +1984,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             {processedProspects.length === 0 && (
               <div className="py-20 flex flex-col items-center justify-center text-gray-400">
                 <div className="bg-gray-50 p-6 rounded-full mb-4">
-                  <Search size={40} />
+                  {showArchivedOnly ? <Archive size={40} className="text-amber-500" /> : <Search size={40} />}
                 </div>
-                <p className="text-lg font-medium">Nenhum prospecto encontrado</p>
-                <p className="text-sm">Tente ajustar sua busca ou filtros</p>
+                <p className="text-lg font-medium">
+                  {showArchivedOnly ? 'Nenhuma clínica arquivada' : 'Nenhum prospecto encontrado'}
+                </p>
+                <p className="text-sm">
+                  {showArchivedOnly ? 'As clínicas arquivadas aparecerão aqui' : 'Tente ajustar sua busca ou filtros'}
+                </p>
               </div>
             )}
           </div>
@@ -1948,6 +2046,21 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           {(p.followedOwner === 'Sim' || p.followedOwner === true) && (
                             <span className="px-2 py-0.5 rounded-md bg-green-50 border border-green-100 text-green-700 text-[9px] font-black uppercase tracking-wider">
                               Seguiu Dono
+                            </span>
+                          )}
+                          {(p.isInPerson || p.hasPresencialFicha) && (
+                            <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[9px] font-black uppercase tracking-wider">
+                              Presencial
+                            </span>
+                          )}
+                          {p.isContractClosed && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                              Contrato Fechado
+                            </span>
+                          )}
+                          {p.offerSpotWork && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black uppercase tracking-wider">
+                              Trabalhos Pontuais
                             </span>
                           )}
                         </div>
@@ -2151,13 +2264,26 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setDeletingId(p.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                              title="Excluir"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleToggleArchive(p, e)}
+                                className={`p-1.5 rounded-xl transition-all ${
+                                  p.isArchived
+                                    ? 'text-amber-600 hover:bg-amber-50'
+                                    : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                }`}
+                                title={p.isArchived ? 'Desarquivar' : 'Arquivar'}
+                              >
+                                {p.isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+                              </button>
+                              <button
+                                onClick={() => setDeletingId(p.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                title="Excluir"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -2170,10 +2296,14 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             {processedProspects.length === 0 && (
               <div className="py-20 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="bg-gray-50 p-6 rounded-full mb-4">
-                  <Search size={40} />
+                  {showArchivedOnly ? <Archive size={40} className="text-amber-500" /> : <Search size={40} />}
                 </div>
-                <p className="text-lg font-medium">Nenhum prospecto encontrado</p>
-                <p className="text-sm">Tente ajustar sua busca ou filtros</p>
+                <p className="text-lg font-medium">
+                  {showArchivedOnly ? 'Nenhuma clínica arquivada' : 'Nenhum prospecto encontrado'}
+                </p>
+                <p className="text-sm">
+                  {showArchivedOnly ? 'As clínicas arquivadas aparecerão aqui' : 'Tente ajustar sua busca ou filtros'}
+                </p>
               </div>
             )}
           </div>
@@ -2208,6 +2338,16 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       {formData.isInPerson && (
                         <span className="text-[9px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
                           (Presencial)
+                        </span>
+                      )}
+                      {formData.isContractClosed && (
+                        <span className="text-[9px] sm:text-xs font-black bg-emerald-800 text-emerald-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-emerald-700">
+                          (Contrato Fechado)
+                        </span>
+                      )}
+                      {formData.offerSpotWork && (
+                        <span className="text-[9px] sm:text-xs font-black bg-amber-800 text-amber-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-amber-700">
+                          (Trabalhos Pontuais)
                         </span>
                       )}
                     </h2>
@@ -2381,6 +2521,20 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                     </span>
                                   </label>
                                 </div>
+
+                                <div className="bg-white border-2 border-amber-500/30 rounded-xl p-3 shadow-sm inline-flex items-center w-fit transition-all hover:border-amber-500/50">
+                                  <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded text-amber-600 focus:ring-amber-500 w-5 h-5 cursor-pointer shadow-sm border-gray-300"
+                                      checked={!!formData.offerSpotWork}
+                                      onChange={(e) => handleFieldChange('offerSpotWork', e.target.checked)}
+                                    />
+                                    <span className="text-sm font-bold text-amber-900 select-none">
+                                      Oferecer trabalhos pontuais
+                                    </span>
+                                  </label>
+                                </div>
                               </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -2453,6 +2607,15 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   value={formData.site}
                                   onChange={(e) => handleFieldChange('site', e.target.value)}
                                 />
+                                <a
+                                  href={`https://www.google.com/search?q=site+oficial+${encodeURIComponent(formData.clinicName || '')}+${encodeURIComponent(formData.location || '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1 mt-1 ml-1 w-max"
+                                  title="Pesquisar Site no Google"
+                                >
+                                  <Search size={10} /> Pesquisar Site no Google
+                                </a>
                               </div>
 
                               <div className="space-y-1 md:col-span-3 lg:col-span-3">

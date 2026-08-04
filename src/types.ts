@@ -333,6 +333,7 @@ export interface Prospect {
   isInPerson?: boolean;
   hasPresencialFicha?: boolean;
   isContractClosed?: boolean;
+  offerSpotWork?: boolean;
   lat?: number;
   lng?: number;
   geocodeFailed?: boolean;

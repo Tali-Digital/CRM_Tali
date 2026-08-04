@@ -4,7 +4,7 @@ import {
   Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
-import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
+import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic } from '../services/geminiService';
 import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
@@ -194,7 +194,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         }
       };
       setDiagnosticData(updatedDiag);
-      await updateProspect(selectedProspect.id, {
+      await saveProspectDoc(selectedProspect.id, {
         marketingDiagnostic: updatedDiag
       });
     }
@@ -257,6 +257,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           notes: doc.notes || doc.conteudo || '',
           isInPerson: true,
           hasPresencialFicha: true,
+          isSyntheticDoc: true,
+          isArchived: doc.isArchived === true || doc.isArchived === 'true' || doc.isEntregue === true || doc.isEntregue === 'true',
+          isDeleted: doc.isDeleted === true || doc.isDeleted === 'true',
+          isEntregue: doc.isEntregue === true || doc.isEntregue === 'true',
           marketingDiagnostic: doc.marketingDiagnostic || doc.diagnosticData || null,
           createdAt: doc.createdAt || new Date().toISOString(),
           order: 9999
@@ -404,11 +408,20 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     return true;
   });
 
+  const saveProspectDoc = async (id: string, data: any) => {
+    const target = prospects.find(p => p.id === id);
+    if (target && (target as any).isSyntheticDoc) {
+      await updateProspeccaoDoc(id, data);
+    } else {
+      await updateProspect(id, data);
+    }
+  };
+
   const handleToggleArchive = async (e: React.MouseEvent, p: Prospect) => {
     e.stopPropagation();
     const isArchivedNow = p.isArchived === true || p.isEntregue === true;
     const newStatus = !isArchivedNow;
-    await updateProspect(p.id, { isArchived: newStatus, isEntregue: newStatus });
+    await saveProspectDoc(p.id, { isArchived: newStatus, isEntregue: newStatus });
     Swal.fire({
       toast: true,
       position: 'top-end',
@@ -422,7 +435,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const handleToggleTrash = async (e: React.MouseEvent, p: Prospect) => {
     e.stopPropagation();
     const newDeletedStatus = !p.isDeleted;
-    await updateProspect(p.id, { isDeleted: newDeletedStatus });
+    await saveProspectDoc(p.id, { isDeleted: newDeletedStatus });
     Swal.fire({
       toast: true,
       position: 'top-end',
@@ -440,7 +453,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       const result = await generateMarketingDiagnostic(selectedProspect);
       if (result.success) {
         setDiagnosticData(result.data);
-        await updateProspect(selectedProspect.id, { marketingDiagnostic: result.data });
+        await saveProspectDoc(selectedProspect.id, { marketingDiagnostic: result.data });
 
         if (result.isMock) {
           Swal.fire({
@@ -495,7 +508,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     };
 
     setDiagnosticData(updatedDiag);
-    await updateProspect(selectedProspect.id, { marketingDiagnostic: updatedDiag });
+    await saveProspectDoc(selectedProspect.id, { marketingDiagnostic: updatedDiag });
     Swal.fire({ icon: 'success', title: 'Verificação registrada', timer: 1800, showConfirmButton: false });
   };
 
@@ -608,7 +621,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       };
 
       setDiagnosticData(updatedDiag);
-      await updateProspect(selectedProspect.id, { marketingDiagnostic: updatedDiag });
+      await saveProspectDoc(selectedProspect.id, { marketingDiagnostic: updatedDiag });
 
       Swal.fire({
         icon: 'success',
@@ -799,7 +812,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       };
 
       // 4. Salvar tudo no Firestore
-      await updateProspect(selectedProspect.id, {
+      await saveProspectDoc(selectedProspect.id, {
         clinicName: formData.companyName,
         keyword: formData.keyword,
         ticketMedio: formData.ticketMedio,
@@ -915,7 +928,6 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
     setDiagnosticQueue(prev => [...prev, queueItem]);
     saveDiagnosticQueueItem(queueItem);
-    setShowQueueModal(true);
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${prospect.clinicName}: adicionado à fila!`, showConfirmButton: false, timer: 2500 });
   }, [formData]);
 
@@ -972,7 +984,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 keyword: form.keyword
               }
             };
-            await updateProspect(prospect.id, { marketingDiagnostic: emptyGmnDiag });
+            await saveProspectDoc(prospect.id, { marketingDiagnostic: emptyGmnDiag });
             if (selectedProspect?.id === prospect.id) {
               setDiagnosticData(emptyGmnDiag);
             }
@@ -1008,7 +1020,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
           addQueueLog(queueId, 'Salvando dados no Firestore...', 'running');
           const saveStart = Date.now();
-          await updateProspect(prospect.id, {
+          await saveProspectDoc(prospect.id, {
             clinicName: form.companyName,
             keyword: form.keyword,
             marketingDiagnostic: updatedDiag
@@ -1186,7 +1198,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         // ── 4. Save to Firestore ──
         addQueueLog(queueId, 'Salvando diagnóstico no Firestore...', 'running');
         const saveStart = Date.now();
-        await updateProspect(prospect.id, {
+        await saveProspectDoc(prospect.id, {
           clinicName: form.companyName,
           keyword: form.keyword,
           ticketMedio: form.ticketMedio,
@@ -3415,16 +3427,27 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           <div className="h-full flex flex-col bg-[#0d0f19] rounded-2xl overflow-hidden">
             <div className="p-2 md:p-4 border-b border-gray-800 bg-[#1a1d2d] no-print">
               <div className="grid grid-cols-2 md:flex items-stretch gap-1.5 md:gap-2 no-print">
-                {!showDiagnosticForm && (
-                  <button
-                    onClick={() => setShowVariableModal(true)}
-                    title="Ver todas as variáveis e tags disponíveis para automação das cartas"
-                      className="bg-[#5271FF] hover:bg-blue-600 text-white border border-indigo-400/40 px-2 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md text-center"
-                  >
-                    <Code size={14} />
-                    Mapeamento de Variáveis
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    if (selectedText) {
+                      setSelectedTextModal(selectedText);
+                      setSelectedText('');
+                    } else {
+                      setSelectedTextModal('');
+                    }
+                    setShowVariableModal(true);
+                  }}
+                  title="Abrir gerador de tags e mapeamento de variáveis para automação das cartas"
+                  className="bg-[#5271FF] hover:bg-blue-600 text-white border border-indigo-400/40 px-2.5 py-2 rounded-xl font-bold text-[11px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md text-center shrink-0"
+                >
+                  <Sparkles size={14} className="text-amber-300 shrink-0" />
+                  <span>+ Gerar Tag</span>
+                  {selectedText && (
+                    <span className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-mono text-emerald-300 truncate max-w-[110px] border border-emerald-500/20">
+                      "{selectedText}"
+                    </span>
+                  )}
+                </button>
 
                 <button
                   onClick={() => setShowDiagnosticForm(!showDiagnosticForm)}
@@ -3568,39 +3591,6 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
         </div>,
         document.body
-      )}
-
-      {/* FLOATING TEXT SELECTION TAG GENERATOR TOOLBAR */}
-      {selectedText && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999991] bg-gradient-to-r from-indigo-950 via-indigo-900 to-purple-950 text-white px-5 py-3 rounded-2xl shadow-2xl border border-indigo-400/50 flex items-center gap-3 animate-fadeIn">
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <Sparkles size={16} className="text-amber-300 animate-pulse shrink-0" />
-            <span className="text-gray-300">Trecho Selecionado:</span>
-            <span className="bg-black/50 px-2.5 py-1 rounded-lg text-emerald-300 font-mono text-xs max-w-[180px] truncate border border-emerald-500/20">
-              "{selectedText}"
-            </span>
-          </div>
-
-          <button
-            onClick={() => {
-              setSelectedTextModal(selectedText);
-              setShowVariableModal(true);
-              setSelectedText('');
-            }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0"
-          >
-            <Plus size={14} />
-            Gerar Tag deste Trecho
-          </button>
-
-          <button
-            onClick={() => setSelectedText('')}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            title="Fechar barra"
-          >
-            <X size={14} />
-          </button>
-        </div>
       )}
 
       {/* MODAL MAPEAMENTO DE VARIÁVEIS & TAGS DAS CARTAS */}
