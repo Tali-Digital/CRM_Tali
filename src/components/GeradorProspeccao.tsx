@@ -70,10 +70,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [isSaving, setIsSaving] = useState(false);
   const [isEntregue, setIsEntregue] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.innerWidth > 1050 && window.innerWidth >= window.innerHeight;
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [selectedModeloId, setSelectedModeloId] = useState('');
   const [nomeModeloState, setNomeModeloState] = useState('');
@@ -2194,8 +2191,9 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         @media (max-width: 1050px), (orientation: portrait) {
           .gerador-modal-container { width: 100vw !important; height: 100vh !important; max-width: 100vw !important; border-radius: 0 !important; }
           .gerador-main-content { flex-direction: column !important; overflow-y: auto !important; }
-          .gerador-sidebar { width: 100% !important; border-left: none !important; border-bottom: 1px solid var(--border-color) !important; max-height: 40vh; overflow-y: auto; }
-          .gerador-sidebar-inner { overflow-y: visible !important; }
+          .gerador-sidebar { width: 100% !important; border-left: none !important; border-bottom: 2px solid var(--border-color) !important; max-height: 48vh; overflow-y: auto; background-color: #1e293b !important; }
+          .gerador-sidebar-inner { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 0.8rem !important; padding: 1rem !important; overflow-y: visible !important; }
+          .gerador-sidebar-inner > div { flex: 1 1 240px !important; min-width: 220px !important; margin: 0 !important; }
           .gerador-editor { width: 100% !important; overflow-y: visible !important; }
           .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; padding: 0.5rem !important; }
           .editor-page-wrapper { min-width: min(100%, 210mm) !important; max-width: 100% !important; min-height: auto !important; }
