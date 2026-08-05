@@ -205,7 +205,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [formData, setFormData] = useState({
     companyName: '',
     keyword: '',
-    gridSize: '3x3' as '3x3' | '5x5' | '7x7',
+    gridSize: '5x5' as '3x3' | '5x5' | '7x7',
+    radius: 5 as number | string,
     ticketMedio: '',
     stateUf: 'Distrito Federal (DF)',
     cityName: 'Brasília',
@@ -342,7 +343,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       setFormData({
         companyName: selectedProspect.clinicName || '',
         keyword: (selectedProspect as any).keyword || 'Dentista',
-        gridSize: (selectedProspect as any).gridSize || '3x3',
+        gridSize: (selectedProspect as any).gridSize || '5x5',
+        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? 5,
         ticketMedio: (selectedProspect as any).ticketMedio || '',
         stateUf: extractedState,
         cityName: extractedCity || 'Brasília',
@@ -660,13 +662,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       // 1. Executar Local Falcon Scan se módulo GMN ativo
       let localFalconResult: any = null;
       if (formData.modules.gmn) {
-        console.log('[DiagV2] Chamando Local Falcon com keyword:', formData.keyword, '| empresa:', formData.companyName, '| cidade:', formData.cityName, '| gridSize:', formData.gridSize);
+        console.log('[DiagV2] Chamando Local Falcon com keyword:', formData.keyword, '| empresa:', formData.companyName, '| cidade:', formData.cityName, '| gridSize:', formData.gridSize, '| radius:', formData.radius);
         localFalconResult = await runLocalFalconScan({
           keyword: formData.keyword,
           locationName: formData.companyName,
           cityName: formData.cityName,
-          gridSize: formData.gridSize || '3x3',
-          radius: 5
+          gridSize: formData.gridSize || '5x5',
+          radius: Number(formData.radius || 5)
         });
         console.log('[DiagV2] Resultado Local Falcon:', localFalconResult);
         if (!localFalconResult?.success) {
@@ -735,7 +737,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null,
               locationName: formData.companyName,
               keyword: formData.keyword,
-              oportunidade1: `Palavra-chave rastreada no Local Falcon: "${formData.keyword}".`,
+              radius: Number(formData.radius || 5),
+              gridSize: formData.gridSize || '5x5',
+              oportunidade1: `Palavra-chave rastreada no Local Falcon: "${formData.keyword}" (Raio: ${formData.radius || 5}km).`,
               oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura (Local Falcon não configurado).')
             }
           }
@@ -815,6 +819,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       await saveProspectDoc(selectedProspect.id, {
         clinicName: formData.companyName,
         keyword: formData.keyword,
+        gridSize: formData.gridSize,
+        radius: Number(formData.radius || 5),
         ticketMedio: formData.ticketMedio,
         stateUf: formData.stateUf,
         cityName: formData.cityName,
@@ -1071,8 +1077,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               keyword: form.keyword,
               locationName: form.companyName,
               cityName: form.cityName,
-              gridSize: form.gridSize || '3x3',
-              radius: 5
+              gridSize: form.gridSize || '5x5',
+              radius: Number(form.radius || 5)
             });
             const lfDur = Date.now() - lfStart;
             if (localFalconResult?.success) {
@@ -1147,7 +1153,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 ? localFalconResult.competitors.map((c: any) => ({ nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos, nota: c.nota ?? null, avaliacoes: c.avaliacoes ?? null, endereco: c.endereco ?? null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null }))
                 : (existingDiag.concorrentes || []),
               posicaoCliente: hasSolv ? (localFalconResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
-              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}".`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
+              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, radius: Number(form.radius || 5), gridSize: form.gridSize || '5x5', oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}" (Raio: ${form.radius || 5}km).`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
             }
           : { resumo1: existingDiag.resumo1, resumo2: existingDiag.resumo2, concorrentes: existingDiag.concorrentes || [], posicaoCliente: existingDiag.posicaoCliente ?? null, gmn: existingDiag.gmn || {} };
 
@@ -1201,6 +1207,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         await saveProspectDoc(prospect.id, {
           clinicName: form.companyName,
           keyword: form.keyword,
+          gridSize: form.gridSize,
+          radius: Number(form.radius || 5),
           ticketMedio: form.ticketMedio,
           stateUf: form.stateUf,
           cityName: form.cityName,
@@ -1430,6 +1438,31 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   ))}
                 </div>
               </div>
+
+              <div>
+                {/* Raio de Busca do Local Falcon */}
+                <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>⚡ Raio de Busca do Local Falcon (em km)</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-bold shadow-sm">
+                    {formData.radius || 5} km
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-500 mb-2">
+                  Informe o raio de busca em quilômetros (distância a ser mapeada no mapa a partir da empresa)
+                </p>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0.5"
+                    max="100"
+                    step="0.5"
+                    value={formData.radius}
+                    onChange={e => setFormData({ ...formData, radius: e.target.value === '' ? '' : Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                    placeholder="ex: 5"
+                    className="w-full bg-[#0d0f19] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl p-3.5 text-base font-black text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 shadow-inner placeholder-gray-600 transition-all"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1635,20 +1668,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               type="button"
               onClick={() => selectedProspect && enqueueDiagnostic(selectedProspect)}
               disabled={isGenerating}
-              className="w-[70%] bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base active:scale-98 disabled:opacity-50 cursor-pointer border border-blue-400/30"
+              className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base active:scale-98 disabled:opacity-50 cursor-pointer border border-blue-400/30"
               title="Adicionar à fila de processamento em segundo plano"
             >
               <Plus size={20} />
-              <span>+ Adicionar à Fila (Segundo Plano)</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleGenerateDiagnosticV2}
-              disabled={isGenerating}
-              className="w-[30%] bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-black py-4 px-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base active:scale-98 disabled:opacity-50 cursor-pointer"
-            >
-              {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Activity size={18} />}
-              {isGenerating ? 'Gerando...' : '⚡ Gerar Agora'}
+              <span>Gerar Diagnóstico (Segundo Plano)</span>
             </button>
           </div>
         </div>

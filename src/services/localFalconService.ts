@@ -409,7 +409,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
   }
 
   // Converte "3x3" → "3", "5x5" → "5", "7x7" → "7"
-  const rawGrid = String(params.gridSize || settings?.localFalconGridSize || '3x3');
+  const rawGrid = String(params.gridSize || settings?.localFalconGridSize || '5x5');
   const gridSize = rawGrid.includes('5') ? '5' : rawGrid.includes('7') ? '7' : '3';
   const creditsMap: Record<string, number> = { '3': 9, '5': 25, '7': 49 };
   const creditsUsed = creditsMap[gridSize] || 9;
