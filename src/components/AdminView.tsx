@@ -16,6 +16,15 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   const [falconTesting, setFalconTesting] = useState(false);
   const [falconTestResult, setFalconTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const [outscraperTesting, setOutscraperTesting] = useState(false);
+  const [outscraperTestResult, setOutscraperTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const [pageSpeedTesting, setPageSpeedTesting] = useState(false);
+  const [pageSpeedTestResult, setPageSpeedTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const [metaAdsTesting, setMetaAdsTesting] = useState(false);
+  const [metaAdsTestResult, setMetaAdsTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   const handleTestLocalFalcon = async () => {
     if (!localFalconKey.trim()) {
       setFalconTestResult({ ok: false, message: 'Cole a API Key antes de testar.' });
@@ -34,6 +43,105 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
       setFalconTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
     } finally {
       setFalconTesting(false);
+    }
+  };
+
+  const handleTestOutscraper = async () => {
+    if (!outscraperKey.trim()) {
+      setOutscraperTestResult({ ok: false, message: 'Cole a API Key antes de testar.' });
+      return;
+    }
+    setOutscraperTesting(true);
+    setOutscraperTestResult(null);
+    try {
+      const res = await fetch('https://api.app.outscraper.com/user/profile', {
+        headers: { 'X-API-KEY': outscraperKey.trim() }
+      }).catch(async () => {
+        return await fetch('https://api.app.outscraper.com/maps/search-v2?query=test&limit=1&async=false', {
+          headers: { 'X-API-KEY': outscraperKey.trim() }
+        });
+      });
+
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        const credits = data?.credits !== undefined ? data.credits : (data?.balance !== undefined ? data.balance : null);
+        const creditsMsg = credits !== null ? ` (Créditos/Saldo: ${credits})` : '';
+        setOutscraperTestResult({ ok: true, message: `✅ Conectado com sucesso ao Outscraper!${creditsMsg}` });
+      } else {
+        const errText = res ? await res.text().catch(() => '') : '';
+        let errorMsg = 'Verifique a chave informada.';
+        try {
+          const errJson = JSON.parse(errText);
+          errorMsg = errJson.message || errJson.error || errorMsg;
+        } catch {
+          if (res?.status === 401 || res?.status === 403) errorMsg = 'API Key inválida ou expirada.';
+        }
+        setOutscraperTestResult({ ok: false, message: `❌ Falha na conexão (${res?.status || 'Erro'}): ${errorMsg}` });
+      }
+    } catch (e: any) {
+      setOutscraperTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
+    } finally {
+      setOutscraperTesting(false);
+    }
+  };
+
+  const handleTestPageSpeed = async () => {
+    if (!pageSpeedKey.trim()) {
+      setPageSpeedTestResult({ ok: false, message: 'Cole a API Key antes de testar.' });
+      return;
+    }
+    setPageSpeedTesting(true);
+    setPageSpeedTestResult(null);
+    try {
+      const directUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://google.com&category=PERFORMANCE&key=${encodeURIComponent(pageSpeedKey.trim())}`;
+      const proxyUrl = `/api-proxy/pagespeed/pagespeedonline/v5/runPagespeed?url=https://google.com&category=PERFORMANCE&key=${encodeURIComponent(pageSpeedKey.trim())}`;
+
+      let res = await fetch(directUrl).catch(async () => await fetch(proxyUrl));
+
+      if (res && res.ok) {
+        setPageSpeedTestResult({ ok: true, message: `✅ Conectado com sucesso à API Google PageSpeed Insights!` });
+      } else {
+        const errText = res ? await res.text().catch(() => '') : '';
+        let errorMsg = 'Chave inválida ou cota excedida.';
+        try {
+          const errJson = JSON.parse(errText);
+          errorMsg = errJson.error?.message || errorMsg;
+        } catch {}
+        setPageSpeedTestResult({ ok: false, message: `❌ Falha na conexão (${res?.status || 'Erro'}): ${errorMsg}` });
+      }
+    } catch (e: any) {
+      setPageSpeedTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
+    } finally {
+      setPageSpeedTesting(false);
+    }
+  };
+
+  const handleTestMetaAds = async () => {
+    if (!metaAdsKey.trim()) {
+      setMetaAdsTestResult({ ok: false, message: 'Cole o Access Token / Key antes de testar.' });
+      return;
+    }
+    setMetaAdsTesting(true);
+    setMetaAdsTestResult(null);
+    try {
+      const url = `https://graph.facebook.com/v19.0/ads_archive?search_terms=Google&ad_reached_countries=['BR']&active_status=ACTIVE&limit=1&access_token=${encodeURIComponent(metaAdsKey.trim())}`;
+      const res = await fetch(url).catch(() => null);
+
+      if (res && res.ok) {
+        setMetaAdsTestResult({ ok: true, message: `✅ Conectado com sucesso! Token válido na Meta Ad Library.` });
+      } else {
+        const errText = res ? await res.text().catch(() => '') : '';
+        let errorMsg = 'Access Token inválido ou expirado.';
+        try {
+          const errJson = JSON.parse(errText);
+          errorMsg = errJson.error?.message || errorMsg;
+        } catch {}
+        setMetaAdsTestResult({ ok: false, message: `❌ Falha na conexão (${res?.status || 'Erro'}): ${errorMsg}` });
+      }
+    } catch (e: any) {
+      setMetaAdsTestResult({ ok: false, message: `❌ Erro de conexão: ${e.message}` });
+    } finally {
+      setMetaAdsTesting(false);
     }
   };
 
@@ -238,48 +346,127 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-white/80 mb-1">
-                API Key Outscraper (Google Maps & Ads)
-              </label>
-              <input
-                type="password"
-                value={outscraperKey}
-                onChange={(e) => setOutscraperKey(e.target.value)}
-                placeholder="Cole sua API Key do Outscraper"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
-              />
-              <p className="text-xs text-white/40 mt-1">Gerador de Leads e buscas no Google Maps.</p>
+            {/* Outscraper */}
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">
+                  API Key Outscraper (Google Maps & Ads)
+                </label>
+                <input
+                  type="password"
+                  value={outscraperKey}
+                  onChange={(e) => { setOutscraperKey(e.target.value); setOutscraperTestResult(null); }}
+                  placeholder="Cole sua API Key do Outscraper"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                />
+                <p className="text-xs text-white/40 mt-1">Gerador de Leads e buscas no Google Maps.</p>
+              </div>
+
+              <button
+                onClick={handleTestOutscraper}
+                disabled={outscraperTesting}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all cursor-pointer"
+              >
+                {outscraperTesting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
+                  : <><Wifi className="w-4 h-4" /> Testar Conexão</>}
+              </button>
+
+              {outscraperTestResult && (
+                <div className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
+                  outscraperTestResult.ok
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}>
+                  {outscraperTestResult.ok
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                  <span>{outscraperTestResult.message}</span>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-white/80 mb-1">
-                API Key Google PageSpeed Insights (Velocidade & SEO)
-              </label>
-              <input
-                type="password"
-                value={pageSpeedKey}
-                onChange={(e) => setPageSpeedKey(e.target.value)}
-                placeholder="Cole sua API Key do PageSpeed Insights"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
-              />
-              <p className="text-xs text-white/40 mt-1">Auditoria real de velocidade de site e métricas de SEO.</p>
+            {/* Google PageSpeed Insights */}
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">
+                  API Key Google PageSpeed Insights (Velocidade & SEO)
+                </label>
+                <input
+                  type="password"
+                  value={pageSpeedKey}
+                  onChange={(e) => { setPageSpeedKey(e.target.value); setPageSpeedTestResult(null); }}
+                  placeholder="Cole sua API Key do PageSpeed Insights"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                />
+                <p className="text-xs text-white/40 mt-1">Auditoria real de velocidade de site e métricas de SEO.</p>
+              </div>
+
+              <button
+                onClick={handleTestPageSpeed}
+                disabled={pageSpeedTesting}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all cursor-pointer"
+              >
+                {pageSpeedTesting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
+                  : <><Wifi className="w-4 h-4" /> Testar Conexão</>}
+              </button>
+
+              {pageSpeedTestResult && (
+                <div className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
+                  pageSpeedTestResult.ok
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}>
+                  {pageSpeedTestResult.ok
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                  <span>{pageSpeedTestResult.message}</span>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-white/80 mb-1">
-                API Key Meta Ad Library / Access Token (Anúncios Meta)
-              </label>
-              <input
-                type="password"
-                value={metaAdsKey}
-                onChange={(e) => setMetaAdsKey(e.target.value)}
-                placeholder="Cole seu Token / Key da Meta Ads Library"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
-              />
-              <p className="text-xs text-white/40 mt-1">Detecção de anúncios ativos no Instagram e Facebook.</p>
+            {/* Meta Ad Library */}
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-white/80 mb-1">
+                  API Key Meta Ad Library / Access Token (Anúncios Meta)
+                </label>
+                <input
+                  type="password"
+                  value={metaAdsKey}
+                  onChange={(e) => { setMetaAdsKey(e.target.value); setMetaAdsTestResult(null); }}
+                  placeholder="Cole seu Token / Key da Meta Ads Library"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#5271FF] transition-all font-mono text-sm"
+                />
+                <p className="text-xs text-white/40 mt-1">Detecção de anúncios ativos no Instagram e Facebook.</p>
+              </div>
+
+              <button
+                onClick={handleTestMetaAds}
+                disabled={metaAdsTesting}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all cursor-pointer"
+              >
+                {metaAdsTesting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
+                  : <><Wifi className="w-4 h-4" /> Testar Conexão</>}
+              </button>
+
+              {metaAdsTestResult && (
+                <div className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
+                  metaAdsTestResult.ok
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}>
+                  {metaAdsTestResult.ok
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                  <span>{metaAdsTestResult.message}</span>
+                </div>
+              )}
             </div>
 
+            {/* Local Falcon */}
             <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-white/80 mb-1">
@@ -299,7 +486,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
               <button
                 onClick={handleTestLocalFalcon}
                 disabled={falconTesting}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all"
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all cursor-pointer"
               >
                 {falconTesting
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
