@@ -1292,7 +1292,25 @@ export const clearProspectDiagnostic = async (id: string) => {
 };
 
 export const deleteProspect = async (id: string) => {
-  await deleteDoc(doc(db, 'prospects', id));
+  try {
+    const prospectRef = doc(db, 'prospects', id);
+    const snap = await getDoc(prospectRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.prospeccaoDocId) {
+        await deleteDoc(doc(db, 'prospeccoes_docs', data.prospeccaoDocId)).catch(() => {});
+      }
+      await deleteDoc(prospectRef);
+    }
+  } catch (e) {
+    console.warn("Erro ao deletar de prospects:", e);
+  }
+
+  try {
+    await deleteDoc(doc(db, 'prospeccoes_docs', id));
+  } catch (e) {
+    console.warn("Erro ao deletar de prospeccoes_docs:", e);
+  }
 };
 
 export const getGlobalSettings = async (documentId: string = 'gemini') => {

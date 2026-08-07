@@ -611,6 +611,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
     return result;
   }, [prospects, searchTerm, filters, sortConfig, quickFilter, showArchivedOnly]);
 
+  const currentTabProspects = useMemo(() => {
+    return prospects.filter(p => showArchivedOnly ? !!p.isArchived : !p.isArchived);
+  }, [prospects, showArchivedOnly]);
+
   const archivedCount = useMemo(() => prospects.filter((p) => p.isArchived).length, [prospects]);
 
   const spotWorkCount = useMemo(() => {
@@ -1310,7 +1314,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   };
 
   const renderFilterDropdown = (column: keyof Prospect, label: string) => {
-    const uniqueValues = Array.from(new Set(prospects.map(p => String(p[column] || '')))).filter(v => v !== '').sort();
+    const uniqueValues = Array.from(new Set(currentTabProspects.map(p => String(p[column] || '')))).filter(v => v !== '').sort();
 
     return (
       <div className="relative inline-block ml-1 column-filter-container">
@@ -1414,7 +1418,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 style={{ height: '38px' }}
               >
                 <option value="">Líderes (Todos)</option>
-                {Array.from(new Set(prospects.map(p => p.responsible).filter(Boolean))).sort().map(leader => (
+                {Array.from(new Set(currentTabProspects.map(p => p.responsible).filter(Boolean))).sort().map(leader => (
                   <option key={leader} value={leader}>{leader}</option>
                 ))}
               </select>
@@ -1437,7 +1441,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                 style={{ height: '38px' }}
               >
                 <option value="">Cidades (Todas)</option>
-                {Array.from(new Set(prospects.map(p => p.location).filter(Boolean))).sort().map(loc => (
+                {Array.from(new Set(currentTabProspects.map(p => p.location).filter(Boolean))).sort().map(loc => (
                   <option key={loc} value={loc}>{loc}</option>
                 ))}
               </select>
@@ -1936,17 +1940,23 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 text-center w-14">
+                      <td className="px-4 py-4 text-center w-14" onClick={(e) => e.stopPropagation()}>
                         {deletingId === p.id ? (
                           <div className="flex justify-center items-center gap-1 animate-in fade-in zoom-in duration-200">
                             <button
-                              onClick={() => handleDelete(p.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(p.id);
+                              }}
                               className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black rounded-lg hover:bg-red-700 transition-all"
                             >
                               Sim
                             </button>
                             <button
-                              onClick={() => setDeletingId(null)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingId(null);
+                              }}
                               className="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[9px] font-black rounded-lg hover:bg-gray-300 transition-all"
                             >
                               X
@@ -1966,7 +1976,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                               {p.isArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                             </button>
                             <button
-                              onClick={() => setDeletingId(p.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingId(p.id);
+                              }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all inline-flex justify-center"
                               title="Excluir Registro"
                             >
@@ -2251,13 +2264,19 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                           {deletingId === p.id ? (
                             <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200">
                               <button
-                                onClick={() => handleDelete(p.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(p.id);
+                                }}
                                 className="px-1.5 py-0.5 bg-red-600 text-white text-[8px] font-black rounded-lg hover:bg-red-700 transition-all"
                               >
                                 Sim
                               </button>
                               <button
-                                onClick={() => setDeletingId(null)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingId(null);
+                                }}
                                 className="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[8px] font-black rounded-lg hover:bg-gray-300 transition-all"
                               >
                                 X
@@ -2277,7 +2296,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                 {p.isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                               </button>
                               <button
-                                onClick={() => setDeletingId(p.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingId(p.id);
+                                }}
                                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                                 title="Excluir"
                               >

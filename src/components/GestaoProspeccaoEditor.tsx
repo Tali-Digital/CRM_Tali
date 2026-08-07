@@ -31,7 +31,7 @@ export default function GestaoProspeccaoEditor() {
   const [isGerenciadorOpen, setIsGerenciadorOpen] = useState(false);
   const [editingEditorProspeccaoDoc, setEditingEditorProspeccaoDoc] = useState<EditorProspeccaoDoc | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<EditorProspeccaoDoc | null>(null);
-  const [prospectsMap, setProspectsMap] = useState<Record<string, { responsible: string; ownerName: string; clinicName: string; }>>({});
+  const [prospectsMap, setProspectsMap] = useState<Record<string, { responsible: string; ownerName: string; clinicName: string; location: string; }>>({});
   const [responsibleFilter, setResponsibleFilter] = useState<string>(() => getSavedFilter('responsibleFilter', ''));
   const [periodType, setPeriodType] = useState<string>(() => getSavedFilter('periodType', 'all'));
   const [startDate, setStartDate] = useState<string>(() => getSavedFilter('startDate', ''));
