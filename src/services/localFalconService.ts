@@ -15,6 +15,9 @@ export interface LocalFalconCompetitor {
   nome: string;
   posicao: number;     // Posição média
   aparecimentos: number; // Quantas vezes apareceu nos grid points
+  nota?: number | null;
+  avaliacoes?: number | null;
+  endereco?: string | null;
 }
 
 export interface LocalFalconResult {
