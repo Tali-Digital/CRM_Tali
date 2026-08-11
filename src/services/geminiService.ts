@@ -744,24 +744,33 @@ Analise os dados reais do relatório da clínica "${clinicName}" em "${location}
 - Site / Landing Page: ${siteUrl ? `URL: ${siteUrl}, Velocidade Mobile: ${siteVel}/100, SEO Técnico: ${siteSeo}/100` : 'Sem site cadastrado'}.
 - Presença em Anúncios Pagos: Google Ads: ${googleAdsActive ? 'Ativo' : 'Inativo'}, Meta Ads (Instagram/Facebook): ${metaAdsActive ? 'Ativo' : 'Inativo'}.
 
-INSTRUÇÃO IMPORTANTE:
-Gere uma lista em JSON com exatamente 10 frases de Oportunidades & Pontos Fracos altamente personalizados, específicos e acionáveis para a clínica "${clinicName}".
-Cada frase deve conter dados reais do diagnóstico (ex: mencionar o nome da clínica, a palavra-chave "${kw}", a cidade/bairro, os concorrentes específicos, a nota técnica do site, a porcentagem de invisibilidade no mapa ou o volume de avaliações).
-EVITE FRASES GENÉRICAS que sirvam para qualquer clínica.
+INSTRUÇÃO CRÍTICA DE ESTILO:
+Gere uma lista em JSON com exatamente 10 frases de Oportunidades & Pontos Fracos altamente personalizados.
+CADA FRASE DEVE SER CURTA, DIRETA, RESUMIDA E FÁCIL DE ENTENDER (MÁXIMO DE 10 A 18 PALAVRAS POR FRASE, EXATAMENTE 1 LINHA POR ITEM).
+EVITE PARÁGRAFOS LONGOS E EXPLICAÇÕES PROLIXAS.
+
+Exemplos do estilo desejado:
+- "Presença irregular no Google Maps, com muitos pontos em posição 20+;"
+- "Concorrentes diretos aparecendo à frente em regiões estratégicas;"
+- "Boa nota no Google (${rating}★), mas com volume de avaliações menor que alguns concorrentes;"
+- "Ausência de campanhas ativas no Google Ads para o termo "${kw}";"
+- "Site com velocidade reduzida (nota ${siteVel}/100), gerando perda de visitantes;"
+- "Oportunidade de fortalecer o Google Meu Negócio para melhorar o ranqueamento local;"
+- "Possibilidade de aumentar a captação de pacientes que já estão pesquisando por dentistas na região."
 
 Retorne no formato JSON estrito:
 {
   "oportunidades": [
-    "frase 1 altamente personalizada",
-    "frase 2 altamente personalizada",
-    "frase 3 altamente personalizada",
-    "frase 4 altamente personalizada",
-    "frase 5 altamente personalizada",
-    "frase 6 altamente personalizada",
-    "frase 7 altamente personalizada",
-    "frase 8 altamente personalizada",
-    "frase 9 altamente personalizada",
-    "frase 10 altamente personalizada"
+    "frase 1 curta e direta",
+    "frase 2 curta e direta",
+    "frase 3 curta e direta",
+    "frase 4 curta e direta",
+    "frase 5 curta e direta",
+    "frase 6 curta e direta",
+    "frase 7 curta e direta",
+    "frase 8 curta e direta",
+    "frase 9 curta e direta",
+    "frase 10 curta e direta"
   ]
 }`;
 
