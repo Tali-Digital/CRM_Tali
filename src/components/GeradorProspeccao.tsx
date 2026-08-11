@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspeccao, getGlobalSettings, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -101,6 +101,20 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [totalPages, setTotalPages] = useState(1);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [prospectData, setProspectData] = useState<any>(null);
+
+  const computedOpcoesDono = useMemo(() => {
+    const baseString = prospectData?.ownerName || (prospeccaoParaEditar as any)?.clienteNome || donoClinica || '';
+    if (!baseString) return opcoesDono;
+    const parts = baseString.split(/,|;|\/| e /i).map((s: string) => s.trim()).filter(Boolean);
+    let list: string[] = [];
+    if (parts.length > 1) {
+      list = Array.from(new Set([baseString, ...parts, ...opcoesDono]));
+    } else {
+      list = Array.from(new Set([baseString, ...opcoesDono]));
+    }
+    return list.filter(Boolean);
+  }, [prospectData?.ownerName, prospeccaoParaEditar, donoClinica, opcoesDono]);
+
   const [estilos, setEstilos] = useState({
     h1: { size: 16, bold: true, uppercase: true, indent: 0 },
     h2: { size: 14, bold: true, uppercase: true, indent: 0 },
@@ -634,49 +648,51 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const clientRating = prospectData?.gmnRating ? Number(prospectData.gmnRating).toFixed(1) : (gmn?.rating ? Number(gmn.rating).toFixed(1) : '4.8');
     const clientReviews = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
 
+    const cleanReviewsStr = (val: any) => String(val ?? '0').replace(/avaliaç[õo]es/gi, '').trim();
+
     const clientRankingHtml = `
-      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 10px; padding: 6px 12px; margin: 0; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.06); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.06); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
           ${effectiveClientRank}
         </div>
         <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 700; font-size: 10.5pt; color: #991b1b; margin-bottom: 2px; line-height: 1.25;">
+          <div style="font-weight: 700; font-size: 10.5pt; color: #991b1b; margin-bottom: 3px; line-height: 1.3;">
             ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)
           </div>
-          ${clientAddress ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 2px; line-height: 1.25;">${clientAddress}</div>` : ''}
+          ${clientAddress ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 3px; line-height: 1.3;">${clientAddress}</div>` : ''}
           <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span>${clientRating}</span>
             <span style="color: #f59e0b;">★★★★★</span>
-            <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${clientReviews} avaliações)</span>
+            <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${cleanReviewsStr(clientReviews)} avaliações)</span>
           </div>
         </div>
       </div>
     `;
     const rankingHtml = (hasValidClientRank || concorrentes.length > 0) ? `
-      <div style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 10px 14px; margin: 10px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <h3 style="margin: 0 0 6px 0; font-size: 13pt; font-weight: 800; color: #0f172a;">
+      <div style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 14px 18px; margin: 14px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <h3 style="margin: 0 0 10px 0; font-size: 13.5pt; font-weight: 800; color: #0f172a;">
           ${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}
         </h3>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
           ${effectiveClientRank === 1 ? clientRankingHtml : ''}
           ${concorrentes.length ? concorrentes.map((c: any) => `
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 12px; margin: 0; display: flex; align-items: center; gap: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-              <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
                 ${c.posicao}
               </div>
               <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 2px; line-height: 1.25;">
+                <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 3px; line-height: 1.3;">
                   ${c.nome || 'Concorrente'}
                 </div>
-                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 2px; line-height: 1.25;">${c.endereco}</div>` : ''}
+                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 3px; line-height: 1.3;">${c.endereco}</div>` : ''}
                 <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span>${c.nota ? Number(c.nota).toFixed(1) : '5.0'}</span>
                   <span style="color: #f59e0b;">★★★★★</span>
-                  <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${c.avaliacoes ?? 0} avaliações)</span>
+                  <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${cleanReviewsStr(c.avaliacoes)} avaliações)</span>
                 </div>
               </div>
             </div>
-          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700; margin: 4px 0;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
+          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700; margin: 6px 0;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
           ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
         </div>
       </div>
@@ -1888,7 +1904,52 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
-                        <div><strong style={{ color: 'white' }}>Dono:</strong> {donoClinica || '-'}</div>
+                        <div>
+                          <div style={{ marginBottom: '3px' }}>
+                            <strong style={{ color: 'white' }}>Dono (Endereçado a):</strong>
+                          </div>
+                          {computedOpcoesDono.length > 1 ? (
+                            <select
+                              value={donoClinica}
+                              onChange={(e) => setDonoClinica(e.target.value)}
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#0f172a',
+                                color: '#fcd34d',
+                                border: '1px solid #3b82f6',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                outline: 'none',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {computedOpcoesDono.map((op, idx) => (
+                                <option key={idx} value={op}>
+                                  {op}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={donoClinica}
+                              onChange={(e) => setDonoClinica(e.target.value)}
+                              placeholder="Nome do Dono..."
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#0f172a',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '6px',
+                                padding: '4px 8px',
+                                fontSize: '0.8rem',
+                                outline: 'none'
+                              }}
+                            />
+                          )}
+                        </div>
                         <div><strong style={{ color: 'white' }}>Clínica:</strong> {clinica || '-'}</div>
                         <div><strong style={{ color: 'white' }}>Cidade:</strong> {cidadeBairro || '-'}</div>
                         <div><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
