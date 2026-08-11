@@ -747,48 +747,74 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     `;
 
     let html = getCanonicalHtml();
-    let appended = '';
+    if (!html) return;
+    html = html.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
 
-    const visualTags: Record<string, string> = {
-      '{{IA_CARD_BUSCA_GOOGLE}}': cardBuscaGoogleHtml,
-      '{{IA_CARD_LEGENDA_MAPA}}': cardLegendaMapaHtml,
-      '{{IA_MAPA_CALOR}}': mapaCalorHtml,
-      '{{IA_FICHA_CLINICA}}': fichaClinicaHtml,
-      '{{IA_PLACAR_PILARES}}': placarPilaresHtml,
-      '{{IA_RANKING_CONCORRENTES}}': rankingHtml,
-      '{{IA_PAGESPEED}}': pageSpeedHtml,
-      '{{IA_DINHEIRO_NA_MESA}}': dinheiroMesaVisualHtml,
-      '{{IA_PONTOS_OPORTUNIDADE}}': pontosOportunidadeHtml,
-      '{{IA_OPORTUNIDADES}}': pontosOportunidadeHtml,
-      '{{IA_RESUMO}}': resumoHtml,
-      '{{IA_PLACAR}}': placarHtml,
-      '{{IA_GMN}}': gmnHtml,
-      '{{IA_SITE}}': siteHtml,
-      '{{IA_ANUNCIOS}}': anunciosHtml,
-      '{{IA_DINHEIRO}}': dinheiroMesaHtml,
-      '{{IA_PLANO_ACAO}}': planoHtml,
-      '{{IA_CONCORRENTES}}': concorrentesHtml,
-    };
     let applied = 0;
     let unavailable = 0;
+
+    const applyTagToHtml = (currentHtml: string, tagCode: string, value: string): { newHtml: string; matched: boolean } => {
+      if (!tagCode || value === undefined || value === null) return { newHtml: currentHtml, matched: false };
+      const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+      const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
+      
+      if (tagRegex.test(currentHtml)) {
+        return { newHtml: currentHtml.replace(tagRegex, value), matched: true };
+      }
+      if (currentHtml.includes(tagCode)) {
+        return { newHtml: currentHtml.split(tagCode).join(value), matched: true };
+      }
+      return { newHtml: currentHtml, matched: false };
+    };
+
     Object.entries(visualTags).forEach(([tag, value]) => {
-      if (!html.includes(tag)) return;
       if (value) {
-        html = html.split(tag).join(value);
-        applied += 1;
+        const res = applyTagToHtml(html, tag, value);
+        if (res.matched) {
+          html = res.newHtml;
+          applied += 1;
+        }
       } else {
-        unavailable += 1;
+        const rawName = tag.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+        const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
+        if (tagRegex.test(html) || html.includes(tag)) {
+          unavailable += 1;
+        }
       }
     });
-    const liveProspect = { ...prospectData, clinicName: clinica || prospectData?.clinicName, ownerName: donoClinica || prospectData?.ownerName, location: cidadeBairro || prospectData?.location, fullAddress: enderecoCompleto || prospectData?.fullAddress };
+
+    const liveProspect = {
+      ...prospectData,
+      clinicName: clinica || prospectData?.clinicName || (diagnosticData as any)?.nomeClinica || '',
+      ownerName: donoClinica || prospectData?.ownerName || (diagnosticData as any)?.nomeDono || '',
+      location: cidadeBairro || prospectData?.location || (diagnosticData as any)?.cidade || '',
+      fullAddress: enderecoCompleto || prospectData?.fullAddress || (diagnosticData as any)?.endereco || '',
+      gmnRating: prospectData?.gmnRating || (diagnosticData as any)?.gmn?.rating || (diagnosticData as any)?.rating || '4.8',
+      gmnReviewsCount: prospectData?.gmnReviewsCount ?? (diagnosticData as any)?.gmn?.reviewsCount ?? (diagnosticData as any)?.reviewsCount ?? 0,
+    };
+
     DEFAULT_VARIABLE_TAGS.forEach((tag) => {
       if (visualTags[tag.code] !== undefined) return;
-      if (!html.includes(tag.code)) return;
-      html = html.split(tag.code).join(tag.exampleValue(liveProspect, diagnosticData));
-      applied += 1;
+      const value = tag.exampleValue(liveProspect, diagnosticData);
+      const res = applyTagToHtml(html, tag.code, value);
+      if (res.matched) {
+        html = res.newHtml;
+        applied += 1;
+      }
     });
+
     setEditorHtml(html);
-    Swal.fire({ toast: true, position: 'top-end', icon: applied ? 'success' : 'info', title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta', text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined, showConfirmButton: false, timer: 2600 });
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: applied ? 'success' : 'info',
+      title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta',
+      text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined,
+      showConfirmButton: false,
+      timer: 2600
+    });
   };
 
   const handleMarcarEntregue = async () => {
