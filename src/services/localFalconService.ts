@@ -1,4 +1,4 @@
-﻿﻿import { getGlobalSettings } from './firestoreService';
+﻿import { getGlobalSettings } from './firestoreService';
 
 export interface LocalFalconScanParams {
   keyword: string;
@@ -380,8 +380,30 @@ const autoAddLocationToLocalFalcon = async (
 
         if (results.length === 0) continue;
 
-        // Prefere o melhor match; fallback para o primeiro resultado
-        const bestMatch = results.find(r => isSimilarName(r.name || '', locationName)) || results[0];
+        const normCity = (cleanCity || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+
+        // Candidatos com nome similar
+        const nameMatches = results.filter(r => isSimilarName(r.name || '', locationName));
+        const pool = nameMatches.length > 0 ? nameMatches : results;
+
+        // Se a proximidade usada for ampla ("Brasil"), EXIGE que o endereço contenha a cidade
+        // para não pegar empresa homônima em outra cidade
+        let bestMatch: any = null;
+        if (normCity && prox === 'Brasil') {
+          bestMatch = pool.find(r => {
+            const addr = (r.address || r.formatted_address || r.vicinity || '').toLowerCase()
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '');
+            return addr.includes(normCity);
+          });
+          // Se não achou com endereço, pula essa rodada — não arrisca empresa errada
+          if (!bestMatch) {
+            console.warn('[LocalFalcon AUTO] Busca "Brasil" retornou resultados mas nenhum tem a cidade "' + cleanCity + '" no endereço. Pulando para evitar empresa errada.');
+            continue;
+          }
+        } else {
+          // Proximidade específica (cidade ou UF) — pode confiar no primeiro resultado
+          bestMatch = pool[0];
+        }
 
         const placeId = bestMatch.place_id;
         const lat = String(bestMatch.lat);
