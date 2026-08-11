@@ -7,6 +7,7 @@ export interface LocalFalconScanParams {
   placeId?: string;           // Google Place ID (se já conhecido)
   gridSize?: '3' | '5' | '7' | '3x3' | '5x5' | '7x7'; // Tamanho da grade
   radius?: number;            // Raio em km
+  forceNewScan?: boolean;     // Se false/omitido, reutiliza relatório existente de 0 créditos se disponível
 }
 
 export interface LocalFalconCompetitor {
@@ -406,6 +407,35 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 
   if (!key) {
     return { success: false, error: 'Chave API do Local Falcon não configurada no menu Admin.' };
+  }
+
+  // 🛡️ PROTEÇÃO RIGOROSA ANTI-GASTO AUTOMÁTICO DE CRÉDITOS:
+  // Se não for uma requisição com forceNewScan === true (clique explícito de botão pelo usuário),
+  // SOMENTE busca relatórios já gravados no histórico (0 Créditos). JAMAIS faz novos scans pagos automaticamente.
+  if (!params.forceNewScan) {
+    console.log('[LocalFalcon Proteção Rigorosa] Buscando relatório no histórico da conta (0 Créditos)...');
+    try {
+      const historyCheck = await fetchLocalFalconReportHistory({
+        locationName: params.locationName,
+        keyword: params.keyword
+      });
+      if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
+        console.log('[LocalFalcon Proteção] ✅ Relatório existente encontrado no histórico! Reutilizando dados com 0 Créditos consumidos.');
+        return historyCheck;
+      } else {
+        console.log('[LocalFalcon Proteção] ⚠️ Nenhum relatório prévio localizado no histórico. Bloqueando scan pago automático.');
+        return {
+          success: false,
+          error: `Nenhum relatório anterior foi localizado para "${params.locationName}". Para realizar uma nova varredura paga (consumindo créditos), utilize a opção "Executar Novo Scan Pago".`
+        };
+      }
+    } catch (hErr: any) {
+      console.warn('[LocalFalcon Proteção] Erro ao consultar histórico:', hErr);
+      return {
+        success: false,
+        error: `Não foi possível verificar o histórico do Local Falcon: ${hErr.message || 'Erro de conexão'}`
+      };
+    }
   }
 
   // Converte "3x3" → "3", "5x5" → "5", "7x7" → "7"

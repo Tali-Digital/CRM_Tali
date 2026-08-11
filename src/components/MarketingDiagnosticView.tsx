@@ -483,7 +483,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const handleRerunSingleModule = async (moduleName: 'gmn' | 'site' | 'instagram' | 'ads') => {
     if (!selectedProspect) return;
-    enqueueDiagnostic(selectedProspect, 'rerun_module', moduleName);
+    if (moduleName === 'gmn') {
+      const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: '⚠️ Executar NOVO Scan Pago?',
+        html: `Esta ação irá disparar uma nova varredura paga no Local Falcon para <b>${selectedProspect.clinicName}</b> e consumirá <b>25 créditos</b> da sua conta.<br/><br/><i>Por padrão, a busca no histórico consome 0 créditos. Tem certeza que deseja rodar um novo scan pago?</i>`,
+        showCancelButton: true,
+        confirmButtonText: 'Sim, Executar Scan Pago (25 Créditos)',
+        cancelButtonText: 'Cancelar (0 Créditos)',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b'
+      });
+      if (!confirmation.isConfirmed) return;
+      enqueueDiagnostic(selectedProspect, 'force_new_gmn', moduleName);
+    } else {
+      enqueueDiagnostic(selectedProspect, 'rerun_module', moduleName);
+    }
   };
 
   const handleConfirmMetaAds = async (hasActiveAds: boolean) => {
@@ -897,7 +912,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const enqueueDiagnostic = useCallback((
     prospect: Prospect,
-    actionType: 'full' | 'rerun_module' | 'fetch_existing_gmn' = 'full',
+    actionType: 'full' | 'rerun_module' | 'fetch_existing_gmn' | 'force_new_gmn' = 'full',
     targetModule?: 'gmn' | 'site' | 'instagram' | 'ads'
   ) => {
     // Don't add if already in queue (waiting or running)
@@ -922,9 +937,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
     const actionLabel = actionType === 'fetch_existing_gmn'
       ? '📥 Puxar Análise Existente (0 Créditos)'
-      : actionType === 'rerun_module'
-        ? `🔄 Refazer Módulo (${targetModule?.toUpperCase()})`
-        : '⚡ Diagnóstico Completo';
+      : actionType === 'force_new_gmn'
+        ? '⚡ NOVO Scan Pago (25 Créditos)'
+        : actionType === 'rerun_module'
+          ? `🔄 Refazer Módulo (${targetModule?.toUpperCase()})`
+          : '⚡ Diagnóstico Completo';
 
     const queueItem: DiagnosticQueueItem = {
       id: `diag-${prospect.id}-${Date.now()}`,
@@ -932,7 +949,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       clinicName: prospect.clinicName || 'Sem Nome',
       location: prospect.location || '',
       status: 'waiting',
-      actionType,
+      actionType: actionType as any,
       targetModule,
       addedAt: Date.now(),
       logs: [{ timestamp: Date.now(), step: `Adicionado à fila: ${actionLabel}`, status: 'done' }],
@@ -1086,7 +1103,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               locationName: form.companyName,
               cityName: form.cityName,
               gridSize: form.gridSize || '5x5',
-              radius: Number(form.radius || 5)
+              radius: Number(form.radius || 5),
+              forceNewScan: (nextItem as any).actionType === 'force_new_gmn'
             });
             const lfDur = Date.now() - lfStart;
             if (localFalconResult?.success) {
