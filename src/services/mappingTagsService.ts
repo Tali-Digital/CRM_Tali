@@ -261,10 +261,16 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   {
     code: '{{NOMES_CONCORRENTES}}',
     category: 'SEO & Google Maps',
-    description: 'Lista formatada em texto com o nome dos concorrentes diretos da região',
-    exampleValue: (p, d) => d?.concorrentes && d.concorrentes.length > 0
-      ? d.concorrentes.map((c: any) => c.nome).join(', ')
-      : 'Odonto Premier - Dentista Lago Sul, Blanc Odontologia e Conic Odontologia'
+    description: 'Lista formatada em texto com os 3 principais concorrentes diretos da região',
+    exampleValue: (p, d) => {
+      if (d?.concorrentes && Array.isArray(d.concorrentes) && d.concorrentes.length > 0) {
+        const top3 = d.concorrentes.slice(0, 3).map((c: any) => c.nome || c.name).filter(Boolean);
+        if (top3.length === 1) return top3[0];
+        if (top3.length === 2) return `${top3[0]} e ${top3[1]}`;
+        return `${top3.slice(0, -1).join(', ')} e ${top3[top3.length - 1]}`;
+      }
+      return 'Odonto Premier, Blanc Odontologia e Conic Odontologia';
+    }
   },
   {
     code: '{{POSICAO_GERAL}}',
@@ -431,7 +437,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   {
     code: '{{IA_CONCORRENTES}}',
     category: 'IA & Resumos',
-    description: 'Tabela formatada com os principais concorrentes da região',
-    exampleValue: (p, d) => d?.concorrentes ? d.concorrentes.map((c: any) => `- ${c.nome} (${c.nota}★ | ${c.avaliacoes} avaliações)`).join('\n') : 'Lista de concorrentes...'
+    description: 'Tabela formatada com os principais concorrentes da região (Top 5)',
+    exampleValue: (p, d) => d?.concorrentes ? d.concorrentes.slice(0, 5).map((c: any) => `- ${c.nome} (${c.nota}★ | ${c.avaliacoes} avaliações)`).join('\n') : 'Lista de concorrentes...'
   }
 ];
