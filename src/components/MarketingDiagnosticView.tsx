@@ -3557,8 +3557,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   {queueCounts.done > 0 && <span className="text-green-400 font-medium">✅ {queueCounts.done} concluídos</span>}
                   {queueCounts.error > 0 && <span className="text-red-400 font-medium">❌ {queueCounts.error} com erro</span>}
                   {queueCounts.total === 0 && <span className="text-gray-500">Nenhum diagnóstico na fila</span>}
-                  <span className="ml-auto text-[10px] text-gray-400 bg-gray-800/80 px-2 py-0.5 rounded-md border border-gray-700/60 flex items-center gap-1" title="Itens concluídos ou com erro são removidos automaticamente após 72 horas">
-                    <Clock size={10} className="text-indigo-400 inline" /> Histórico mantido por 72h (auto-limpeza)
+                  <span className="ml-auto text-[10px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-700/50 flex items-center gap-1" title="Histórico permanente mantido para auditoria completa de todas as requisições e erros">
+                    <Clock size={10} className="text-emerald-400 inline" /> Histórico permanente (Registro de Auditoria)
                   </span>
                 </p>
               </div>

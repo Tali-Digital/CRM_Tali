@@ -1422,20 +1422,11 @@ export const deleteModeloProspeccao = async (id: string) => {
   await deleteDoc(doc(db, 'modelos_prospeccoes', id));
 };
 
-// --- DIAGNOSTIC QUEUE (COMPARTILHADA 72H) ---
+// --- DIAGNOSTIC QUEUE (COMPARTILHADA / HISTÓRICO COMPLETO E PERMANENTE) ---
 export const subscribeToDiagnosticQueue = (companyId: string, callback: (items: any[]) => void) => {
   const q = query(collection(db, 'diagnostic_queue'));
   return onSnapshot(q, (snapshot) => {
-    const now = Date.now();
-    const cutoff = 72 * 60 * 60 * 1000; // 72 horas
-    const items = snapshot.docs
-      .map(d => ({ id: d.id, ...d.data() } as any))
-      .filter(item => {
-        if (item.status === 'running' || item.status === 'waiting') return true;
-        const refTime = item.finishedAt || item.addedAt || now;
-        return (now - refTime) < cutoff;
-      });
-
+    const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
     items.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
     callback(items);
   }, (err) => {
