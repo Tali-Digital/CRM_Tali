@@ -1691,192 +1691,168 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           </div>
         </div>
 
-        {/* PAINEL SUPERIOR RETRÁTIL DE CONFIGURAÇÕES (SEUS MODELOS, DATA DA PROSPECÇÃO, DADOS DA CLÍNICA) */}
-        {isSidebarOpen && (
-          <div className="gerador-top-panel" style={{ backgroundColor: '#1e293b', borderBottom: '2px solid #334155', padding: '1rem 1.25rem', color: 'white', flexShrink: 0 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'stretch' }}>
+        {/* PAINEL DE CONFIGURAÇÕES RETRÁTIL (LATERAL EM DESKTOP, SUPERIOR EM MOBILE/TELAS VERTICAIS) */}
+        <div className="gerador-body-container" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {isSidebarOpen && (
+            <div className="gerador-config-panel" style={{ backgroundColor: '#1e293b', borderRight: '2px solid #334155', color: 'white', flexShrink: 0 }}>
+              <div className="config-inner-wrapper">
 
-              {/* Bloco 1: Modelos */}
-              <div style={{ flex: '1 1 240px', minWidth: '220px', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'white', fontWeight: '600' }}>Seus Modelos</h3>
-                <select
-                  className="input"
-                  style={{ marginBottom: isModeloOnlyMode ? '0' : '0.5rem', fontSize: '0.85rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
-                  value={selectedModeloId}
-                  onChange={e => isModeloOnlyMode ? handleSelectModeloInMode(e.target.value) : handleLoadModelo(e.target.value)}
-                >
-                  <option value="">-- Novo Modelo --</option>
-                  {modelos.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
-                </select>
-                {!isModeloOnlyMode && (
-                  <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.45rem', fontSize: '0.85rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }}>
-                    Salvar Atual como Modelo
-                  </button>
-                )}
-              </div>
-
-              {isModeloOnlyMode ? (
-                /* Modo Apenas Modelo */
-                <div style={{ flex: '2 1 400px', display: 'flex', flexWrap: 'wrap', gap: '0.8rem', alignItems: 'center' }}>
-                  <div style={{ flex: '1 1 200px' }}>
-                    <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Nome do Modelo</label>
-                    <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={nomeModeloState} onChange={e => setNomeModeloState(e.target.value)} placeholder="Ex: 01 - Confronto por Demanda" />
-                  </div>
-                  <div style={{ flex: '2 1 280px' }}>
-                    <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Descrição do Modelo</label>
-                    <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={descricaoModeloState} onChange={e => setDescricaoModeloState(e.target.value)} placeholder="Descreva a finalidade..." />
-                  </div>
-                  <button disabled={isSaving} onClick={handleSaveModeloOnly} style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                    <Save size={16} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
-                  </button>
+                {/* Bloco 1: Modelos */}
+                <div className="config-block-modelos" style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'white', fontWeight: '600' }}>Seus Modelos</h3>
+                  <select
+                    className="input"
+                    style={{ marginBottom: isModeloOnlyMode ? '0' : '0.5rem', fontSize: '0.85rem', backgroundColor: 'white', color: '#1e293b', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
+                    value={selectedModeloId}
+                    onChange={e => isModeloOnlyMode ? handleSelectModeloInMode(e.target.value) : handleLoadModelo(e.target.value)}
+                  >
+                    <option value="">-- Novo Modelo --</option>
+                    {modelos.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                  </select>
+                  {!isModeloOnlyMode && (
+                    <button onClick={handleSaveModelo} style={{ width: '100%', padding: '0.45rem', fontSize: '0.85rem', backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                      Salvar Atual como Modelo
+                    </button>
+                  )}
                 </div>
-              ) : (
-                /* Modo Normal */
-                <>
-                  {/* Bloco 2: Data da Prospecção */}
-                  <div style={{ flex: '0 1 180px', minWidth: '160px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
-                    <input type="date" className="input" style={{ fontSize: '0.85rem', padding: '0.55rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
-                  </div>
 
-                  {/* Bloco 3: Dados da Clínica */}
-                  <div style={{ flex: '2 1 340px', minWidth: '280px', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.4rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>Dados da Clínica</h4>
-                      <a
-                        href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
-                        onClick={(e) => {
-                          if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
-                            e.preventDefault();
-                            Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
-                          }
-                        }}
-                        style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'none' }}
-                      >
-                        <Edit2 size={12} /> Editar Ficha Completa
-                      </a>
+                {isModeloOnlyMode ? (
+                  /* Modo Apenas Modelo */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Nome do Modelo</label>
+                      <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={nomeModeloState} onChange={e => setNomeModeloState(e.target.value)} placeholder="Ex: 01 - Confronto por Demanda" />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Descrição do Modelo</label>
+                      <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={descricaoModeloState} onChange={e => setDescricaoModeloState(e.target.value)} placeholder="Descreva a finalidade..." />
+                    </div>
+                    <button disabled={isSaving} onClick={handleSaveModeloOnly} style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                      <Save size={16} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
+                    </button>
+                  </div>
+                ) : (
+                  /* Modo Normal */
+                  <>
+                    {/* Bloco 2: Data da Prospecção */}
+                    <div className="config-block-data" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Data da Prospecção</label>
+                      <input type="date" className="input" style={{ fontSize: '0.85rem', padding: '0.55rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', border: '1px solid transparent', borderRadius: '6px' }} value={dataProspeccao} onChange={e => setDataProspeccao(e.target.value)} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.4rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
-                      <div><strong style={{ color: 'white' }}>Dono:</strong> {donoClinica || '-'}</div>
-                      <div><strong style={{ color: 'white' }}>Clínica:</strong> {clinica || '-'}</div>
-                      <div><strong style={{ color: 'white' }}>Cidade:</strong> {cidadeBairro || '-'}</div>
-                      <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
+                    {/* Bloco 3: Dados da Clínica */}
+                    <div className="config-block-clinica" style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.4rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>Dados da Clínica</h4>
+                        <a
+                          href={prospeccaoParaEditar?.clienteId ? `#/prospeccao?edit=${prospeccaoParaEditar.clienteId}` : '#'}
+                          onClick={(e) => {
+                            if (!prospeccaoParaEditar || !prospeccaoParaEditar.clienteId) {
+                              e.preventDefault();
+                              Swal.fire('Aviso', 'Esta ficha ainda não foi salva como Prospecto.', 'warning');
+                            }
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: '#fcd34d', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'none' }}
+                        >
+                          <Edit2 size={12} /> Editar Ficha Completa
+                        </a>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+                        <div><strong style={{ color: 'white' }}>Dono:</strong> {donoClinica || '-'}</div>
+                        <div><strong style={{ color: 'white' }}>Clínica:</strong> {clinica || '-'}</div>
+                        <div><strong style={{ color: 'white' }}>Cidade:</strong> {cidadeBairro || '-'}</div>
+                        <div><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
+                      </div>
                     </div>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
 
-            </div>
-          </div>
-        )}
-
-        <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-          {/* Área do Editor */}
-          <div className="gerador-editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#e2e8f0' }}>
-
-            {/* Toolbar */}
-            <div className="gerador-toolbar" style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: 'white', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button onClick={() => handleFormat('undo')} className="editor-btn" title="Desfazer"><Undo size={18} /></button>
-              <button onClick={() => handleFormat('redo')} className="editor-btn" title="Refazer"><Redo size={18} /></button>
-              <button onClick={() => handleFormat('removeFormat')} className="editor-btn" title="Limpar Formatação"><Eraser size={18} /></button>
-              <button onClick={handleFixWordBreaks} className="editor-btn" title="Corrigir Quebras do Word" style={{ color: 'var(--primary-color)' }}><Wand2 size={18} /></button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <button onClick={handleFormatWithAI} className="editor-btn" title="Formatar com IA" style={{ color: '#10b981', fontWeight: 'bold', gap: '0.3rem', padding: '0.4rem 0.8rem', backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }}>
-                <Sparkles size={18} /> IA
-              </button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <select onChange={async (e) => {
-                const val = e.target.value;
-                if (!val) return;
-                if (val === 'CONFIG') { handleConfigurarEstilos(); e.target.value = ''; return; }
-                if (val === 'P') { clearFormatting(); } else { document.execCommand('formatBlock', false, val); }
-                e.target.value = '';
-                editorRef.current?.focus();
-                handleEditorInput();
-              }} className="editor-select" style={{ fontWeight: 'bold' }}>
-                <option value="">Estilos...</option>
-                <option value="P">Texto Normal</option>
-                <option value="H1">Título</option>
-                <option value="H2">Seção Principal</option>
-                <option value="H3">Sub-seção</option>
-                <option disabled>──────────</option>
-                <option value="CONFIG">⚙️ Personalizar Estilos...</option>
-              </select>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <select onChange={(e) => handleFormat('fontSize', e.target.value)} className="editor-select" defaultValue="3">
-                <option value="1">Tam. 1</option>
-                <option value="2">Tam. 2</option>
-                <option value="3">Tam. 3 (Normal)</option>
-                <option value="4">Tam. 4</option>
-                <option value="5">Tam. 5</option>
-                <option value="6">Tam. 6</option>
-                <option value="7">Tam. 7</option>
-              </select>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <button onClick={() => handleFormat('bold')} className="editor-btn" title="Negrito"><Bold size={18} /></button>
-              <button onClick={() => handleFormat('italic')} className="editor-btn" title="Itálico"><Italic size={18} /></button>
-              <button onClick={() => handleFormat('underline')} className="editor-btn" title="Sublinhado"><Underline size={18} /></button>
-              <button onClick={() => handleFormat('strikethrough')} className="editor-btn" title="Tachado"><Strikethrough size={18} /></button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-              <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
-              <button onClick={handleCropSelectedImage} className="editor-btn" title="Recortar & Redimensionar Imagem Visualmente (Arrastar Cantos)" style={{ color: '#8b5cf6' }}><Crop size={18} /></button>
-              <button onClick={handleInsertTable} className="editor-btn" title="Inserir Tabela Personalizada na Carta" style={{ color: '#6366f1' }}><Table size={18} /></button>
-              <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Quebra de Página" style={{ color: '#ef4444' }}><Scissors size={18} /></button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <button onClick={() => handleFormat('justifyLeft')} className="editor-btn" title="Esquerda"><AlignLeft size={18} /></button>
-              <button onClick={() => handleFormat('justifyCenter')} className="editor-btn" title="Centralizar"><AlignCenter size={18} /></button>
-              <button onClick={() => handleFormat('justifyRight')} className="editor-btn" title="Direita"><AlignRight size={18} /></button>
-              <button onClick={() => handleFormat('justifyFull')} className="editor-btn" title="Justificar"><AlignJustify size={18} /></button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
-              <button onClick={() => handleFormat('outdent')} className="editor-btn" title="Diminuir Recuo"><Outdent size={18} /></button>
-              <button onClick={() => handleFormat('indent')} className="editor-btn" title="Aumentar Recuo"><Indent size={18} /></button>
-
-              <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-              <button onClick={() => setViewHtml(!viewHtml)} className="editor-btn" title="Editar HTML" style={{ color: viewHtml ? 'var(--primary-color)' : 'var(--text-secondary)', backgroundColor: viewHtml ? '#e0f2fe' : 'transparent' }}><Code size={18} /></button>
-
-              <select onChange={handleListStyle} className="editor-select">
-                <option value="">Listas...</option>
-                <option value="ul|disc">Bolinhas</option>
-                <option value="ul|circle">Círculos</option>
-                <option value="ul|square">Quadrados</option>
-                <option value="ol|decimal">Números (1, 2, 3)</option>
-                <option value="ol|lower-alpha">Letras (a, b, c)</option>
-                <option value="ol|upper-alpha">Letras (A, B, C)</option>
-                <option value="ol|lower-roman">Romano (i, ii)</option>
-                <option value="ol|upper-roman">Romano (I, II)</option>
-              </select>
-
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#f8fafc', padding: '0.35rem 0.8rem', borderRadius: '20px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: '800', color: '#334155' }}>
-                <FileText size={14} style={{ color: '#6366f1' }} />
-                <span>{totalPages} {totalPages === 1 ? 'Página A4' : 'Páginas A4'}</span>
               </div>
             </div>
+          )}
 
-            {/* Editor Central */}
-            <div id="editor-scroll-container" style={{ flex: 1, padding: '1.5rem 0.75rem', overflowY: 'auto', overflowX: 'auto', backgroundColor: '#f1f5f9', position: 'relative' }}>
-              <InlineImageCropperOverlay
-                targetImage={selectedEditorImage}
-                editorContainer={document.getElementById('editor-scroll-container')}
-                onUpdate={handleEditorInput}
-                onDeselect={() => setSelectedEditorImage(null)}
-              />
-              <div ref={paginationFrameRef} className="editor-page-wrapper" style={{ width: '210mm', minWidth: 'min(100%, 210mm)', maxWidth: '100%', margin: '0 auto', overflow: 'visible', boxSizing: 'border-box' }}>
+          <div className="gerador-main-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
+            {/* Área do Editor */}
+            <div className="gerador-editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#e2e8f0' }}>
+
+              {/* Toolbar */}
+              <div className="gerador-toolbar" style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: 'white', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button onClick={() => handleFormat('undo')} className="editor-btn" title="Desfazer"><Undo size={18} /></button>
+                <button onClick={() => handleFormat('redo')} className="editor-btn" title="Refazer"><Redo size={18} /></button>
+                <button onClick={() => handleFormat('removeFormat')} className="editor-btn" title="Limpar Formatação"><Eraser size={18} /></button>
+                <button onClick={handleFixWordBreaks} className="editor-btn" title="Corrigir Quebras do Word" style={{ color: 'var(--primary-color)' }}><Wand2 size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <button onClick={handleFormatWithAI} className="editor-btn" title="Formatar com IA" style={{ color: '#10b981', fontWeight: 'bold', gap: '0.3rem', padding: '0.4rem 0.8rem', backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }}>
+                  <Sparkles size={18} /> IA
+                </button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <select onChange={async (e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  if (val === 'CONFIG') { handleConfigurarEstilos(); e.target.value = ''; return; }
+                  if (val === 'P') { clearFormatting(); } else { document.execCommand('formatBlock', false, val); }
+                  e.target.value = '';
+                  editorRef.current?.focus();
+                  handleEditorInput();
+                }} className="editor-select" style={{ fontWeight: 'bold' }}>
+                  <option value="">Estilos...</option>
+                  <option value="P">Texto Normal</option>
+                  <option value="H1">Título</option>
+                  <option value="H2">Seção Principal</option>
+                  <option value="H3">Sub-seção</option>
+                  <option disabled>──────────</option>
+                  <option value="CONFIG">⚙️ Personalizar Estilos...</option>
+                </select>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <select onChange={(e) => handleFormat('fontSize', e.target.value)} className="editor-select" defaultValue="3">
+                  <option value="1">Tam. 1</option>
+                  <option value="2">Tam. 2</option>
+                  <option value="3">Tam. 3 (Normal)</option>
+                  <option value="4">Tam. 4</option>
+                  <option value="5">Tam. 5</option>
+                  <option value="6">Tam. 6</option>
+                  <option value="7">Tam. 7</option>
+                </select>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <button onClick={() => handleFormat('bold')} className="editor-btn" title="Negrito"><Bold size={18} /></button>
+                <button onClick={() => handleFormat('italic')} className="editor-btn" title="Itálico"><Italic size={18} /></button>
+                <button onClick={() => handleFormat('underline')} className="editor-btn" title="Sublinhado"><Underline size={18} /></button>
+                <button onClick={() => handleFormat('strikethrough')} className="editor-btn" title="Tachado"><Strikethrough size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+                <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
+                <button onClick={handleCropSelectedImage} className="editor-btn" title="Recortar & Redimensionar Imagem Visualmente (Arrastar Cantos)" style={{ color: '#8b5cf6' }}><Crop size={18} /></button>
+                <button onClick={handleInsertTable} className="editor-btn" title="Inserir Tabela Personalizada na Carta" style={{ color: '#6366f1' }}><Table size={18} /></button>
+                <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Quebra de Página" style={{ color: '#ef4444' }}><Scissors size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <button onClick={() => handleFormat('justifyLeft')} className="editor-btn" title="Esquerda"><AlignLeft size={18} /></button>
+                <button onClick={() => handleFormat('justifyCenter')} className="editor-btn" title="Centralizar"><AlignCenter size={18} /></button>
+                <button onClick={() => handleFormat('justifyRight')} className="editor-btn" title="Direita"><AlignRight size={18} /></button>
+                <button onClick={() => handleFormat('justifyFull')} className="editor-btn" title="Justificar"><AlignJustify size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                <button onClick={() => handleFormat('outdent')} className="editor-btn" title="Diminuir Recuo"><Outdent size={18} /></button>
+                <button onClick={() => handleFormat('indent')} className="editor-btn" title="Aumentar Recuo"><Indent size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+                <button onClick={() => setViewHtml(!viewHtml)} className="editor-btn" title="Editar HTML" style={{ color: viewHtml ? 'var(--primary-color)' : 'var(--text-secondary)', backgroundColor: viewHtml ? '#e0f2fe' : 'transparent' }}><Code size={18} /></button>
+              </div>
+
+              {/* Editor Workspace */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 1rem', display: 'flex', justifyContent: 'center' }}>
                 {viewHtml && (
                   <textarea
                     ref={(el) => { if (el) { setTimeout(() => { el.style.height = '1px'; el.style.height = `${el.scrollHeight + 20}px`; }, 0); } }}
@@ -1995,76 +1971,75 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 />
               </div>
             </div>
-          </div>
 
-          {/* Painel Direito: IA e Variáveis de Automação */}
-          <div className="gerador-ia-panel" style={{ width: '380px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '0.75rem 1rem', backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={handleApplyAllTags}
-                style={{ flex: 1, backgroundColor: '#0f766e', color: 'white', border: '1px solid #14b8a6', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
-                title="Substitui todas as tags por dados e blocos visuais reais disponíveis"
-              >
-                <Wand2 size={15} /> Aplicar Todas as Tags
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowVariableModal(true)}
-                style={{ backgroundColor: '#6366f1', color: 'white', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-              >
-                <Code size={12} /> Ver Mapeamento
-              </button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              {/* Tags de Clique Rápido */}
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <h4 style={{ margin: '0 0 0.6rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)', fontWeight: 'bold' }}>
-                  ⚡ Clique para Inserir Tag na Carta
-                </h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {DEFAULT_VARIABLE_TAGS.map((tag) => {
-                    const isVisualTag = tag.code.startsWith('{{IA_');
-                    return (
-                    <button
-                      key={tag.code}
-                      type="button"
-                      onClick={() => handleInsertTag(tag.code)}
-                      style={{
-                        backgroundColor: isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)',
-                        border: isVisualTag ? '1px solid rgba(245, 158, 11, 0.65)' : '1px solid rgba(255,255,255,0.15)',
-                        color: isVisualTag ? '#fcd34d' : '#cbd5e1',
-                        borderRadius: '6px',
-                        padding: '0.35rem 0.55rem',
-                        fontSize: '0.75rem',
-                        fontFamily: 'monospace',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        transition: 'all 0.15s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.28)' : 'rgba(99, 102, 241, 0.3)';
-                        e.currentTarget.style.color = 'white';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)';
-                        e.currentTarget.style.color = isVisualTag ? '#fcd34d' : '#cbd5e1';
-                      }}
-                      title={`${isVisualTag ? 'Inserir bloco visual: ' : 'Inserir '}${tag.description}`}
-                    >
-                      {isVisualTag ? <ImageIcon size={12} /> : <Plus size={12} />} {tag.code}
-                    </button>
-                    );
-                  })}
-                </div>
-                <p style={{ margin: '0.7rem 0 0', fontSize: '0.7rem', color: '#fcd34d', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <ImageIcon size={12} /> Tags douradas inserem conteúdo visual na carta.
-                </p>
+            {/* Painel Direito: IA e Variáveis de Automação */}
+            <div className="gerador-ia-panel" style={{ width: '380px', backgroundColor: 'var(--secondary-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '0.75rem 1rem', backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={handleApplyAllTags}
+                  style={{ flex: 1, backgroundColor: '#0f766e', color: 'white', border: '1px solid #14b8a6', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+                  title="Substitui todas as tags por dados e blocos visuais reais disponíveis"
+                >
+                  <Wand2 size={15} /> Aplicar Todas as Tags
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowVariableModal(true)}
+                  style={{ backgroundColor: '#6366f1', color: 'white', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                >
+                  <Code size={12} /> Ver Mapeamento
+                </button>
               </div>
 
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {/* Tags de Clique Rápido */}
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <h4 style={{ margin: '0 0 0.6rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)', fontWeight: 'bold' }}>
+                    ⚡ Clique para Inserir Tag na Carta
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {DEFAULT_VARIABLE_TAGS.map((tag) => {
+                      const isVisualTag = tag.code.startsWith('{{IA_');
+                      return (
+                      <button
+                        key={tag.code}
+                        type="button"
+                        onClick={() => handleInsertTag(tag.code)}
+                        style={{
+                          backgroundColor: isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)',
+                          border: isVisualTag ? '1px solid rgba(245, 158, 11, 0.65)' : '1px solid rgba(255,255,255,0.15)',
+                          color: isVisualTag ? '#fcd34d' : '#cbd5e1',
+                          borderRadius: '6px',
+                          padding: '0.35rem 0.55rem',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.28)' : 'rgba(99, 102, 241, 0.3)';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)';
+                          e.currentTarget.style.color = isVisualTag ? '#fcd34d' : '#cbd5e1';
+                        }}
+                        title={`${isVisualTag ? 'Inserir bloco visual: ' : 'Inserir '}${tag.description}`}
+                      >
+                        {isVisualTag ? <ImageIcon size={12} /> : <Plus size={12} />} {tag.code}
+                      </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ margin: '0.7rem 0 0', fontSize: '0.7rem', color: '#fcd34d', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <ImageIcon size={12} /> Tags douradas inserem conteúdo visual na carta.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2083,12 +2058,28 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         .editor-content ul { padding-left: ${estilos.list.indent}px !important; list-style-type: disc !important; }
         .editor-content ol { padding-left: ${estilos.list.indent}px !important; list-style-type: decimal !important; }
         .editor-content li { margin-bottom: ${estilos.list.spacing}px !important; display: list-item !important; }
+
+        /* ESTILOS DO PAINEL DE CONFIGURAÇÃO (LATERAL EM DESKTOP, SUPERIOR EM MOBILE/PORTRAIT) */
+        .gerador-body-container { display: flex; flex-direction: row; flex: 1; overflow: hidden; position: relative; }
+        .gerador-config-panel { width: 310px; min-width: 310px; max-width: 310px; background-color: #1e293b; border-right: 2px solid #334155; padding: 1rem; color: white; overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0; }
+        .config-inner-wrapper { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+
         @media (max-width: 1050px), (orientation: portrait) {
           .gerador-modal-container { width: 100vw !important; height: 100vh !important; max-width: 100vw !important; border-radius: 0 !important; }
+          .gerador-body-container { flex-direction: column !important; overflow-y: auto !important; }
+          .gerador-config-panel {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            border-right: none !important;
+            border-bottom: 2px solid #334155 !important;
+            padding: 1rem 1.25rem !important;
+          }
+          .config-inner-wrapper { flex-direction: row !important; flex-wrap: wrap !important; gap: 1rem !important; }
+          .config-block-modelos { flex: 1 1 240px !important; min-width: 220px !important; }
+          .config-block-data { flex: 0 1 180px !important; min-width: 160px !important; }
+          .config-block-clinica { flex: 2 1 340px !important; min-width: 280px !important; }
           .gerador-main-content { flex-direction: column !important; overflow-y: auto !important; }
-          .gerador-sidebar { width: 100% !important; border-left: none !important; border-bottom: 2px solid var(--border-color) !important; max-height: 48vh; overflow-y: auto; background-color: #1e293b !important; }
-          .gerador-sidebar-inner { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 0.8rem !important; padding: 1rem !important; overflow-y: visible !important; }
-          .gerador-sidebar-inner > div { flex: 1 1 240px !important; min-width: 220px !important; margin: 0 !important; }
           .gerador-editor { width: 100% !important; overflow-y: visible !important; }
           .gerador-toolbar { overflow-x: auto !important; flex-wrap: nowrap !important; padding: 0.5rem !important; }
           .editor-page-wrapper { min-width: min(100%, 210mm) !important; max-width: 100% !important; min-height: auto !important; }
