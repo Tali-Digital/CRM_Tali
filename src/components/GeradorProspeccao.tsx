@@ -1552,6 +1552,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
       Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe o nome da Clínica antes de imprimir.', confirmButtonColor: 'var(--primary-color)' });
       return;
     }
+    const nomeEmpresa = clinica.trim() || prospectData?.clinicName || 'Clínica';
+    const pdfTitle = `${nomeEmpresa} - Diagnóstico Estratégico`;
+    const originalTitle = document.title;
+    document.title = pdfTitle;
+
     if (onSaveProspeccao) {
       try {
         await onSaveProspeccao({
@@ -1586,7 +1591,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           <!DOCTYPE html>
           <html>
             <head>
-              <title>${clinica || 'Prospecção'}</title>
+              <title>${pdfTitle}</title>
               <style>
                 * {
                   -webkit-print-color-adjust: exact !important;
@@ -1657,7 +1662,10 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
           </html>
         `);
         doc.close();
-        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 15000);
+        setTimeout(() => {
+          document.title = originalTitle;
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 15000);
       }
     }
   };

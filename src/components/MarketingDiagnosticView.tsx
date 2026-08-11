@@ -309,6 +309,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   }, [prospects, selectedProspect]);
 
   const handlePrintDiagnostic = useCallback(() => {
+    const nomeEmpresa = formData.companyName || selectedProspect?.clinicName || 'Clínica';
+    const pdfTitle = `${nomeEmpresa} - Diagnóstico Estratégico`;
+    const originalTitle = document.title;
+    document.title = pdfTitle;
+
     document.body.classList.add('is-printing-marketing-diagnostic');
 
     let pageStyle = document.getElementById('diag-print-page-style');
@@ -320,6 +325,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     }
 
     const cleanUp = () => {
+      document.title = originalTitle;
       document.body.classList.remove('is-printing-marketing-diagnostic');
       const styleEl = document.getElementById('diag-print-page-style');
       if (styleEl && styleEl.parentNode) {
@@ -331,7 +337,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     window.addEventListener('afterprint', cleanUp);
     window.print();
     setTimeout(cleanUp, 1500);
-  }, []);
+  }, [formData.companyName, selectedProspect?.clinicName]);
 
   useEffect(() => {
     if (selectedProspect) {
