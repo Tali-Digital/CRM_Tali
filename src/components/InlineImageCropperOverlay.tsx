@@ -197,7 +197,9 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
       onUpdate();
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      upEvent.preventDefault();
+      upEvent.stopPropagation();
       isDraggingHandle.current = null;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);

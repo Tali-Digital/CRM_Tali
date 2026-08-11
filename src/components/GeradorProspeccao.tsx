@@ -107,7 +107,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     h3: { size: 12, bold: true, uppercase: false, indent: 0 },
     p: { size: 11, indent: 0, firstLine: 0 },
     list: { indent: 40, spacing: 5 },
-    page: { top: 20, right: 20, bottom: 20, left: 20 }
+    page: { top: 15, right: 15, bottom: 15, left: 15 }
   });
 
   const editorRef = useRef<HTMLDivElement>(null);
@@ -119,40 +119,71 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const dirtyPageRef = useRef<HTMLElement | null>(null);
 
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
 
-  // Escutar clique em qualquer imagem dentro do editor para selecionar e recortar diretamente na página
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      }
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && savedSelectionRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedSelectionRef.current);
+      return true;
+    }
+    return false;
+  };
+
+  // Escutar clique em qualquer imagem dentro do editor e manter a seleção de texto atualizada
+  // Escutar clique em qualquer lugar para selecionar/desmarcar imagem e manter a seleção de texto atualizada
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const handleClick = (e: MouseEvent) => {
+    const handleDocumentMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target && target.tagName === 'IMG') {
-        e.preventDefault();
-        e.stopPropagation();
+      if (!target) return;
+
+      if (target.tagName === 'IMG' && editorRef.current?.contains(target)) {
         setSelectedEditorImage(target as HTMLImageElement);
-      } else if (selectedEditorImage && !(target.closest('.inline-image-cropper-overlay'))) {
+      } else if (!target.closest('.inline-image-cropper-overlay')) {
         setSelectedEditorImage(null);
       }
     };
 
-    editor.addEventListener('click', handleClick);
-    return () => editor.removeEventListener('click', handleClick);
-  }, [previewHtml, selectedEditorImage]);
+    const handleSelectionChange = () => {
+      saveSelection();
+    };
+
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [previewHtml]);
 
   const conteudoInicial = `<p>Escreva ou cole o texto da sua prospecção aqui...</p>`;
 
-  // Escutar a tecla ESC para fechar o editor
+  // Escutar a tecla ESC para desmarcar imagem ou fechar o editor
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (selectedEditorImage) {
+          setSelectedEditorImage(null);
+        } else {
+          onClose();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, selectedEditorImage]);
 
   // Preencher dados ao editar
   useEffect(() => {
@@ -220,7 +251,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           h3: { indent: 0, ...parsed.h3 },
           p: { indent: 0, firstLine: 0, ...parsed.p },
           list: parsed.list || { indent: 40, spacing: 5 },
-          page: parsed.page || { top: 20, right: 20, bottom: 20, left: 20 }
+          page: parsed.page || { top: 15, right: 15, bottom: 15, left: 15 }
         });
       } catch (e) { }
     }
@@ -604,15 +635,15 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const clientReviews = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
 
     const clientRankingHtml = `
-      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 12px 16px; margin: 8px 0; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.08); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 10px; padding: 6px 12px; margin: 0; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.06); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
           ${effectiveClientRank}
         </div>
         <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 700; font-size: 10.5pt; color: #991b1b; margin-bottom: 3px; line-height: 1.3;">
+          <div style="font-weight: 700; font-size: 10.5pt; color: #991b1b; margin-bottom: 2px; line-height: 1.25;">
             ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)
           </div>
-          ${clientAddress ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 4px; line-height: 1.3;">${clientAddress}</div>` : ''}
+          ${clientAddress ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 2px; line-height: 1.25;">${clientAddress}</div>` : ''}
           <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span>${clientRating}</span>
             <span style="color: #f59e0b;">★★★★★</span>
@@ -622,22 +653,22 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
     const rankingHtml = (hasValidClientRank || concorrentes.length > 0) ? `
-      <div style="background: #ffffff; color: #0f172a; border-radius: 16px; padding: 20px; margin: 20px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <h3 style="margin: 0 0 16px 0; font-size: 14pt; font-weight: 800; color: #0f172a;">
+      <div style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 10px 14px; margin: 10px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <h3 style="margin: 0 0 6px 0; font-size: 13pt; font-weight: 800; color: #0f172a;">
           ${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}
         </h3>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
           ${effectiveClientRank === 1 ? clientRankingHtml : ''}
           ${concorrentes.length ? concorrentes.map((c: any) => `
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-              <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 12px; margin: 0; display: flex; align-items: center; gap: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
                 ${c.posicao}
               </div>
               <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 3px; line-height: 1.3;">
+                <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 2px; line-height: 1.25;">
                   ${c.nome || 'Concorrente'}
                 </div>
-                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 4px; line-height: 1.3;">${c.endereco}</div>` : ''}
+                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 2px; line-height: 1.25;">${c.endereco}</div>` : ''}
                 <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span>${c.nota ? Number(c.nota).toFixed(1) : '5.0'}</span>
                   <span style="color: #f59e0b;">★★★★★</span>
@@ -645,7 +676,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
                 </div>
               </div>
             </div>
-          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
+          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700; margin: 4px 0;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
           ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
         </div>
       </div>
@@ -670,25 +701,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const keywordTermo = (prospectData as any)?.keyword || (diagnosticData as any)?.termoPesquisado || (diagnosticData as any)?.gmn?.keyword || 'dentista';
 
     const cardLegendaMapaHtml = `
-      <div style="background-color: #ffffff; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 10pt; font-weight: bold;">
-          <span style="color: #059669; display: inline-flex; align-items: center; gap: 6px;">
+      <div style="background-color: #ffffff; padding: 12px 14px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 12px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; font-size: 9.5pt; font-weight: bold;">
+          <span style="color: #059669; display: inline-flex; align-items: center; gap: 4px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
           </span>
-          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 4px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
           </span>
-          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 4px;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
           </span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 10pt; color: #475569; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 10pt; color: #475569; flex-wrap: wrap;">
           <span>Searching</span>
-          <span style="background-color: #f1f5f9; color: #0f172a; padding: 4px 12px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1;">
+          <span style="background-color: #f1f5f9; color: #0f172a; padding: 3px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1;">
             "${keywordTermo}"
           </span>
           <span>on</span>
-          <span style="background-color: #f8fafc; color: #0f172a; padding: 4px 12px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
+          <span style="background-color: #f8fafc; color: #0f172a; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
             📍 Google Maps
           </span>
           <span>for:</span>
@@ -697,36 +728,36 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     `;
 
     const cardBuscaGoogleHtml = `
-      <div style="background-color: #ffffff; padding: 20px; border-radius: 16px; font-family: sans-serif; text-align: center; margin: 20px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 10pt; font-weight: bold;">
-          <span style="color: #059669; display: inline-flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
+      <div style="background-color: #ffffff; padding: 12px 14px; border-radius: 14px; font-family: sans-serif; text-align: center; margin: 12px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; font-size: 9.5pt; font-weight: bold;">
+          <span style="color: #059669; display: inline-flex; align-items: center; gap: 4px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #10b981;"></span> Top 3 (1ª a 3ª posição)
           </span>
-          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
+          <span style="color: #d97706; display: inline-flex; align-items: center; gap: 4px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b;"></span> Aparece (4ª a 10ª)
           </span>
-          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
+          <span style="color: #dc2626; display: inline-flex; align-items: center; gap: 4px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ef4444;"></span> 11ª posição ou pior
           </span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11pt; color: #475569; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 10pt; color: #475569; flex-wrap: wrap; margin-bottom: 8px;">
           <span>Searching</span>
-          <span style="background-color: #f1f5f9; color: #0f172a; padding: 6px 14px; border-radius: 8px; font-weight: bold; border: 1px solid #cbd5e1;">
+          <span style="background-color: #f1f5f9; color: #0f172a; padding: 3px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1;">
             "${keywordTermo}"
           </span>
           <span>on</span>
-          <span style="background-color: #f8fafc; color: #0f172a; padding: 6px 14px; border-radius: 20px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="background-color: #f8fafc; color: #0f172a; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
             📍 Google Maps
           </span>
           <span>for:</span>
         </div>
-        <div style="background-color: #ffffff; color: #0f172a; padding: 20px; border-radius: 14px; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-          <div style="font-size: 16pt; font-weight: 800; margin-bottom: 6px; color: #0f172a;">${clinica || prospectData?.clinicName || 'Clínica Odontológica'}</div>
-          <div style="font-size: 9.5pt; color: #475569; margin-bottom: 12px; line-height: 1.4;">${enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || 'Endereço não informado'}</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+        <div style="background-color: #ffffff; color: #0f172a; padding: 10px 14px; border-radius: 12px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+          <div style="font-size: 11pt; font-weight: 800; margin-bottom: 3px; color: #0f172a; text-align: center;">${clinica || prospectData?.clinicName || 'Clínica Odontológica'}</div>
+          <div style="font-size: 8.5pt; color: #475569; margin-bottom: 5px; line-height: 1.3; text-align: center;">${enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || 'Endereço não informado'}</div>
+          <div style="font-size: 9.5pt; font-weight: 700; color: #0f172a; display: flex; align-items: center; justify-content: center; gap: 6px;">
             <span>${prospectData?.gmnRating || '4.9'}</span>
             <span style="color: #f59e0b;">★★★★★</span>
-            <span style="color: #64748b; font-weight: normal; font-size: 9.5pt;">(${prospectData?.gmnReviewsCount || 0})</span>
+            <span style="color: #64748b; font-weight: normal; font-size: 8.5pt;">(${prospectData?.gmnReviewsCount || 0})</span>
           </div>
         </div>
       </div>
@@ -1025,14 +1056,10 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleEditorClick = (e: React.MouseEvent) => {
     const targetEl = e.target as HTMLElement;
-    const img = (targetEl.tagName === 'IMG'
-      ? targetEl
-      : targetEl.querySelector('img') || targetEl.closest('img') || targetEl.closest('figure')?.querySelector('img') || targetEl.closest('div')?.querySelector('img')) as HTMLImageElement | null;
-
-    if (img) {
+    if (targetEl && targetEl.tagName === 'IMG') {
       e.preventDefault();
       e.stopPropagation();
-      setSelectedEditorImage(img);
+      setSelectedEditorImage(targetEl as HTMLImageElement);
     } else if (selectedEditorImage && !(targetEl.closest('.inline-image-cropper-overlay'))) {
       setSelectedEditorImage(null);
     }
@@ -1466,19 +1493,39 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
   };
 
   const handleInsertTag = (tagCode: string) => {
-    if (editorRef.current) {
-      editorRef.current.focus();
-      document.execCommand('insertText', false, tagCode);
-      handleEditorInput();
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: `Tag ${tagCode} inserida no texto!`,
-        showConfirmButton: false,
-        timer: 1200
-      });
+    if (!editorRef.current) return;
+
+    editorRef.current.focus();
+    restoreSelection();
+
+    const inserted = document.execCommand('insertText', false, tagCode);
+    if (!inserted) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(tagCode);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else {
+        const firstPageContent = editorRef.current.querySelector('.a4-page-content') || editorRef.current;
+        firstPageContent.innerHTML += ` ${tagCode} `;
+      }
     }
+
+    saveSelection();
+    handleEditorInput();
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `Tag ${tagCode} inserida no texto!`,
+      showConfirmButton: false,
+      timer: 1200
+    });
   };
 
   // ── Salvar / Imprimir ────────────────────────────────────────────────────
@@ -1617,7 +1664,14 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+    >
       <div onClick={e => e.stopPropagation()} className="gerador-modal-container" style={{ backgroundColor: '#f8fafc', width: '96%', maxWidth: '1600px', height: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', transition: 'all 0.3s' }}>
 
         {/* Header Responsivo (Desktop vs Mobile) */}
@@ -2083,6 +2137,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                       <button
                         key={tag.code}
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => handleInsertTag(tag.code)}
                         style={{
                           backgroundColor: isVisualTag ? 'rgba(245, 158, 11, 0.16)' : 'rgba(255,255,255,0.08)',
