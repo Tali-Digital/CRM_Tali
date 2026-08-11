@@ -3645,6 +3645,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                                 👤 {item.requestedBy}
                               </span>
                             )}
+
+                            {item.addedAt && (
+                              <span className="text-[10px] text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-700/50 shrink-0 font-mono flex items-center gap-1" title="Data e Hora do Scan">
+                                🕒 {new Date(item.addedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} às {new Date(item.addedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              </span>
+                            )}
                           </div>
                           <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.location}</p>
                         </div>
