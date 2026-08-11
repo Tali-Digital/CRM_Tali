@@ -581,26 +581,28 @@ export const fetchLocalFalconReportHistory = async (params: {
   }
 
   try {
-    // 1. Tentar encontrar local registrado
+    const norm = (s: string) => (s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    const targetNameNorm = norm(params.locationName);
+
+    // 1. Tentar encontrar local registrado para obter placeId
     const savedLoc = await findSavedLocation(key, params.locationName, true);
     const placeId = savedLoc?.placeId || '';
-    if (!placeId) {
-      return {
-        success: false,
-        error: `Nenhuma localização exata foi encontrada no Local Falcon para "${params.locationName}". Nenhum relatório foi importado.`
-      };
-    }
 
-    // 2. Buscar relatórios existentes na conta
-    const formBody: Record<string, string> = { api_key: key, limit: '30' };
+    // 2. Consultar relatórios recentes da conta (limit: 50)
+    const formBody: Record<string, string> = { api_key: key, limit: '50' };
     if (placeId) formBody.place_id = placeId;
 
-    console.log('[LocalFalcon History] Consultando lista de relatórios anteriores:', params.locationName, '| placeId:', placeId);
-    const res = await postForm('/api-proxy/localfalcon/v1/reports/', formBody, 30000);
+    console.log('[LocalFalcon History] Consultando lista de relatórios da conta para:', params.locationName, '| placeId:', placeId || 'qualquer');
+    let res = await postForm('/api-proxy/localfalcon/v1/reports/', formBody, 30000);
+
+    // Se a busca com place_id falhou ou não retornou relatórios, tenta sem filtro de place_id para buscar por nome
+    if (!res.ok || placeId) {
+      const fallbackRes = await postForm('/api-proxy/localfalcon/v1/reports/', { api_key: key, limit: '50' }, 30000);
+      if (fallbackRes.ok) res = fallbackRes;
+    }
 
     if (!res.ok) {
       const errTxt = await res.text();
-      console.error('[LocalFalcon History] Erro ao listar relatórios:', res.status, errTxt);
       return { success: false, error: `Local Falcon API (${res.status}): ${errTxt}` };
     }
 
@@ -609,68 +611,83 @@ export const fetchLocalFalconReportHistory = async (params: {
     if (!Array.isArray(reports) || reports.length === 0) {
       return {
         success: false,
-        error: `Nenhum relatório anterior encontrado na sua conta do Local Falcon para "${params.locationName}".`
+        error: `Nenhum relatório anterior foi encontrado na sua conta do Local Falcon para "${params.locationName}".`
       };
     }
 
-    // O relatório só pode ser importado quando pertence ao Place ID da ficha atual.
-    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-    const reportsForLocation = reports.filter((report: any) => {
+    // 3. Filtrar relatórios: por placeId ou por proximidade do nome da empresa
+    let matchedReports = reports.filter((report: any) => {
       const reportPlaceId = report.place_id || report.location?.place_id || report.location?.placeId || '';
-      return reportPlaceId === placeId;
+      if (placeId && reportPlaceId === placeId) return true;
+      const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
+      return reportName.includes(targetNameNorm) || targetNameNorm.includes(reportName);
     });
-    if (reportsForLocation.length === 0) {
+
+    if (matchedReports.length === 0) {
+      // Tenta busca mais flexível por palavras do nome
+      const nameWords = targetNameNorm.split(' ').filter(w => w.length > 3);
+      matchedReports = reports.filter((report: any) => {
+        const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
+        return nameWords.some(w => reportName.includes(w));
+      });
+    }
+
+    if (matchedReports.length === 0) {
       return {
         success: false,
-        error: `Nenhum relatório do Local Falcon pertence à empresa "${params.locationName}". Nenhum dado foi alterado.`
+        error: `Nenhum relatório prévio localizado no histórico para "${params.locationName}".`
       };
     }
 
     const targetKeyword = norm(params.keyword || '');
     const matchedReport = targetKeyword
-      ? reportsForLocation.find((report: any) => norm(report.keyword || '') === targetKeyword)
-      : reportsForLocation[0];
-    if (!matchedReport) {
-      return {
-        success: false,
-        error: `Não existe relatório do Local Falcon para "${params.locationName}" com a palavra-chave "${params.keyword}". Nenhum dado foi alterado.`
-      };
-    }
+      ? (matchedReports.find((report: any) => norm(report.keyword || '') === targetKeyword) || matchedReports[0])
+      : matchedReports[0];
 
     const reportKey = matchedReport.report_key || matchedReport.scan_id || matchedReport.id;
     if (!reportKey) {
       return { success: false, error: 'Relatório encontrado no histórico, mas sem chave única de visualização.' };
     }
 
-    // 3. Obter os dados detalhados e o ranking real de concorrentes do relatório.
-    console.log('[LocalFalcon History] Carregando dados do report_key:', reportKey);
+    // 4. Carregar detalhes completos do relatório (0 créditos de varredura)
+    console.log('[LocalFalcon History] Carregando detalhes do relatório:', reportKey);
     const detailRes = await postForm(`/api-proxy/localfalcon/v1/reports/${reportKey}/`, { api_key: key }, 30000);
     const competitorRes = await postForm(`/api-proxy/localfalcon/v1/competitor-reports/${reportKey}`, { api_key: key }, 30000);
 
     let detailData: any = matchedReport;
     if (detailRes.ok) {
-      const json = await detailRes.json();
-      detailData = json?.data || json || matchedReport;
+      const dJson = await detailRes.json();
+      detailData = dJson?.data || dJson || matchedReport;
     }
 
-    let competitorReportData: any = null;
+    let competitorData: any = null;
     if (competitorRes.ok) {
-      const json = await competitorRes.json();
-      competitorReportData = json?.data || null;
+      const cJson = await competitorRes.json();
+      competitorData = cJson?.data || cJson;
     }
-
-    const mapImageUrl = detailData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
-    const heatmapUrl = detailData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
-    const solv = parseFloat(detailData.solv || detailData.share_of_local_voice || matchedReport.solv || '0');
-    const avgRank = parseFloat(detailData.arp || detailData.atrp || detailData.average_rank || matchedReport.arp || '0');
 
     const dataPoints = extractDataPointsArray(detailData);
-    const pointRanking = extractCompetitorRanking(dataPoints, placeId, params.locationName);
-    const competitorReportRanking = extractCompetitorReportRanking(competitorReportData, placeId || matchedReport.place_id, params.locationName);
-    const competitors = competitorReportRanking.competitors.length > 0
-      ? competitorReportRanking.competitors
-      : pointRanking.competitors;
-    const clientRank = competitorReportRanking.clientRank ?? pointRanking.clientRank;
+    const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId || matchedReport.place_id, params.locationName);
+
+    if (competitorData) {
+      const compList = competitorData.competitors || competitorData.data || [];
+      if (Array.isArray(compList) && compList.length > 0) {
+        compList.forEach((c: any) => {
+          const name = c.name || c.business_name;
+          const matchComp = competitors.find(cp => cp.nome.toLowerCase() === (name || '').toLowerCase());
+          if (matchComp) {
+            matchComp.nota = c.rating ? parseFloat(c.rating) : matchComp.nota;
+            matchComp.avaliacoes = c.reviews ? parseInt(c.reviews, 10) : matchComp.avaliacoes;
+            matchComp.endereco = c.address || matchComp.endereco;
+          }
+        });
+      }
+    }
+
+    const solv = parseFloat(detailData.solv || matchedReport.solv || '0');
+    const avgRank = parseFloat(detailData.arp || detailData.atrp || matchedReport.arp || '0');
+    const mapImageUrl = detailData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
+    const heatmapUrl = detailData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
 
     return {
       success: true,
@@ -678,19 +695,18 @@ export const fetchLocalFalconReportHistory = async (params: {
       avgRank: isNaN(avgRank) ? 0 : avgRank,
       clientRank,
       gridPoints: dataPoints.map((pt: any) => ({
-        lat: parseFloat(pt.lat || 0),
-        lng: parseFloat(pt.lng || 0),
+        lat: parseFloat(pt.lat),
+        lng: parseFloat(pt.lng),
         rank: pt.rank
       })),
       scanId: reportKey,
       mapImageUrl,
       heatmapUrl,
-      creditsUsed: 0, // 0 créditos consumidos
+      creditsUsed: 0,
       competitors
     };
-  } catch (e: any) {
-    console.error('[LocalFalcon History] Exceção ao consultar relatório existente:', e);
-    return { success: false, error: e.message || 'Erro ao consultar relatórios existentes do Local Falcon' };
+  } catch (err: any) {
+    console.error('[LocalFalcon History] Erro ao consultar histórico:', err);
+    return { success: false, error: err.message || 'Erro de conexão ao buscar histórico' };
   }
 };
-
