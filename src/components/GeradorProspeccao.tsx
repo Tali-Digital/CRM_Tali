@@ -72,6 +72,24 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [showVariableModal, setShowVariableModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Estados de responsividade e zoom para celular
+  const [isMobileView, setIsMobileView] = useState<boolean>(false);
+  const [mobileZoom, setMobileZoom] = useState<number>(0.65);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.innerWidth <= 1050 || window.matchMedia('(orientation: portrait)').matches;
+      setIsMobileView(isMobile);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleZoomIn = () => setMobileZoom(prev => Math.min(Number((prev + 0.1).toFixed(2)), 1.5));
+  const handleZoomOut = () => setMobileZoom(prev => Math.max(Number((prev - 0.1).toFixed(2)), 0.35));
+  const handleToggleZoomFit = () => setMobileZoom(prev => (prev >= 0.95 ? 0.65 : 1.0));
+
   const [selectedModeloId, setSelectedModeloId] = useState('');
   const [nomeModeloState, setNomeModeloState] = useState('');
   const [descricaoModeloState, setDescricaoModeloState] = useState('');
