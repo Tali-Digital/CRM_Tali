@@ -753,50 +753,61 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     let applied = 0;
     let unavailable = 0;
 
-    const applyTagToHtml = (currentHtml: string, tagCode: string, value: string): { newHtml: string; matched: boolean } => {
-      if (!tagCode || value === undefined || value === null) return { newHtml: currentHtml, matched: false };
-      const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
-      const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
-      
-      if (tagRegex.test(currentHtml)) {
-        return { newHtml: currentHtml.replace(tagRegex, value), matched: true };
-      }
-      if (currentHtml.includes(tagCode)) {
-        return { newHtml: currentHtml.split(tagCode).join(value), matched: true };
-      }
-      return { newHtml: currentHtml, matched: false };
-    };
-
-    Object.entries(visualTags).forEach(([tag, value]) => {
-      if (value) {
-        const res = applyTagToHtml(html, tag, value);
-        if (res.matched) {
-          html = res.newHtml;
-          applied += 1;
-        }
-      } else {
-        const rawName = tag.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
-        const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
-        if (tagRegex.test(html) || html.includes(tag)) {
-          unavailable += 1;
-        }
-      }
-    });
-
     const liveProspect = {
       ...prospectData,
-      clinicName: clinica || prospectData?.clinicName || (diagnosticData as any)?.nomeClinica || '',
-      ownerName: donoClinica || prospectData?.ownerName || (diagnosticData as any)?.nomeDono || '',
+      clinicName: clinica || prospectData?.clinicName || (diagnosticData as any)?.nomeClinica || 'Clínica Odontológica',
+      ownerName: donoClinica || prospectData?.ownerName || (diagnosticData as any)?.nomeDono || 'Dr(a).',
       location: cidadeBairro || prospectData?.location || (diagnosticData as any)?.cidade || '',
       fullAddress: enderecoCompleto || prospectData?.fullAddress || (diagnosticData as any)?.endereco || '',
       gmnRating: prospectData?.gmnRating || (diagnosticData as any)?.gmn?.rating || (diagnosticData as any)?.rating || '4.8',
       gmnReviewsCount: prospectData?.gmnReviewsCount ?? (diagnosticData as any)?.gmn?.reviewsCount ?? (diagnosticData as any)?.reviewsCount ?? 0,
     };
 
+    const applyTagToHtml = (currentHtml: string, tagCode: string, value: string): { newHtml: string; matched: boolean } => {
+      if (!tagCode || value === undefined || value === null) return { newHtml: currentHtml, matched: false };
+      const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+      const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
+      
+      let matched = false;
+      let newHtml = currentHtml.replace(tagRegex, () => {
+        matched = true;
+        return value;
+      });
+
+      if (!matched && currentHtml.includes(tagCode)) {
+        newHtml = currentHtml.split(tagCode).join(value);
+        matched = true;
+      }
+
+      return { newHtml, matched };
+    };
+
+    const processedVisualTags = new Set<string>();
+
+    Object.entries(visualTags).forEach(([tagCode, visualValue]) => {
+      const fallbackValue = DEFAULT_VARIABLE_TAGS.find(t => t.code === tagCode)?.exampleValue(liveProspect, diagnosticData);
+      const targetValue = (visualValue && visualValue.trim()) ? visualValue : (fallbackValue || '');
+      
+      if (targetValue) {
+        const res = applyTagToHtml(html, tagCode, targetValue);
+        if (res.matched) {
+          html = res.newHtml;
+          applied += 1;
+          processedVisualTags.add(tagCode);
+        }
+      } else {
+        const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+        const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'i');
+        if (tagRegex.test(html) || html.includes(tagCode)) {
+          unavailable += 1;
+        }
+      }
+    });
+
     DEFAULT_VARIABLE_TAGS.forEach((tag) => {
-      if (visualTags[tag.code] !== undefined) return;
+      if (processedVisualTags.has(tag.code)) return;
       const value = tag.exampleValue(liveProspect, diagnosticData);
       const res = applyTagToHtml(html, tag.code, value);
       if (res.matched) {
