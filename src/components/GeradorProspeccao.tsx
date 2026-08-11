@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
@@ -1626,70 +1626,143 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div onClick={e => e.stopPropagation()} className="gerador-modal-container" style={{ backgroundColor: '#f8fafc', width: '96%', maxWidth: '1600px', height: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', transition: 'all 0.3s' }}>
 
-        {/* Header */}
-        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              title={isSidebarOpen ? "Ocultar Painel de Configurações" : "Mostrar Painel de Configurações"}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.45rem 0.8rem',
-                backgroundColor: isSidebarOpen ? '#f1f5f9' : '#5271FF',
-                color: isSidebarOpen ? '#334155' : 'white',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: isSidebarOpen ? 'none' : '0 2px 4px rgba(82, 113, 255, 0.3)'
-              }}
-            >
-              <Layers size={16} />
-              <span>{isSidebarOpen ? 'Ocultar Painel' : 'Mostrar Painel'}</span>
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={22} color="var(--primary-color)" />
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>Gerador de Prospecção & Automação de Cartas</h2>
+        {/* Header Responsivo (Desktop vs Mobile) */}
+        {!isMobileView ? (
+          <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                title={isSidebarOpen ? "Ocultar Painel de Configurações" : "Mostrar Painel de Configurações"}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.45rem 0.8rem',
+                  backgroundColor: isSidebarOpen ? '#f1f5f9' : '#5271FF',
+                  color: isSidebarOpen ? '#334155' : 'white',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isSidebarOpen ? 'none' : '0 2px 4px rgba(82, 113, 255, 0.3)'
+                }}
+              >
+                <Layers size={16} />
+                <span>{isSidebarOpen ? 'Ocultar Painel' : 'Mostrar Painel'}</span>
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={22} color="var(--primary-color)" />
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>Gerador de Prospecção & Automação de Cartas</h2>
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              disabled={isSaving}
-              onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
-              title="Salvar no Sistema"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
-            >
-              <FileText size={14} /> <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
-            </button>
-
-            <button
-              disabled={isSaving}
-              onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
-              title="Imprimir / Salvar PDF"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
-            >
-              <Printer size={14} /> <span>Imprimir PDF</span>
-            </button>
-
-            {prospeccaoParaEditar && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 disabled={isSaving}
-                onClick={handleMarcarEntregue}
-                title={isEntregue ? "Endereço Entregue" : "Marcar como Entregue"}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: isEntregue ? '#22c55e' : '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
+                title="Salvar no Sistema"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
               >
-                <Check size={14} /> <span>{isEntregue ? 'Entregue' : 'Marcar Entregue'}</span>
+                <FileText size={14} /> <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
               </button>
-            )}
 
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '0.25rem' }}><X size={24} color="var(--text-secondary)" /></button>
+              <button
+                disabled={isSaving}
+                onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
+                title="Imprimir / Salvar PDF"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+              >
+                <Printer size={14} /> <span>Imprimir PDF</span>
+              </button>
+
+              {prospeccaoParaEditar && (
+                <button
+                  disabled={isSaving}
+                  onClick={handleMarcarEntregue}
+                  title={isEntregue ? "Endereço Entregue" : "Marcar como Entregue"}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: isEntregue ? '#22c55e' : '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                >
+                  <Check size={14} /> <span>{isEntregue ? 'Entregue' : 'Marcar Entregue'}</span>
+                </button>
+              )}
+
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '0.25rem' }}><X size={24} color="var(--text-secondary)" /></button>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Header Mobile Otimizado (2 linhas compactas) */
+          <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'white', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {/* Linha 1: Botão Painel + Título compacto + Fechar X */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', width: '100%' }}>
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.6rem',
+                  backgroundColor: isSidebarOpen ? '#f1f5f9' : '#5271FF', color: isSidebarOpen ? '#334155' : 'white',
+                  border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0
+                }}
+              >
+                <Layers size={14} />
+                <span>{isSidebarOpen ? 'Ocultar Painel' : 'Painel'}</span>
+              </button>
+
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', overflow: 'hidden' }}>
+                <FileText size={16} color="var(--primary-color)" style={{ flexShrink: 0 }} />
+                <h2 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Gerador de Prospecção
+                </h2>
+              </div>
+
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', flexShrink: 0 }}>
+                <X size={20} color="var(--text-secondary)" />
+              </button>
+            </div>
+
+            {/* Linha 2: Ações + Zoom */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', flexWrap: 'nowrap' }}>
+              <button
+                disabled={isSaving}
+                onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleSalvarNoSistema(); } finally { setIsSaving(false); } }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', whiteSpace: 'nowrap' }}
+              >
+                <FileText size={13} /> <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+              </button>
+
+              <button
+                disabled={isSaving}
+                onClick={async () => { if (isSaving) return; setIsSaving(true); try { await handleImprimir(); } finally { setIsSaving(false); } }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', whiteSpace: 'nowrap' }}
+              >
+                <Printer size={13} /> <span>PDF</span>
+              </button>
+
+              {prospeccaoParaEditar && (
+                <button
+                  disabled={isSaving}
+                  onClick={handleMarcarEntregue}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: isEntregue ? '#22c55e' : '#ef4444', color: 'white', border: 'none', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                >
+                  <Check size={13} /> <span>{isEntregue ? 'Entregue' : 'Entregue?'}</span>
+                </button>
+              )}
+
+              {/* Controles de Zoom no Celular */}
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.15rem 0.35rem', flexShrink: 0 }}>
+                <button onClick={handleZoomOut} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', color: '#334155', display: 'flex', alignItems: 'center' }} title="Diminuir Zoom">
+                  <ZoomOut size={14} />
+                </button>
+                <button onClick={handleToggleZoomFit} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold', color: '#1e293b', padding: '0 0.2rem', minWidth: '34px', textAlign: 'center' }} title="Clique para alternar 65% / 100%">
+                  {Math.round(mobileZoom * 100)}%
+                </button>
+                <button onClick={handleZoomIn} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', color: '#334155', display: 'flex', alignItems: 'center' }} title="Aumentar Zoom">
+                  <ZoomIn size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* PAINEL DE CONFIGURAÇÕES RETRÁTIL (LATERAL EM DESKTOP, SUPERIOR EM MOBILE/TELAS VERTICAIS) */}
         <div className="gerador-body-container" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -1852,7 +1925,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               </div>
 
               {/* Editor Workspace */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 1rem', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: isMobileView ? '1rem 0.25rem' : '2rem 1rem', display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
                 {viewHtml && (
                   <textarea
                     ref={(el) => { if (el) { setTimeout(() => { el.style.height = '1px'; el.style.height = `${el.scrollHeight + 20}px`; }, 0); } }}
@@ -1967,7 +2040,18 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
                   onClick={handleEditorClick}
-                  style={{ display: viewHtml ? 'none' : 'flex', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.5', textAlign: 'justify', color: '#000000', wordWrap: 'break-word' }}
+                  style={{
+                    display: viewHtml ? 'none' : 'flex',
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '11pt',
+                    lineHeight: '1.5',
+                    textAlign: 'justify',
+                    color: '#000000',
+                    wordWrap: 'break-word',
+                    transform: isMobileView ? `scale(${mobileZoom})` : 'none',
+                    transformOrigin: 'top center',
+                    transition: 'transform 0.15s ease-out'
+                  }}
                 />
               </div>
             </div>
