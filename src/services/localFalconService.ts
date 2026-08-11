@@ -40,7 +40,7 @@ const normalizeBusinessName = (name: string) => name
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]/g, '');
 
-const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetName = '') => {
+const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetName = ''): { competitors: LocalFalconCompetitor[]; clientRank?: number } => {
   const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
 
   for (const point of dataPoints) {
@@ -79,15 +79,18 @@ const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetN
   );
 
   return {
-    competitors: rankedBusinesses.map(({ averageRank, ...business }, index) => ({
+    competitors: rankedBusinesses.map(({ averageRank, ...business }, index): LocalFalconCompetitor => ({
       ...business,
-      posicao: index + 1
+      posicao: index + 1,
+      nota: null,
+      avaliacoes: null,
+      endereco: null
     })).slice(0, 10),
     clientRank: clientIndex >= 0 ? clientIndex + 1 : undefined
   };
 };
 
-const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', targetName = '') => {
+const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', targetName = ''): { competitors: LocalFalconCompetitor[]; clientRank?: number } => {
   const businesses = Array.isArray(reportData?.businesses) ? reportData.businesses : [];
   const normalizedTargetName = normalizeBusinessName(targetName);
   const rankedBusinesses = businesses
@@ -102,9 +105,9 @@ const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', tar
         solv: Number.isFinite(Number(business.solv)) ? Number(business.solv) : 0,
         arp: Number.isFinite(Number(business.arp)) ? Number(business.arp) : Number.MAX_SAFE_INTEGER,
         aparecimentos: ranks.length,
-        nota: Number.isFinite(Number(business.rating)) ? Number(business.rating) : undefined,
-        avaliacoes: Number.isFinite(Number(business.reviews)) ? Number(business.reviews) : undefined,
-        endereco: business.address || undefined
+        nota: Number.isFinite(Number(business.rating)) ? Number(business.rating) : null,
+        avaliacoes: Number.isFinite(Number(business.reviews)) ? Number(business.reviews) : null,
+        endereco: business.address || null
       };
     })
     .filter((business: any) => business.placeId && business.nome)
@@ -118,7 +121,7 @@ const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', tar
   });
 
   return {
-    competitors: rankedBusinesses.map(({ solv, arp, ...business }: any, index: number) => ({
+    competitors: rankedBusinesses.map(({ solv, arp, ...business }: any, index: number): LocalFalconCompetitor => ({
       ...business,
       posicao: index + 1
     })).slice(0, 20),
