@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Wand2, Search, MapPin, Database, Zap, ArrowRight, Play, Loader2, Sparkles, Building2, Map, Crosshair, Check, Key, X, User, Target } from 'lucide-react';
+import { Wand2, Search, MapPin, Database, Zap, ArrowRight, Play, Loader2, Sparkles, Building2, Map, Crosshair, Check, Key, X, User, Target, Plus, Trash2 } from 'lucide-react';
 import { addProspect, getGlobalSettings } from '../services/firestoreService';
 import { enrichSingleLeadWithOutscraper } from '../services/outscraperEnrichment';
+
+interface SpecificCompanyItem {
+  id: string;
+  name: string;
+  address: string;
+}
 
 export const LeadGeneratorView: React.FC = () => {
   const [searchMode, setSearchMode] = useState<'niche' | 'specific'>('niche');
@@ -13,9 +19,10 @@ export const LeadGeneratorView: React.FC = () => {
   const [radius, setRadius] = useState('');
   const [leadsToGenerate, setLeadsToGenerate] = useState('10');
 
-  // Campos para busca por empresa específica
-  const [specificName, setSpecificName] = useState('');
-  const [specificAddress, setSpecificAddress] = useState('');
+  // Lista de empresas para busca específica
+  const [specificCompanies, setSpecificCompanies] = useState<SpecificCompanyItem[]>([
+    { id: '1', name: '', address: '' }
+  ]);
 
   // Responsável e Configs
   const [responsible, setResponsible] = useState('');
@@ -40,6 +47,22 @@ export const LeadGeneratorView: React.FC = () => {
     setLogs(prev => [...prev, msg]);
   };
 
+  const handleAddSpecificCompany = () => {
+    setSpecificCompanies(prev => [
+      ...prev,
+      { id: String(Date.now()), name: '', address: '' }
+    ]);
+  };
+
+  const handleRemoveSpecificCompany = (id: string) => {
+    if (specificCompanies.length <= 1) return;
+    setSpecificCompanies(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleUpdateSpecificCompany = (id: string, field: 'name' | 'address', value: string) => {
+    setSpecificCompanies(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
   const handleGenerate = async () => {
     if (!outscraperKey) {
       setErrorModal({ show: true, message: 'Chave da API do Outscraper não encontrada! Vá em Administração e configure a chave.' });
@@ -48,121 +71,212 @@ export const LeadGeneratorView: React.FC = () => {
 
     const isSpecific = searchMode === 'specific';
 
-    if (isSpecific && !specificName.trim()) {
-      setErrorModal({ show: true, message: 'Por favor, digite o nome da empresa ou clínica.' });
-      return;
-    }
-
-    if (!isSpecific && (!searchTerm.trim() || !location.trim())) {
-      setErrorModal({ show: true, message: 'Preencha o nicho e a localização para a busca.' });
-      return;
+    if (isSpecific) {
+      const validCompanies = specificCompanies.filter(c => c.name.trim() !== '');
+      if (validCompanies.length === 0) {
+        setErrorModal({ show: true, message: 'Por favor, digite o nome de pelo menos uma empresa ou clínica.' });
+        return;
+      }
+    } else {
+      if (!searchTerm.trim() || !location.trim()) {
+        setErrorModal({ show: true, message: 'Preencha o nicho e a localização para a busca.' });
+        return;
+      }
     }
 
     setIsGenerating(true);
     setLogs([]);
 
-    const query = isSpecific
-      ? `${specificName.trim()} ${specificAddress.trim()}`.trim()
-      : `${searchTerm.trim()} in ${location.trim()}`;
-
-    const limit = isSpecific ? '1' : leadsToGenerate;
-    const searchLocation = isSpecific ? (specificAddress.trim() || 'Brasil') : location.trim();
-
-    addLog(isSpecific
-      ? `Iniciando busca específica por "${specificName}"${specificAddress ? ` em "${specificAddress}"` : ''}...`
-      : `Iniciando busca por "${searchTerm}" em "${location}"...`
-    );
-
-    try {
-      addLog('Consultando Outscraper (localizando estabelecimento no Google Maps)...');
-
-      const url = `https://api.app.outscraper.com/maps/search-v2?query=${encodeURIComponent(query)}&limit=${limit}&async=false`;
-
-      const response = await fetch(url, {
-        headers: {
-          'X-API-KEY': outscraperKey
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.data || !data.data.length || !data.data[0].length) {
-        addLog('Nenhum local encontrado para esta busca.');
-        setIsGenerating(false);
-        return;
-      }
-
-      const places = data.data[0];
-      addLog(`Encontrado${places.length > 1 ? 's' : ''} ${places.length} local(is). Enriquecendo dados via Outscraper + Receita e salvando no CRM...`);
+    if (isSpecific) {
+      // ════════════ BUSCA POR EMPRESAS ESPECÍFICAS (MÚLTIPLAS) ════════════
+      const validCompanies = specificCompanies.filter(c => c.name.trim() !== '');
+      addLog(`Iniciando busca direcionada para ${validCompanies.length} empresa(s) específica(s)...`);
 
       let savedCount = 0;
-      let lastSavedName = '';
+      let lastSavedNames: string[] = [];
 
-      for (const place of places) {
-        let initialInsta = place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '';
-        let initialOwner = place.owner_title || place.owner || '';
-        let foundCnpj = '';
-        const websiteUrl = place.site || place.website || '';
-        const currentName = place.name || (isSpecific ? specificName : 'Sem Nome');
-        lastSavedName = currentName;
+      for (let i = 0; i < validCompanies.length; i++) {
+        const comp = validCompanies[i];
+        const compName = comp.name.trim();
+        const compAddress = comp.address.trim();
+        const query = `${compName} ${compAddress}`.trim();
+        const searchLocation = compAddress || 'Brasil';
 
-        addLog(`Enriquecendo dados de "${currentName}" (CNPJ, Instagram, Sócios)...`);
+        addLog(`[${i + 1}/${validCompanies.length}] Localizando "${compName}"${compAddress ? ` (${compAddress})` : ''}...`);
 
-        // Chamada do serviço de enriquecimento
         try {
-          const enriched = await enrichSingleLeadWithOutscraper(currentName, searchLocation, websiteUrl);
-          if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
-          if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
-          if (enriched.cnpj) foundCnpj = enriched.cnpj;
-        } catch (e) {
-          console.warn('Erro ao enriquecer lead:', e);
-        }
+          const url = `https://api.app.outscraper.com/maps/search-v2?query=${encodeURIComponent(query)}&limit=1&async=false`;
+          const response = await fetch(url, {
+            headers: { 'X-API-KEY': outscraperKey }
+          });
 
-        // Cadastra o prospect na Prospecção Online
-        await addProspect({
-          order: 0,
-          responsible: responsible,
-          location: place.full_address || searchLocation,
-          clinicName: currentName,
-          clinicInstagram: initialInsta,
-          cnpj: foundCnpj,
-          gmn: place.google_maps_url || (place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : ''),
-          gmnRating: place.rating ? String(place.rating) : '',
-          gmnReviewsCount: place.reviews ? String(place.reviews) : '',
-          site: websiteUrl,
-          ownerName: initialOwner,
-          ownerInstagram: '',
-          size: '',
-          age: '',
-          status: 'VERIFICAR ICP', // Entra como novo lead na Prospecção Online
-          hasAnswered: false,
-          lastFollowUp: '',
-          observations: `Telefone: ${place.phone || 'N/A'}\nEndereço: ${place.full_address || 'N/A'}\nModo de Busca: ${isSpecific ? 'Empresa Específica' : 'Busca em Lote'}`,
-          firstContactDate: new Date().toISOString().split('T')[0],
-          week: 'Semana 1',
-          companyId: 'digital',
-          currentStep: 1,
-          fullAddress: place.full_address || '',
-          lat: place.latitude || null,
-          lng: place.longitude || null
-        });
-        savedCount++;
+          if (!response.ok) {
+            addLog(`❌ Erro ao consultar Outscraper para "${compName}": ${response.statusText}`);
+            continue;
+          }
+
+          const data = await response.json();
+          if (!data.data || !data.data.length || !data.data[0].length) {
+            addLog(`⚠️ Nenhum local encontrado no Google Maps para "${compName}".`);
+            continue;
+          }
+
+          const place = data.data[0][0];
+          const currentName = place.name || compName;
+          const websiteUrl = place.site || place.website || '';
+          let initialInsta = place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '';
+          let initialOwner = place.owner_title || place.owner || '';
+          let foundCnpj = '';
+
+          addLog(`🔍 Enriquecendo "${currentName}" (CNPJ, Instagram, Sócios)...`);
+
+          try {
+            const enriched = await enrichSingleLeadWithOutscraper(currentName, searchLocation, websiteUrl);
+            if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
+            if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
+            if (enriched.cnpj) foundCnpj = enriched.cnpj;
+          } catch (e) {
+            console.warn('Erro ao enriquecer lead:', e);
+          }
+
+          await addProspect({
+            order: 0,
+            responsible: responsible,
+            location: place.full_address || searchLocation,
+            clinicName: currentName,
+            clinicInstagram: initialInsta,
+            cnpj: foundCnpj,
+            gmn: place.google_maps_url || (place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : ''),
+            gmnRating: place.rating ? String(place.rating) : '',
+            gmnReviewsCount: place.reviews ? String(place.reviews) : '',
+            site: websiteUrl,
+            ownerName: initialOwner,
+            ownerInstagram: '',
+            size: '',
+            age: '',
+            status: 'VERIFICAR ICP',
+            hasAnswered: false,
+            lastFollowUp: '',
+            observations: `Telefone: ${place.phone || 'N/A'}\nEndereço: ${place.full_address || 'N/A'}\nModo de Busca: Empresa Específica (Lista Manual)`,
+            firstContactDate: new Date().toISOString().split('T')[0],
+            week: 'Semana 1',
+            companyId: 'digital',
+            currentStep: 1,
+            fullAddress: place.full_address || '',
+            lat: place.latitude || null,
+            lng: place.longitude || null
+          });
+
+          savedCount++;
+          lastSavedNames.push(currentName);
+          addLog(`✅ "${currentName}" salva com sucesso na Prospecção Online!`);
+        } catch (err: any) {
+          addLog(`❌ Erro no processamento de "${compName}": ${err.message}`);
+        }
       }
 
-      addLog(`Sucesso! ${savedCount} lead(s) salvo(s) na Prospecção Online.`);
-      setSuccessModal({ show: true, count: savedCount, companyName: isSpecific ? lastSavedName : '' });
-    } catch (error: any) {
-      console.error(error);
-      addLog(`Erro: ${error.message}`);
-      setErrorModal({ show: true, message: `Ocorreu um erro: ${error.message}` });
-    } finally {
+      addLog(`✨ Processo concluído! Total de ${savedCount} empresa(s) salva(s) no CRM.`);
       setIsGenerating(false);
+      setSuccessModal({
+        show: true,
+        count: savedCount,
+        companyName: savedCount === 1 ? lastSavedNames[0] : `${savedCount} empresas cadastradas`
+      });
+
+    } else {
+      // ════════════ BUSCA POR NICHO (EM LOTE) ════════════
+      const query = `${searchTerm.trim()} in ${location.trim()}`;
+      addLog(`Iniciando busca por "${searchTerm}" em "${location}"...`);
+
+      try {
+        addLog('Consultando Outscraper (localizando estabelecimentos no Google Maps)...');
+
+        const url = `https://api.app.outscraper.com/maps/search-v2?query=${encodeURIComponent(query)}&limit=${leadsToGenerate}&async=false`;
+
+        const response = await fetch(url, {
+          headers: {
+            'X-API-KEY': outscraperKey
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro na API: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.data || !data.data.length || !data.data[0].length) {
+          addLog('Nenhum local encontrado para esta busca.');
+          setIsGenerating(false);
+          return;
+        }
+
+        const places = data.data[0];
+        addLog(`Encontrados ${places.length} locais. Enriquecendo dados via Outscraper + Receita e salvando no CRM...`);
+
+        let savedCount = 0;
+
+        for (const place of places) {
+          let initialInsta = place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '';
+          let initialOwner = place.owner_title || place.owner || '';
+          let foundCnpj = '';
+          const websiteUrl = place.site || place.website || '';
+          const currentName = place.name || 'Sem Nome';
+
+          addLog(`Enriquecendo dados de "${currentName}" (CNPJ, Instagram, Sócios)...`);
+
+          try {
+            const enriched = await enrichSingleLeadWithOutscraper(currentName, location.trim(), websiteUrl);
+            if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
+            if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
+            if (enriched.cnpj) foundCnpj = enriched.cnpj;
+          } catch (e) {
+            console.warn('Erro ao enriquecer lead:', e);
+          }
+
+          await addProspect({
+            order: 0,
+            responsible: responsible,
+            location: place.full_address || location.trim(),
+            clinicName: currentName,
+            clinicInstagram: initialInsta,
+            cnpj: foundCnpj,
+            gmn: place.google_maps_url || (place.place_id ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}` : ''),
+            gmnRating: place.rating ? String(place.rating) : '',
+            gmnReviewsCount: place.reviews ? String(place.reviews) : '',
+            site: websiteUrl,
+            ownerName: initialOwner,
+            ownerInstagram: '',
+            size: '',
+            age: '',
+            status: 'VERIFICAR ICP',
+            hasAnswered: false,
+            lastFollowUp: '',
+            observations: `Telefone: ${place.phone || 'N/A'}\nEndereço: ${place.full_address || 'N/A'}\nModo de Busca: Busca em Lote por Nicho`,
+            firstContactDate: new Date().toISOString().split('T')[0],
+            week: 'Semana 1',
+            companyId: 'digital',
+            currentStep: 1,
+            fullAddress: place.full_address || '',
+            lat: place.latitude || null,
+            lng: place.longitude || null
+          });
+          savedCount++;
+        }
+
+        addLog(`Sucesso! ${savedCount} lead(s) salvo(s) na Prospecção Online.`);
+        setSuccessModal({ show: true, count: savedCount, companyName: '' });
+      } catch (error: any) {
+        console.error(error);
+        addLog(`Erro: ${error.message}`);
+        setErrorModal({ show: true, message: `Ocorreu um erro: ${error.message}` });
+      } finally {
+        setIsGenerating(false);
+      }
     }
   };
+
+  const validCompaniesCount = specificCompanies.filter(c => c.name.trim() !== '').length;
 
   return (
     <div className="flex-1 overflow-auto bg-stone-50 h-full p-4 md:p-8 custom-scrollbar relative">
@@ -181,7 +295,7 @@ export const LeadGeneratorView: React.FC = () => {
               <h1 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Gerador Inteligente de Leads</h1>
             </div>
             <p className="text-stone-500 font-medium max-w-xl text-sm md:text-base">
-              Busque empresas por nicho ou encontre uma clínica específica no Google Maps. Cruze CNPJ (ReceitaWS), Instagram e sócios para salvar na Prospecção Online.
+              Busque empresas por nicho ou insira uma lista de empresas específicas para localizar no Google Maps, cruzar CNPJ, Instagram e sócios e salvar na Prospecção Online.
             </p>
           </div>
         </div>
@@ -216,7 +330,7 @@ export const LeadGeneratorView: React.FC = () => {
                   }`}
                 >
                   <Target size={16} />
-                  Empresa Específica
+                  Empresas Específicas
                 </button>
               </div>
 
@@ -229,7 +343,7 @@ export const LeadGeneratorView: React.FC = () => {
                 ) : (
                   <>
                     <Target size={20} className="text-[#5271FF]" />
-                    Buscar Empresa Específica
+                    Buscar Empresas Específicas ({validCompaniesCount > 0 ? validCompaniesCount : specificCompanies.length})
                   </>
                 )}
               </h2>
@@ -305,41 +419,74 @@ export const LeadGeneratorView: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    {/* Campos para busca de Empresa Específica */}
-                    <div>
-                      <label className="block text-[11px] font-black text-stone-400 uppercase tracking-widest mb-2">
-                        Nome da Clínica / Empresa
-                      </label>
-                      <div className="relative">
-                        <Target size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5271FF]" />
-                        <input
-                          type="text"
-                          value={specificName}
-                          onChange={(e) => setSpecificName(e.target.value)}
-                          className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-11 pr-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5271FF]/20 focus:border-[#5271FF] transition-all font-bold text-stone-900"
-                          placeholder="Ex: OdontoCompany, Clínica Sorriso Dourado..."
-                        />
-                      </div>
+                    {/* Lista Dinâmica de Empresas Específicas */}
+                    <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+                      {specificCompanies.map((comp, index) => (
+                        <div
+                          key={comp.id}
+                          className="bg-stone-50/80 p-4 rounded-2xl border border-stone-200 space-y-3 relative group transition-all hover:border-[#5271FF]/40"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black text-[#5271FF] uppercase tracking-wider flex items-center gap-1.5">
+                              <Target size={14} />
+                              Empresa #{index + 1}
+                            </span>
+                            {specificCompanies.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSpecificCompany(comp.id)}
+                                className="text-stone-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                title="Remover empresa"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                              Nome da Clínica / Empresa
+                            </label>
+                            <div className="relative">
+                              <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                              <input
+                                type="text"
+                                value={comp.name}
+                                onChange={(e) => handleUpdateSpecificCompany(comp.id, 'name', e.target.value)}
+                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-3 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#5271FF]/20 focus:border-[#5271FF] font-bold text-stone-900"
+                                placeholder="Ex: OdontoCompany, Clínica Sorriso Dourado..."
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                              Endereço, Bairro ou Cidade (Recomendado)
+                            </label>
+                            <div className="relative">
+                              <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                              <input
+                                type="text"
+                                value={comp.address}
+                                onChange={(e) => handleUpdateSpecificCompany(comp.id, 'address', e.target.value)}
+                                className="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-3 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#5271FF]/20 focus:border-[#5271FF] font-bold text-stone-900"
+                                placeholder="Ex: Bairro Jardim Roriz, Valparaíso de Goiás - GO"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-black text-stone-400 uppercase tracking-widest mb-2">
-                        Endereço, Bairro ou Cidade (Recomendado)
-                      </label>
-                      <div className="relative">
-                        <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                        <input
-                          type="text"
-                          value={specificAddress}
-                          onChange={(e) => setSpecificAddress(e.target.value)}
-                          className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-11 pr-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5271FF]/20 focus:border-[#5271FF] transition-all font-bold text-stone-900"
-                          placeholder="Ex: Bairro Jardim Roriz, Valparaíso de Goiás - GO"
-                        />
-                      </div>
-                      <p className="mt-1.5 text-xs text-stone-400 font-medium">
-                        Adicionar o bairro ou a cidade ajuda a localizar com exatidão no Google Maps.
-                      </p>
-                    </div>
+                    {/* Botão de Adicionar Mais Empresas */}
+                    <button
+                      type="button"
+                      onClick={handleAddSpecificCompany}
+                      className="w-full py-3.5 px-4 rounded-2xl border-2 border-dashed border-[#5271FF]/30 text-[#5271FF] hover:border-[#5271FF] hover:bg-[#5271FF]/5 transition-all text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <Plus size={16} />
+                      Adicionar Outra Empresa
+                    </button>
                   </>
                 )}
 
@@ -368,19 +515,22 @@ export const LeadGeneratorView: React.FC = () => {
                     isGenerating ||
                     !outscraperKey ||
                     (searchMode === 'niche' && (!searchTerm || !location)) ||
-                    (searchMode === 'specific' && !specificName)
+                    (searchMode === 'specific' && validCompaniesCount === 0)
                   }
                   className="w-full mt-4 flex items-center justify-center gap-3 bg-[#5271FF] text-white py-4 px-6 rounded-2xl font-black shadow-lg shadow-[#5271FF]/30 hover:shadow-xl hover:shadow-[#5271FF]/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none disabled:transform-none"
                 >
                   {isGenerating ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      Localizando e Enriquecendo Empresa...
+                      Localizando e Enriquecendo {searchMode === 'specific' ? `${validCompaniesCount} Empresa(s)` : 'Leads'}...
                     </>
                   ) : (
                     <>
                       {searchMode === 'niche' ? <Zap size={20} /> : <Target size={20} />}
-                      {searchMode === 'niche' ? 'Gerar Base de Leads' : 'Buscar e Cadastrar Empresa'}
+                      {searchMode === 'niche'
+                        ? 'Gerar Base de Leads'
+                        : `Buscar e Cadastrar ${validCompaniesCount > 1 ? `(${validCompaniesCount}) Empresas` : 'Empresa'}`
+                      }
                       <ArrowRight size={18} className="ml-1" />
                     </>
                   )}
@@ -462,12 +612,12 @@ export const LeadGeneratorView: React.FC = () => {
             </div>
 
             <h3 className="text-xl font-black text-center text-stone-900 mb-2">
-              {successModal.companyName ? 'Empresa Cadastrada!' : 'Leads Gerados!'}
+              {successModal.companyName ? 'Empresas Processadas!' : 'Leads Gerados!'}
             </h3>
             <p className="text-stone-500 text-center mb-8 text-sm">
               {successModal.companyName ? (
                 <>
-                  <strong className="text-stone-800">{successModal.companyName}</strong> foi localizada, enriquecida com dados e salva na Prospecção Online.
+                  <strong className="text-stone-800">{successModal.companyName}</strong> foram localizadas, enriquecidas com dados e salvas na Prospecção Online.
                 </>
               ) : (
                 <>
@@ -520,4 +670,5 @@ export const LeadGeneratorView: React.FC = () => {
     </div>
   );
 };
+
 
