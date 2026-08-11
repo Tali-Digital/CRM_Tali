@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2, AlignLeft, AlignCenter, AlignRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface InlineImageCropperOverlayProps {
@@ -206,7 +207,9 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  return (
+  if (!targetImage || !rect || !editorContainer) return null;
+
+  return createPortal(
     <div
       className="absolute z-[9999] pointer-events-none inline-image-cropper-overlay"
       style={{
@@ -344,6 +347,7 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
       >
         <div className="w-0.5 h-3.5 bg-white rounded-full" />
       </div>
-    </div>
+    </div>,
+    editorContainer
   );
 };
