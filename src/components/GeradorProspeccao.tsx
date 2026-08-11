@@ -1023,116 +1023,19 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     e.target.value = '';
   };
 
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [cropTargetImage, setCropTargetImage] = useState<HTMLImageElement | null>(null);
-  const [cropInitialZoom, setCropInitialZoom] = useState(1.25);
-  const [cropInitialX, setCropInitialX] = useState(0);
-  const [cropInitialY, setCropInitialY] = useState(0);
-
   const handleEditorClick = (e: React.MouseEvent) => {
     const targetEl = e.target as HTMLElement;
     const img = (targetEl.tagName === 'IMG'
       ? targetEl
       : targetEl.querySelector('img') || targetEl.closest('img') || targetEl.closest('figure')?.querySelector('img') || targetEl.closest('div')?.querySelector('img')) as HTMLImageElement | null;
 
-    if (!img) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const scrollContainer = document.getElementById('editor-scroll-container');
-    const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-
-    Swal.fire({
-      title: 'Ajustar / Editar Imagem',
-      html: `
-        <div style="text-align: left; font-size: 0.95rem; display: flex; flex-direction: column; gap: 1.2rem; padding: 0.5rem;">
-          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-            <label style="font-weight: 700; color: #475569;">URL da Imagem / Fonte</label>
-            <input id="swal-img-src" class="swal2-input" style="margin: 0; width: 100%; box-sizing: border-box;" value="${img.src || ''}" placeholder="URL da imagem (https://...)">
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-            <label style="font-weight: 700; color: #475569;">Largura da Imagem <span style="font-size:0.75rem;font-weight:400;color:#94a3b8">Ex: 100%, 350px ou 500</span></label>
-            <input id="swal-img-width" class="swal2-input" style="margin: 0; width: 100%; box-sizing: border-box;" value="${img.style.width || img.width || '100%'}" placeholder="Ex: 300px, 100%, 500">
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-            <label style="font-weight: 700; color: #475569;">Alinhamento na Página</label>
-            <select id="swal-img-align" class="swal2-select" style="margin: 0; width: 100%; box-sizing: border-box;">
-              <option value="none">Padrão (Na linha do texto)</option>
-              <option value="left" ${img.style.float === 'left' ? 'selected' : ''}>Flutuar à Esquerda</option>
-              <option value="right" ${img.style.float === 'right' ? 'selected' : ''}>Flutuar à Direita</option>
-              <option value="center" ${img.style.display === 'block' && (img.style.margin.includes('auto') || img.style.margin === '0px auto') ? 'selected' : ''}>Centralizado</option>
-              <option value="absolute_bottom" ${img.style.position === 'absolute' ? 'selected' : ''}>Fixo no Rodapé (Ultrapassa Margem)</option>
-            </select>
-          </div>
-          <div style="display: flex; gap: 10px; margin-top: 5px;">
-            <button id="swal-crop-btn" type="button" class="swal2-confirm swal2-styled" style="background-color: #3b82f6; margin: 0; flex: 1; font-size: 0.85rem; padding: 10px;">✂️ Cortar / Ajustar Zoom</button>
-            <button id="swal-delete-btn" type="button" class="swal2-deny swal2-styled" style="background-color: #ef4444; margin: 0; flex: 1; font-size: 0.85rem; padding: 10px;">🗑️ Excluir Imagem</button>
-          </div>
-        </div>
-      `,
-      didOpen: () => {
-        const cropBtn = document.getElementById('swal-crop-btn');
-        const deleteBtn = document.getElementById('swal-delete-btn');
-
-        if (cropBtn) {
-          cropBtn.addEventListener('click', () => {
-            Swal.close();
-            setCropTargetImage(img);
-            setCropInitialZoom(1.25);
-            setCropInitialX(0);
-            setCropInitialY(0);
-            setCropModalOpen(true);
-          });
-        }
-
-        if (deleteBtn) {
-          deleteBtn.addEventListener('click', () => {
-            Swal.close();
-            img.remove();
-            handleEditorInput();
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Imagem removida com sucesso!', showConfirmButton: false, timer: 2000 });
-          });
-        }
-      },
-      focusConfirm: false,
-      returnFocus: false,
-      showCancelButton: true,
-      confirmButtonText: 'Salvar Alterações',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: 'var(--primary-color)',
-      preConfirm: () => {
-        const src = (document.getElementById('swal-img-src') as HTMLInputElement).value.trim();
-        let width = (document.getElementById('swal-img-width') as HTMLInputElement).value.trim();
-        if (/^\d+$/.test(width)) width = width + 'px';
-        const align = (document.getElementById('swal-img-align') as HTMLSelectElement).value;
-        return { src, width, align };
-      }
-    }).then((result) => {
-      if (result.isConfirmed && result.value) {
-        const { src, width, align } = result.value;
-        if (src) img.src = src;
-        if (width) { img.style.width = width; img.style.height = 'auto'; }
-        if (align === 'absolute_bottom') {
-          Object.assign(img.style, { display: 'block', position: 'absolute', bottom: '0px', left: '0px', width: '100%', margin: '0', float: 'none' });
-        } else if (align === 'center') {
-          Object.assign(img.style, { position: 'static', display: 'block', margin: '0 auto', float: 'none' });
-        } else if (align === 'left') {
-          Object.assign(img.style, { position: 'static', display: 'inline-block', margin: '0 15px 15px 0', float: 'left' });
-        } else if (align === 'right') {
-          Object.assign(img.style, { position: 'static', display: 'inline-block', margin: '0 0 15px 15px', float: 'right' });
-        } else {
-          Object.assign(img.style, { position: 'static', display: 'inline-block', margin: '0', float: 'none' });
-        }
-        handleEditorInput();
-      }
-
-      if (scrollContainer) {
-        setTimeout(() => {
-          scrollContainer.scrollTop = scrollTop;
-        }, 10);
-      }
-    });
+    if (img) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSelectedEditorImage(img);
+    } else if (selectedEditorImage && !(targetEl.closest('.inline-image-cropper-overlay'))) {
+      setSelectedEditorImage(null);
+    }
   };
 
   const handleFixWordBreaks = () => {
@@ -2016,7 +1919,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               </div>
 
               {/* Editor Workspace */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: isMobileView ? '1rem 0.25rem' : '2rem 1rem', display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+              <div id="editor-scroll-container" style={{ flex: 1, overflowY: 'auto', padding: isMobileView ? '1rem 0.25rem' : '2rem 1rem', display: 'flex', justifyContent: 'center', overflowX: 'auto', position: 'relative' }}>
                 {viewHtml && (
                   <textarea
                     ref={(el) => { if (el) { setTimeout(() => { el.style.height = '1px'; el.style.height = `${el.scrollHeight + 20}px`; }, 0); } }}
@@ -2267,6 +2170,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         }
       `}</style>
 
+      <InlineImageCropperOverlay
+        targetImage={selectedEditorImage}
+        editorContainer={document.getElementById('editor-scroll-container')}
+        onUpdate={() => handleEditorInput()}
+        onDeselect={() => setSelectedEditorImage(null)}
+      />
+
       <VariableMappingModal
         isOpen={showVariableModal}
         onClose={() => setShowVariableModal(false)}
@@ -2278,25 +2188,6 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
             document.execCommand('insertText', false, tag);
             handleEditorInput();
           }
-        }}
-      />
-
-      <VisualCropModal
-        isOpen={cropModalOpen}
-        imageUrl={cropTargetImage?.src || ''}
-        initialZoom={cropInitialZoom}
-        initialOffsetX={cropInitialX}
-        initialOffsetY={cropInitialY}
-        onClose={() => setCropModalOpen(false)}
-        onSave={(zoom, x, y) => {
-          if (cropTargetImage) {
-            cropTargetImage.style.objectFit = 'cover';
-            cropTargetImage.style.transform = `scale(${zoom}) translate(${x}%, ${y}%)`;
-            cropTargetImage.style.transformOrigin = 'center center';
-            handleEditorInput();
-          }
-          setCropModalOpen(false);
-          Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Recorte da imagem aplicado!', showConfirmButton: false, timer: 2000 });
         }}
       />
     </div>
