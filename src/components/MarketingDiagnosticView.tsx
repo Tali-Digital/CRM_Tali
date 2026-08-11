@@ -752,7 +752,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       modules: { ...formData.modules }
     };
 
-    setDiagnosticQueue(prev => [...prev, queueItem]);
+    setDiagnosticQueue(prev => [queueItem, ...prev.filter(q => q.id !== queueItem.id)]);
     saveDiagnosticQueueItem(queueItem);
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${prospect.clinicName}: adicionado à fila!`, showConfirmButton: false, timer: 2500 });
   }, [formData]);
@@ -3598,6 +3598,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 </div>
               ) : (
                 diagnosticQueue
+                  .slice()
+                  .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0))
                   .filter(item => {
                     if (!queueSearchTerm.trim()) return true;
                     const q = queueSearchTerm.toLowerCase();
