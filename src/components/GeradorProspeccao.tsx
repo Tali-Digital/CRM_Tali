@@ -598,13 +598,48 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
     const effectiveClientRank = hasValidClientRank ? clientRank : (gmn?.posicaoMedia ? Number(gmn.posicaoMedia) : 7);
-    const clientRankingHtml = `<div style="border:2px solid #f59e0b; background:#fffbeb; border-radius:10px; padding:12px; margin-top:12px; color:#92400e; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#92400e; font-size:10pt;">${effectiveClientRank}. ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)</strong><br/><span style="font-size:9pt; color:#b45309;">Posição no Google (Local Falcon)</span></div>`;
+    const clientRankingHtml = `
+      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 12px 16px; margin: 8px 0; display: flex; align-items: flex-start; gap: 14px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.08); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 800; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+          ${effectiveClientRank}
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 800; font-size: 10.5pt; color: #991b1b; margin-bottom: 2px;">
+            ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)
+          </div>
+          <div style="font-size: 8.5pt; font-weight: 700; color: #b91c1c;">
+            Posição no Google (Local Falcon)
+          </div>
+        </div>
+      </div>
+    `;
     const rankingHtml = (hasValidClientRank || concorrentes.length > 0) ? `
-      <div style="background:#ffffff; color:#0f172a; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <h3 style="margin:0 0 16px; font-size:15pt; color:#0f172a;">${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}</h3>
-        ${effectiveClientRank === 1 ? clientRankingHtml : ''}
-        ${concorrentes.length ? concorrentes.map((c: any) => `<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:12px; margin:8px 0; -webkit-print-color-adjust:exact; print-color-adjust:exact;"><strong style="color:#0f172a; font-size:10pt;">${c.posicao}. ${c.nome || 'Concorrente'}</strong><br/><span style="font-size:9pt; color:#475569;">${c.endereco || ''} ${c.nota ? `| ${c.nota} ★` : ''} ${c.avaliacoes != null ? `(${c.avaliacoes} avaliações)` : ''}</span></div>`).join('') : '<p style="color:#059669; font-size:10pt; font-weight:700;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
-        ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
+      <div style="background: #ffffff; color: #0f172a; border-radius: 16px; padding: 20px; margin: 20px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <h3 style="margin: 0 0 16px 0; font-size: 14pt; font-weight: 800; color: #0f172a;">
+          ${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${effectiveClientRank === 1 ? clientRankingHtml : ''}
+          ${concorrentes.length ? concorrentes.map((c: any) => `
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 800; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                ${c.posicao}
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 3px; line-height: 1.3;">
+                  ${c.nome || 'Concorrente'}
+                </div>
+                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 4px; line-height: 1.3;">${c.endereco}</div>` : ''}
+                <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span>${c.nota ? Number(c.nota).toFixed(1) : '5.0'}</span>
+                  <span style="color: #f59e0b;">★★★★★</span>
+                  <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${c.avaliacoes ?? 0} avaliações)</span>
+                </div>
+              </div>
+            </div>
+          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
+          ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
+        </div>
       </div>
     ` : '';
     const pageSpeedHtml = site ? `
