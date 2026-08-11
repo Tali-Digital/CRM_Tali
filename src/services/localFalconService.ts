@@ -1,4 +1,4 @@
-import { getGlobalSettings } from './firestoreService';
+﻿﻿import { getGlobalSettings } from './firestoreService';
 
 export interface LocalFalconScanParams {
   keyword: string;
@@ -329,76 +329,89 @@ const autoAddLocationToLocalFalcon = async (
   proximity?: string
 ): Promise<{ placeId: string; lat: string; lng: string; name: string } | null> => {
   try {
-    // Gerar variações do nome para aumentar chance de encontrar
+    // Gerar variacoes do nome para aumentar chance de encontrar
     const namesToTry: string[] = [locationName];
 
-    // Versão sem sufixos genéricos
-    const noSuffix = locationName.replace(/\b(odontologia|odonto|clinica|cl[ií]nica|est[eé]tica|dental|saude|sa[uú]de|consultorio|consult[oó]rio|centro|instituto|spa|estetico|est[eé]tico)\b/gi, '').replace(/\s+/g, ' ').trim();
+    // Se o nome contiver a cidade, tenta tambem sem o nome da cidade
+    const cleanCity = (proximity || '').split('-')[0].trim();
+    if (cleanCity && locationName.toLowerCase().includes(cleanCity.toLowerCase())) {
+      const nameWithoutCity = locationName.replace(new RegExp(cleanCity, 'gi'), '').trim();
+      if (nameWithoutCity.length > 2) namesToTry.push(nameWithoutCity);
+    }
+
+    // Versao sem sufixos genericos
+    const noSuffix = locationName.replace(/\b(odontologia|odonto|clinica|cl[ii]nica|est[ee]tica|dental|saude|sa[uu]de|consultorio|consult[oo]rio|centro|instituto|spa|estetico|est[ee]tico)\b/gi, '').replace(/\s+/g, ' ').trim();
     if (noSuffix && noSuffix !== locationName && noSuffix.length > 3) namesToTry.push(noSuffix);
 
-    // Primeiras 2–3 palavras (nome curto)
+    // Primeiras 2-3 palavras (nome curto)
     const words = locationName.split(/\s+/);
     if (words.length > 2) {
       namesToTry.push(words.slice(0, 2).join(' '));
       if (words.length > 3) namesToTry.push(words.slice(0, 3).join(' '));
     }
 
-    // Usa cidade como proximity dinâmico
-    const proximityStr = proximity || 'Brasil';
+    // Variacoes de proximidade: cidade completa, so nome da cidade (sem UF), Brasil
+    const proximityOptions = Array.from(new Set([
+      proximity,
+      cleanCity,
+      'Brasil'
+    ])).filter((p): p is string => Boolean(p && p.trim().length > 0));
 
-    for (const nameQuery of namesToTry) {
-      console.log('[LocalFalcon AUTO] Pesquisando via API:', nameQuery, '| proximidade:', proximityStr);
+    for (const prox of proximityOptions) {
+      for (const nameQuery of namesToTry) {
+        console.log('[LocalFalcon AUTO] Pesquisando via API:', nameQuery, '| proximidade:', prox);
 
-      const searchRes = await postForm('/api-proxy/localfalcon/v2/locations/search', {
-        api_key: key,
-        name: nameQuery,
-        proximity: proximityStr,
-        platform: 'google'
-      });
+        const searchRes = await postForm('/api-proxy/localfalcon/v2/locations/search', {
+          api_key: key,
+          name: nameQuery,
+          proximity: prox,
+          platform: 'google'
+        });
 
-      if (!searchRes.ok) {
-        const errTxt = await searchRes.text();
-        console.error('[LocalFalcon AUTO] Erro na busca /v2/locations/search:', searchRes.status, errTxt.slice(0, 200));
-        continue;
+        if (!searchRes.ok) {
+          const errTxt = await searchRes.text();
+          console.error('[LocalFalcon AUTO] Erro na busca /v2/locations/search:', searchRes.status, errTxt.slice(0, 200));
+          continue;
+        }
+
+        const searchData = await searchRes.json();
+        const results: any[] = searchData?.data?.results || [];
+        console.log('[LocalFalcon AUTO] Resultados para "' + nameQuery + '" prox "' + prox + '":', results.length, 'encontrados');
+
+        if (results.length === 0) continue;
+
+        // Prefere o melhor match; fallback para o primeiro resultado
+        const bestMatch = results.find(r => isSimilarName(r.name || '', locationName)) || results[0];
+
+        const placeId = bestMatch.place_id;
+        const lat = String(bestMatch.lat);
+        const lng = String(bestMatch.lng);
+        const name = bestMatch.name;
+
+        console.log('[LocalFalcon AUTO] Empresa selecionada:', name, 'Place ID:', placeId);
+
+        // Salvar na conta do Local Falcon
+        const addRes = await postForm('/api-proxy/localfalcon/v2/locations/add', {
+          api_key: key,
+          platform: 'google',
+          place_id: placeId
+        });
+
+        if (addRes.ok) {
+          console.log('[LocalFalcon AUTO] Empresa adicionada as Saved Locations com sucesso!');
+        } else {
+          const addErr = await addRes.text();
+          console.log('[LocalFalcon AUTO] Resposta da adicao (pode ja estar cadastrada):', addRes.status, addErr.slice(0, 100));
+        }
+
+        return { placeId, lat, lng, name };
       }
-
-      const searchData = await searchRes.json();
-      const results: any[] = searchData?.data?.results || [];
-      console.log('[LocalFalcon AUTO] Resultados para "' + nameQuery + '":', results.length, 'encontrados');
-
-      if (results.length === 0) continue;
-
-      // Prefere o melhor match; fallback para o primeiro resultado
-      const bestMatch = results.find(r => isSimilarName(r.name || '', locationName)) || results[0];
-
-      const placeId = bestMatch.place_id;
-      const lat = String(bestMatch.lat);
-      const lng = String(bestMatch.lng);
-      const name = bestMatch.name;
-
-      console.log('[LocalFalcon AUTO] Empresa selecionada:', name, 'Place ID:', placeId);
-
-      // Salvar na conta do Local Falcon
-      const addRes = await postForm('/api-proxy/localfalcon/v2/locations/add', {
-        api_key: key,
-        platform: 'google',
-        place_id: placeId
-      });
-
-      if (addRes.ok) {
-        console.log('[LocalFalcon AUTO] ✅ Empresa adicionada às Saved Locations com sucesso!');
-      } else {
-        const addErr = await addRes.text();
-        console.log('[LocalFalcon AUTO] Resposta da adição (pode já estar cadastrada):', addRes.status, addErr.slice(0, 100));
-      }
-
-      return { placeId, lat, lng, name };
     }
 
-    console.warn('[LocalFalcon AUTO] Nenhuma variação de nome retornou resultados para:', locationName);
+    console.warn('[LocalFalcon AUTO] Nenhuma combinacao nome/proximidade retornou resultados para:', locationName);
     return null;
   } catch (e: any) {
-    console.error('[LocalFalcon AUTO] Exceção no cadastro automático:', e);
+    console.error('[LocalFalcon AUTO] Excecao no cadastro automatico:', e);
     return null;
   }
 };
