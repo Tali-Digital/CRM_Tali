@@ -8,6 +8,16 @@ export interface VariableTag {
   exampleValue: (prospect?: Prospect | null, diagnosticData?: any) => string;
 }
 
+export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
+  if (p?.keyword && p.keyword.trim()) return p.keyword.trim();
+  if (d?.termoPesquisado && d.termoPesquisado.trim()) return d.termoPesquisado.trim();
+  if (d?.gmn?.keyword && d.gmn.keyword.trim()) return d.gmn.keyword.trim();
+  const locationName = p?.location || p?.fullAddress || '';
+  const city = locationName ? locationName.split('-')[0].trim() : '';
+  if (city) return `dentista em ${city}`;
+  return 'dentista';
+};
+
 export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   // Geral & Empresa
   {
@@ -131,8 +141,14 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   {
     code: '{{TERMO_PESQUISADO}}',
     category: 'SEO & Google Maps',
-    description: 'Palavra-chave ou termo pesquisado na região (ex: "dentista")',
-    exampleValue: (p, d) => (p as any)?.keyword || d?.termoPesquisado || 'dentista'
+    description: 'Palavra-chave ou termo pesquisado na região (ex: "dentista em Valparaíso")',
+    exampleValue: (p, d) => getFullKeywordTerm(p, d)
+  },
+  {
+    code: '{{TERMO_BUSCA}}',
+    category: 'SEO & Google Maps',
+    description: 'Palavra-chave analisada na região (ex: "Dentista em Valparaíso")',
+    exampleValue: (p, d) => getFullKeywordTerm(p, d)
   },
   {
     code: '{{NOMES_CONCORRENTES}}',
@@ -167,10 +183,34 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     exampleValue: () => '20+'
   },
   {
-    code: '{{TERMO_BUSCA}}',
+    code: '{{TEXTO_POSICAO_MAPA}}',
     category: 'SEO & Google Maps',
-    description: 'Palavra-chave analisada na região (ex: "dentista em Asa Norte")',
-    exampleValue: (p) => `dentista em ${p?.location?.split('-')[0]?.trim() || 'sua região'}`
+    description: 'Texto dinâmico sobre ranqueamento e pontos 20+ no Google Maps',
+    exampleValue: (p, d) => `Presença irregular no Google Maps, com pontos em posição ${d?.gmn?.percentForaTop20 ? `${d.gmn.percentForaTop20} em 20+` : '20+'}`
+  },
+  {
+    code: '{{TEXTO_CONCORRENTES}}',
+    category: 'SEO & Google Maps',
+    description: 'Texto dinâmico sobre presença de concorrentes diretos',
+    exampleValue: (p) => `Concorrentes diretos aparecendo à frente da ${p?.clinicName || 'clínica'} em regiões estratégicas`
+  },
+  {
+    code: '{{TEXTO_AVALIACOES}}',
+    category: 'Notas & Desempenho',
+    description: 'Texto dinâmico comparativo de nota e quantidade de avaliações',
+    exampleValue: (p) => `Boa nota de ${p?.gmnRating || '4.8'}★ no Google, mas com volume de avaliações (${p?.gmnReviewsCount || 0}) menor que os concorrentes`
+  },
+  {
+    code: '{{TEXTO_OPORTUNIDADE_GMN}}',
+    category: 'SEO & Google Maps',
+    description: 'Texto dinâmico de oportunidade de fortalecimento do perfil no Google',
+    exampleValue: (p) => `Oportunidade de fortalecer o perfil da ${p?.clinicName || 'clínica'} no Google Meu Negócio para melhorar o ranqueamento local`
+  },
+  {
+    code: '{{TEXTO_CAPTACAO_PACIENTES}}',
+    category: 'Simulações & Anúncios',
+    description: 'Texto dinâmico de oportunidade de captação de clientes na região',
+    exampleValue: (p, d) => `Possibilidade de aumentar a captação de clientes que pesquisam por "${getFullKeywordTerm(p, d)}" na região`
   },
   {
     code: '{{IA_CARD_BUSCA_GOOGLE}}',

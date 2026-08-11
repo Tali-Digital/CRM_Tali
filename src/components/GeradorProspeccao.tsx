@@ -6,7 +6,7 @@ import { ModeloProspeccao } from '../types';
 import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
-import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
+import { DEFAULT_VARIABLE_TAGS, getFullKeywordTerm } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
@@ -666,7 +666,22 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
 
-    const keywordTermo = (prospectData as any)?.keyword || (diagnosticData as any)?.termoPesquisado || (diagnosticData as any)?.gmn?.keyword || 'dentista';
+    const keywordTermo = getFullKeywordTerm(liveProspect, diagnosticData);
+
+    const percentForaTop20Val = prospectData?.percentForaTop20 || diagnosticData?.gmn?.percentForaTop20 || '56%';
+    const clinicNameVal = clinica || prospectData?.clinicName || 'clínica';
+    const ratingVal = prospectData?.gmnRating ? Number(prospectData.gmnRating).toFixed(1) : (gmn?.rating ? Number(gmn.rating).toFixed(1) : '4.8');
+    const reviewsVal = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
+
+    const pontosOportunidadeHtml = `
+      <ul style="padding-left: 20px; line-height: 1.6; color: #334155;">
+        <li style="margin-bottom: 8px;">Presença irregular no Google Maps, com muitos pontos em posição <strong>20+</strong> (${percentForaTop20Val} da região);</li>
+        <li style="margin-bottom: 8px;">Concorrentes diretos aparecendo à frente da <strong>${clinicNameVal}</strong> em regiões estratégicas;</li>
+        <li style="margin-bottom: 8px;">Boa nota de <strong>${ratingVal}★</strong> no Google, mas com volume de avaliações (${reviewsVal}) menor que alguns concorrentes;</li>
+        <li style="margin-bottom: 8px;">Oportunidade de fortalecer o perfil da <strong>${clinicNameVal}</strong> no Google Meu Negócio para melhorar o ranqueamento local;</li>
+        <li style="margin-bottom: 8px;">Possibilidade de aumentar a captação de pacientes que já estão pesquisando por <strong>"${keywordTermo}"</strong> na região.</li>
+      </ul>
+    `;
 
     const cardLegendaMapaHtml = `
       <div style="background-color: #ffffff; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
@@ -743,6 +758,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       '{{IA_RANKING_CONCORRENTES}}': rankingHtml,
       '{{IA_PAGESPEED}}': pageSpeedHtml,
       '{{IA_DINHEIRO_NA_MESA}}': dinheiroMesaVisualHtml,
+      '{{IA_PONTOS_OPORTUNIDADE}}': pontosOportunidadeHtml,
+      '{{IA_OPORTUNIDADES}}': pontosOportunidadeHtml,
       '{{IA_RESUMO}}': resumoHtml,
       '{{IA_PLACAR}}': placarHtml,
       '{{IA_GMN}}': gmnHtml,
