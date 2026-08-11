@@ -28,8 +28,9 @@ interface DiagnosticQueueItem {
   prospectId: string;
   clinicName: string;
   location: string;
+  requestedBy?: string;
   status: 'waiting' | 'running' | 'done' | 'error';
-  actionType?: 'full' | 'rerun_module' | 'fetch_existing_gmn';
+  actionType?: 'full' | 'rerun_module' | 'fetch_existing_gmn' | 'force_new_gmn';
   targetModule?: 'gmn' | 'site' | 'instagram' | 'ads';
   addedAt: number;
   startedAt?: number;
@@ -943,16 +944,19 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           ? `🔄 Refazer Módulo (${targetModule?.toUpperCase()})`
           : '⚡ Diagnóstico Completo';
 
+    const requestedByUser = auth?.currentUser?.displayName || auth?.currentUser?.email?.split('@')[0] || 'Usuário';
+
     const queueItem: DiagnosticQueueItem = {
       id: `diag-${prospect.id}-${Date.now()}`,
       prospectId: prospect.id,
       clinicName: prospect.clinicName || 'Sem Nome',
       location: prospect.location || '',
+      requestedBy: requestedByUser,
       status: 'waiting',
       actionType: actionType as any,
       targetModule,
       addedAt: Date.now(),
-      logs: [{ timestamp: Date.now(), step: `Adicionado à fila: ${actionLabel}`, status: 'done' }],
+      logs: [{ timestamp: Date.now(), step: `Solicitado por ${requestedByUser}: ${actionLabel}`, status: 'done' }],
       formSnapshot: { ...formData },
       modules: { ...formData.modules }
     };
@@ -3822,8 +3826,34 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                         {item.status === 'error' && <XCircle size={16} className="text-red-400 shrink-0" />}
                         {item.status === 'waiting' && <Clock size={16} className="text-blue-400 shrink-0" />}
                         <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-white truncate">{item.clinicName}</h4>
-                          <p className="text-[10px] text-gray-400 truncate">{item.location}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-sm font-bold text-white truncate">{item.clinicName}</h4>
+                            
+                            {item.actionType === 'fetch_existing_gmn' ? (
+                              <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0" title="Relatório baixado do histórico (0 Créditos)">
+                                📥 Puxou Diagnóstico (0 Créditos)
+                              </span>
+                            ) : item.actionType === 'force_new_gmn' ? (
+                              <span className="bg-orange-950/80 text-orange-300 border border-orange-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0" title="Novo scan pago no Local Falcon (25 Créditos)">
+                                ⚡ NOVO Scan Pago (25 Créditos)
+                              </span>
+                            ) : item.actionType === 'rerun_module' ? (
+                              <span className="bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                                🔄 Módulo {item.targetModule?.toUpperCase()}
+                              </span>
+                            ) : (
+                              <span className="bg-blue-950/80 text-blue-300 border border-blue-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                                ⚡ Diagnóstico Completo
+                              </span>
+                            )}
+
+                            {item.requestedBy && (
+                              <span className="text-[10px] text-gray-300 bg-gray-800/90 px-2 py-0.5 rounded border border-gray-700/60 shrink-0 font-medium" title="Solicitado por">
+                                👤 {item.requestedBy}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.location}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

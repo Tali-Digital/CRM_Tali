@@ -35,7 +35,7 @@ export default function GestaoProspeccaoEditor() {
   const [responsibleFilter, setResponsibleFilter] = useState<string>(() => getSavedFilter('responsibleFilter', ''));
   const [periodType, setPeriodType] = useState<string>(() => getSavedFilter('periodType', 'all'));
   const [startDate, setStartDate] = useState<string>(() => getSavedFilter('startDate', ''));
-  const [activeTab, setActiveTab] = useState<'ativos' | 'aguardando' | 'lixeira' | 'entregues'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'finalizadas' | 'aguardando' | 'lixeira' | 'entregues'>('ativos');
   const [endDate, setEndDate] = useState<string>(() => getSavedFilter('endDate', ''));
   const [statusFilter, setStatusFilter] = useState<string>(() => getSavedFilter('statusFilter', ''));
   const [locationFilter, setLocationFilter] = useState<string>(() => getSavedFilter('locationFilter', ''));
