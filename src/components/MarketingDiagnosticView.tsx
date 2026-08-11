@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon
+  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
@@ -9,6 +9,7 @@ import { generateMarketingDiagnostic } from '../services/geminiService';
 import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
+import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
 import { auth } from '../firebase';
 import { VariableMappingModal } from './VariableMappingModal';
 import { VisualCropModal } from './VisualCropModal';
@@ -780,6 +781,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         ...existingDiag,
         ...gmnSection,
         ...siteSection,
+        oportunidadesDetectadas: computeOportunidadesDetectadas({ ...existingDiag, ...gmnSection, ...siteSection }, formData, selectedProspect),
         planoAcao: existingDiag.planoAcao || [
           { titulo: "Otimizar Perfil no Google", descricao: `Adequar o nome do perfil e incluir a palavra-chave "${formData.keyword}" para subir no ranking local.`, imp: "ALTO", esf: "BAIXO" },
           { titulo: "Solicitar Avaliações de Pacientes", descricao: "Incentivar pacientes atuais a deixarem avaliações de 5 estrelas no perfil do Google.", imp: "ALTO", esf: "BAIXO" },
@@ -3053,6 +3055,70 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             💡 <strong>Resumo Comercial:</strong> Cada mês sem posicionamento no topo do Google representa até <strong>{Math.round(buscasMes * 0.06)} vendas de tratamentos perdidas</strong> para concorrentes locais.
           </div>
         </div>
+
+        {/* Oportunidades & Pontos Fracos Detectados */}
+        {(() => {
+          const opsList = (Array.isArray(diagnosticData?.oportunidadesDetectadas) && diagnosticData.oportunidadesDetectadas.length > 0)
+            ? diagnosticData.oportunidadesDetectadas
+            : computeOportunidadesDetectadas(diagnosticData, formData, selectedProspect);
+
+          const handleGerarOportunidadesIA = async () => {
+            if (!selectedProspect) return;
+            const currentDiag = diagnosticData || selectedProspect.marketingDiagnostic || {};
+            const newOps = computeOportunidadesDetectadas(currentDiag, formData, selectedProspect);
+            const updatedDiag = { ...currentDiag, oportunidadesDetectadas: newOps };
+            await saveProspectDoc(selectedProspect.id, { marketingDiagnostic: updatedDiag });
+            setDiagnosticData(updatedDiag);
+            setSelectedProspect({ ...selectedProspect, marketingDiagnostic: updatedDiag });
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'success',
+              title: 'Oportunidades e pontos fracos gerados!',
+              showConfirmButton: false,
+              timer: 2200
+            });
+          };
+
+          return (
+            <div className="bg-[#1a1d2d] p-8 rounded-2xl border border-gray-800">
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Target className="text-amber-400" size={22} />
+                    Oportunidades & Pontos Fracos Detectados
+                  </h3>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Pontos de melhoria identificados automaticamente pela IA e pelos dados do painel de diagnóstico.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGerarOportunidadesIA}
+                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Sparkles size={15} />
+                  {diagnosticData?.oportunidadesDetectadas?.length ? 'Atualizar Oportunidades (IA)' : 'Gerar Oportunidades'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {opsList.map((item: string, idx: number) => (
+                  <div key={idx} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800/80 flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400 flex-shrink-0 mt-0.5">
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-200 leading-relaxed font-medium">
+                        {item}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Plano de 30 dias (10 Passos) */}
         <div className="bg-[#1a1d2d] p-8 rounded-2xl border border-gray-800">

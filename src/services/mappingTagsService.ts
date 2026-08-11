@@ -21,7 +21,90 @@ export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
   return kw.trim() || 'dentista';
 };
 
+export const computeOportunidadesDetectadas = (diagnosticData?: any, formData?: any, prospect?: Prospect | null): string[] => {
+  const list: string[] = [];
+  const clinic = formData?.clinicName || prospect?.clinicName || (diagnosticData as any)?.nomeClinica || 'clínica';
+  const kw = getFullKeywordTerm(prospect, diagnosticData);
+
+  const d = diagnosticData || {};
+  const anuncios = d.anuncios || {};
+  const site = d.site || {};
+  const gmn = d.gmn || {};
+
+  // 1. Google Ads status
+  const googleAdsActive = anuncios.clienteAnunciaGoogle === true || anuncios.googleAdsActive === true;
+  if (!googleAdsActive) {
+    list.push(`Ausência de campanha ativa no Google Ads para o termo "${kw}" (perda de clientes com intenção imediata de compra na região)`);
+  } else {
+    list.push(`Campanha ativa no Google Ads identificada, com margem para otimização de palavra-chave para "${kw}"`);
+  }
+
+  // 2. Meta Ads (Instagram & Facebook) status
+  const metaAdsActive = anuncios.clienteAnunciaMeta === true || anuncios.metaAdsActive === true;
+  if (!metaAdsActive) {
+    list.push(`Ausência de campanhas ativas de tráfego no Meta Ads (Instagram & Facebook) para captação local`);
+  } else {
+    list.push(`Presença de anúncios no Meta Ads detectada, com oportunidade de escalar criativos de alto impacto`);
+  }
+
+  // 3. Website & Speed
+  const siteUrl = site.url || prospect?.site;
+  const siteVel = typeof site.velocidade === 'number' ? site.velocidade : (parseInt(site.velocidade, 10) || null);
+  if (!siteUrl) {
+    list.push(`Site / Landing Page inexistente, impossibilitando a conversão de tráfego qualificado na região`);
+  } else if (siteVel && siteVel < 50) {
+    list.push(`Site com baixo desempenho de velocidade mobile (nota ${siteVel}/100 no Google PageSpeed), aumentando a taxa de rejeição`);
+  } else {
+    list.push(`Oportunidade de otimização da taxa de conversão (CRO) da Landing Page`);
+  }
+
+  // 4. Google Maps positioning & invisibilty
+  const foraTop20 = typeof gmn.foraTop20Percent === 'number' ? gmn.foraTop20Percent : (prospect?.percentForaTop20 ? parseInt(String(prospect.percentForaTop20), 10) : 50);
+  const clientRank = Number(d.posicaoCliente ?? gmn.posicaoMedia ?? prospect?.posicaoMedia ?? 7);
+
+  if (foraTop20 > 20 || clientRank > 3) {
+    list.push(`Posicionamento irregular no Google Maps, ficando em posição 20+ em cerca de ${foraTop20}% dos pontos analisados na região`);
+  }
+
+  // 5. Google Reviews volume
+  const reviewsCount = prospect?.gmnReviewsCount ?? gmn.reviewsCount ?? d.reviewsCount ?? 0;
+  const rating = prospect?.gmnRating || gmn.rating || '4.8';
+  if (reviewsCount < 100) {
+    list.push(`Boa nota no Google (${rating}★), mas com volume de avaliações (${reviewsCount}) inferior aos principais concorrentes da região`);
+  }
+
+  // 6. GMN profile optimization
+  list.push(`Oportunidade de fortalecer a otimização SEO do perfil da ${clinic} no Google Meu Negócio para subir no ranking local`);
+
+  return list;
+};
+
 export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
+  // IA & Resumos
+  {
+    code: '{{IA_PONTOS_OPORTUNIDADE}}',
+    category: 'IA & Resumos',
+    description: 'Insere a lista formatada em texto de pontos fracos e oportunidades da clínica',
+    exampleValue: (p, d) => {
+      const list = (Array.isArray(d?.oportunidadesDetectadas) && d.oportunidadesDetectadas.length > 0)
+        ? d.oportunidadesDetectadas
+        : computeOportunidadesDetectadas(d, {}, p);
+      if (!list.length) return '';
+      return `<ul style="padding-left: 20px; line-height: 1.6; color: #334155; margin: 12px 0;">${list.map((item: string) => `<li style="margin-bottom: 8px;">${item};</li>`).join('')}</ul>`;
+    }
+  },
+  {
+    code: '{{IA_OPORTUNIDADES}}',
+    category: 'IA & Resumos',
+    description: 'Alias de {{IA_PONTOS_OPORTUNIDADE}} - Lista em texto dos pontos de melhoria da clínica',
+    exampleValue: (p, d) => {
+      const list = (Array.isArray(d?.oportunidadesDetectadas) && d.oportunidadesDetectadas.length > 0)
+        ? d.oportunidadesDetectadas
+        : computeOportunidadesDetectadas(d, {}, p);
+      if (!list.length) return '';
+      return `<ul style="padding-left: 20px; line-height: 1.6; color: #334155; margin: 12px 0;">${list.map((item: string) => `<li style="margin-bottom: 8px;">${item};</li>`).join('')}</ul>`;
+    }
+  },
   // Geral & Empresa
   {
     code: '{{NOME_CLINICA}}',
