@@ -787,10 +787,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         const historyStart = Date.now();
         addQueueLog(queueId, `Consultando histórico de relatórios no Local Falcon para "${form.keyword}" (0 Créditos)...`, 'running');
         try {
-          const historyResult = await fetchLocalFalconReportHistory({
+          let historyResult = await fetchLocalFalconReportHistory({
             locationName: form.companyName,
             keyword: form.keyword
           });
+
+          if (!historyResult.success) {
+            addQueueLog(queueId, `ℹ️ Nenhum relatório prévio localizado no histórico. Executando varredura no Local Falcon...`, 'running');
+            historyResult = await runLocalFalconScan({
+              keyword: form.keyword,
+              locationName: form.companyName,
+              cityName: form.cityName,
+              gridSize: form.gridSize || '5x5',
+              radius: Number(form.radius || 5)
+            });
+          }
+
           const historyDur = Date.now() - historyStart;
 
           if (!historyResult.success) {
