@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { VisualCropModal } from './VisualCropModal';
@@ -70,6 +70,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [enderecoCompleto, setEnderecoCompleto] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isEntregue, setIsEntregue] = useState(false);
+  const [isFinalizada, setIsFinalizada] = useState(false);
   const [showVariableModal, setShowVariableModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -206,6 +207,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       if (prospeccaoParaEditar.titulo) setClinica(prospeccaoParaEditar.titulo);
       if (prospeccaoParaEditar.dataAssinatura) setDataProspeccao(prospeccaoParaEditar.dataAssinatura);
       if (prospeccaoParaEditar.isEntregue) setIsEntregue(true);
+      if (prospeccaoParaEditar.isFinalizada) setIsFinalizada(true);
 
       // Fetch live prospect data to ensure address and names are accurate
       if (prospeccaoParaEditar.clienteId) {
@@ -838,6 +840,41 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       Swal.fire('Erro', 'Não foi possível alterar o status de entrega.', 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleMarcarFinalizada = async () => {
+    if (isSaving) return;
+    const newStatus = !isFinalizada;
+    if (prospeccaoParaEditar && prospeccaoParaEditar.id) {
+      setIsSaving(true);
+      try {
+        await updateProspeccaoDoc(prospeccaoParaEditar.id, { isFinalizada: newStatus });
+        setIsFinalizada(newStatus);
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: newStatus ? 'Marcada como Finalizada (Pronta p/ Entrega)!' : 'Revertido para Em Andamento',
+          showConfirmButton: false,
+          timer: 2000
+        });
+      } catch (error) {
+        console.error('Erro ao alterar status:', error);
+        Swal.fire('Erro', 'Não foi possível alterar o status.', 'error');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      setIsFinalizada(newStatus);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: newStatus ? 'Marcada como Finalizada! Clique em Salvar.' : 'Status Revertido',
+        showConfirmButton: false,
+        timer: 2000
+      });
     }
   };
 
@@ -1557,6 +1594,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         dataAssinatura: dataProspeccao,
         location: cidadeBairro,
         fullAddress: enderecoCompleto,
+        isFinalizada: isFinalizada,
         conteudoHtml: getCanonicalHtml()
       });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Salvo!', text: 'Prospecção salva com sucesso no sistema.', timer: 2000, showConfirmButton: false });
@@ -1749,6 +1787,15 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <Printer size={14} /> <span>Imprimir PDF</span>
               </button>
 
+              <button
+                disabled={isSaving}
+                onClick={handleMarcarFinalizada}
+                title={isFinalizada ? "Proposta Finalizada (Pronta p/ Entrega)" : "Marcar como Finalizada / Pronta p/ Entrega"}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: isFinalizada ? '#f59e0b' : '#0d9488', color: 'white', border: 'none', borderRadius: '6px', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+              >
+                <CheckSquare size={14} /> <span>{isFinalizada ? 'Finalizada' : 'Marcar Finalizada'}</span>
+              </button>
+
               {prospeccaoParaEditar && (
                 <button
                   disabled={isSaving}
@@ -1808,6 +1855,14 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '6px', whiteSpace: 'nowrap' }}
               >
                 <Printer size={13} /> <span>PDF</span>
+              </button>
+
+              <button
+                disabled={isSaving}
+                onClick={handleMarcarFinalizada}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: isFinalizada ? '#f59e0b' : '#0d9488', color: 'white', border: 'none', borderRadius: '6px', whiteSpace: 'nowrap' }}
+              >
+                <CheckSquare size={13} /> <span>{isFinalizada ? 'Finalizada' : 'Finalizar?'}</span>
               </button>
 
               {prospeccaoParaEditar && (

@@ -353,6 +353,10 @@ export interface EditorProspeccaoDoc {
   documentoNome?: string;
   link?: string;
   valor?: number | string;
+  isFinalizada?: boolean;
+  isEntregue?: boolean;
+  isAguardando?: boolean;
+  isDeleted?: boolean;
   [key: string]: any;
 }
 
