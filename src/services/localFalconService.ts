@@ -484,25 +484,22 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 
     console.log('[LocalFalcon] Rodando scan v2/run-scan com params:', { ...formParams, api_key: '***' });
 
-    let scanErrorMsg = '';
     try {
-      // Timeout de 75s para a conexão direta
       const res = await postForm('/api-proxy/localfalcon/v2/run-scan/', formParams, 75000);
-      console.log('[LocalFalcon] Status do scan:', res.status, res.statusText);
+      console.log('[LocalFalcon] Status do disparo do scan:', res.status, res.statusText);
 
       if (res.ok || res.status === 202) {
         const data = await res.json();
-        console.log('[LocalFalcon] Resposta do scan:', JSON.stringify(data, null, 2));
-
+        console.log('[LocalFalcon] Scan disparado na API:', JSON.stringify(data, null, 2));
         const scanData = data?.data || {};
-        const reportKey = scanData.report_key;
-        const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
-        const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
-        const solv = parseFloat(scanData.solv || '0');
-        const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
-
         const dataPoints = extractDataPointsArray(scanData);
+
         if (dataPoints.length > 0) {
+          const reportKey = scanData.report_key;
+          const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
+          const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
+          const solv = parseFloat(scanData.solv || '0');
+          const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
           const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId, params.locationName);
 
           return {
@@ -522,33 +519,42 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
             competitors
           };
         }
-      } else {
-        const errTxt = await res.text();
-        scanErrorMsg = `API Status ${res.status}: ${errTxt}`;
       }
     } catch (e: any) {
-      console.warn('[LocalFalcon] Conexão direta v2/run-scan expirou/falhou:', e.message);
-      scanErrorMsg = e.message;
+      console.warn('[LocalFalcon] Disparo v2/run-scan em processamento assíncrono pelo servidor:', e.message);
     }
 
-    // 4. FALLBACK AUTOMÁTICO VIA HISTÓRICO DA CONTA:
-    // O Local Falcon agenda e gera o relatório no servidor mesmo se o socket HTTP expirar no proxy.
-    // Polling robusto: tenta até 12 vezes (~5 minutos) com intervalos crescentes para dar tempo ao Local Falcon de concluir o scan.
-    console.log('[LocalFalcon] Conexão direta não retornou pontos. Iniciando polling robusto no histórico da conta...');
-    const pollIntervals = [10000, 15000, 20000, 25000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000]; // ~5.5 minutos total
-    for (let i = 0; i < pollIntervals.length; i++) {
-      console.log(`[LocalFalcon] Tentativa ${i + 1}/${pollIntervals.length} de busca no histórico (aguardando ${pollIntervals[i] / 1000}s)...`);
-      await new Promise(r => setTimeout(r, pollIntervals[i]));
-      const historyCheck = await fetchLocalFalconReportHistory({ locationName: params.locationName, keyword: params.keyword });
+    // 4. AGUARDAR CONCLUSÃO DO SCAN NO LOCAL FALCON (POLLING DE ATÉ 10 MINUTOS - 0 CRÉDITOS):
+    // Quando um scan é enviado via v2/run-scan, o Local Falcon coloca o relatório como "Scan In Progress"
+    // e leva entre 1 e 5 minutos (até 10min) para gerar a grade de 25 pontos.
+    // Fazemos verificações periódicas no histórico a cada 15 segundos (0 créditos) durante até 10 minutos.
+    console.log('[LocalFalcon] Scan em andamento no servidor do Local Falcon. Aguardando conclusão (até 10 min, 0 créditos)...');
+    
+    const maxDurationMs = 10 * 60 * 1000; // 10 minutos máximo
+    const intervalMs = 15000; // 15 segundos entre cada checagem
+    const maxAttempts = Math.floor(maxDurationMs / intervalMs); // 40 tentativas
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const timeSec = attempt * 15;
+      const minStr = Math.floor(timeSec / 60);
+      const secStr = timeSec % 60;
+      console.log(`[LocalFalcon] Checando se relatório ficou pronto no histórico (Tentativa ${attempt}/${maxAttempts} - ${minStr}m${secStr}s de 10m)...`);
+      await new Promise(r => setTimeout(r, intervalMs));
+      
+      const historyCheck = await fetchLocalFalconReportHistory({
+        locationName: params.locationName,
+        keyword: params.keyword
+      });
+
       if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
-        console.log(`[LocalFalcon] Recuperado com SUCESSO via histórico do Local Falcon na tentativa ${i + 1}!`);
+        console.log(`[LocalFalcon] ✅ Scan CONCLUÍDO com sucesso no Local Falcon na tentativa ${attempt} (${minStr}m${secStr}s)!`);
         return historyCheck;
       }
     }
 
     return {
       success: false,
-      error: `A API do Local Falcon está demorando mais que o normal para processar o relatório. Tente buscar pelo histórico em alguns instantes. (${scanErrorMsg})`
+      error: `O Local Falcon está demorando mais de 10 minutos para concluir esta análise na conta. O scan já foi iniciado no Local Falcon. Quando finalizar, clique no botão "📥 Puxar Análise Existente do Local Falcon (0 Créditos)".`
     };
   } catch (err: any) {
     console.error('[LocalFalcon] Erro geral no scan:', err);

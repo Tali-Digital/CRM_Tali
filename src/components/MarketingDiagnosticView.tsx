@@ -792,15 +792,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             keyword: form.keyword
           });
 
+          // Se não encontrou de primeira (pode estar "Scan In Progress" no Local Falcon), faz pequenas checagens a 0 créditos
           if (!historyResult.success) {
-            addQueueLog(queueId, `ℹ️ Nenhum relatório prévio localizado no histórico. Executando varredura no Local Falcon...`, 'running');
-            historyResult = await runLocalFalconScan({
-              keyword: form.keyword,
-              locationName: form.companyName,
-              cityName: form.cityName,
-              gridSize: form.gridSize || '5x5',
-              radius: Number(form.radius || 5)
-            });
+            for (let retry = 1; retry <= 4; retry++) {
+              addQueueLog(queueId, `⏳ Aguardando conclusão do scan no Local Falcon (0 Créditos - Tentativa ${retry}/4)...`, 'running');
+              await new Promise(r => setTimeout(r, 10000));
+              historyResult = await fetchLocalFalconReportHistory({
+                locationName: form.companyName,
+                keyword: form.keyword
+              });
+              if (historyResult.success && (historyResult.gridPoints?.length || 0) > 0) break;
+            }
           }
 
           const historyDur = Date.now() - historyStart;
