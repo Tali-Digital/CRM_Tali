@@ -2215,7 +2215,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               onEditParams={() => setShowDiagnosticForm(true)}
               onFetchExisting={() => selectedProspect && enqueueDiagnostic(selectedProspect, 'fetch_existing_gmn', 'gmn')}
               fetchExistingLabel="📥 Puxar Análise Existente do Local Falcon (0 Créditos)"
-              onRerun={() => selectedProspect && enqueueDiagnostic(selectedProspect, 'rerun_module', 'gmn')}
+              onRerun={() => selectedProspect && handleRerunSingleModule('gmn')}
               rerunLabel="⚡ Refazer Nova Varredura no Local Falcon"
             />
           )}
