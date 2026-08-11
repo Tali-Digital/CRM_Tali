@@ -9,13 +9,16 @@ export interface VariableTag {
 }
 
 export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
-  if (p?.keyword && p.keyword.trim()) return p.keyword.trim();
-  if (d?.termoPesquisado && d.termoPesquisado.trim()) return d.termoPesquisado.trim();
-  if (d?.gmn?.keyword && d.gmn.keyword.trim()) return d.gmn.keyword.trim();
-  const locationName = p?.location || p?.fullAddress || '';
-  const city = locationName ? locationName.split('-')[0].trim() : '';
-  if (city) return `dentista em ${city}`;
-  return 'dentista';
+  const kw = (p as any)?.keyword || d?.termoPesquisado || d?.gmn?.keyword || '';
+  if (kw && kw.trim().length > 6 && kw.toLowerCase().includes(' em ')) {
+    return kw.trim();
+  }
+  const loc = p?.location || p?.fullAddress || '';
+  const city = loc ? loc.split('-')[0].trim() : '';
+  if (city) {
+    return `${kw.trim() || 'dentista'} em ${city}`;
+  }
+  return kw.trim() || 'dentista';
 };
 
 export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [

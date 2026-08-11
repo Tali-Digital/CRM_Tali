@@ -6,7 +6,7 @@ import { ModeloProspeccao } from '../types';
 import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
-import { DEFAULT_VARIABLE_TAGS, getFullKeywordTerm } from '../services/mappingTagsService';
+import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
@@ -666,22 +666,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
 
-    const keywordTermo = getFullKeywordTerm(liveProspect, diagnosticData);
-
-    const percentForaTop20Val = prospectData?.percentForaTop20 || diagnosticData?.gmn?.percentForaTop20 || '56%';
-    const clinicNameVal = clinica || prospectData?.clinicName || 'clínica';
-    const ratingVal = prospectData?.gmnRating ? Number(prospectData.gmnRating).toFixed(1) : (gmn?.rating ? Number(gmn.rating).toFixed(1) : '4.8');
-    const reviewsVal = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
-
-    const pontosOportunidadeHtml = `
-      <ul style="padding-left: 20px; line-height: 1.6; color: #334155;">
-        <li style="margin-bottom: 8px;">Presença irregular no Google Maps, com muitos pontos em posição <strong>20+</strong> (${percentForaTop20Val} da região);</li>
-        <li style="margin-bottom: 8px;">Concorrentes diretos aparecendo à frente da <strong>${clinicNameVal}</strong> em regiões estratégicas;</li>
-        <li style="margin-bottom: 8px;">Boa nota de <strong>${ratingVal}★</strong> no Google, mas com volume de avaliações (${reviewsVal}) menor que alguns concorrentes;</li>
-        <li style="margin-bottom: 8px;">Oportunidade de fortalecer o perfil da <strong>${clinicNameVal}</strong> no Google Meu Negócio para melhorar o ranqueamento local;</li>
-        <li style="margin-bottom: 8px;">Possibilidade de aumentar a captação de pacientes que já estão pesquisando por <strong>"${keywordTermo}"</strong> na região.</li>
-      </ul>
-    `;
+    const keywordTermo = (prospectData as any)?.keyword || (diagnosticData as any)?.termoPesquisado || (diagnosticData as any)?.gmn?.keyword || 'dentista';
 
     const cardLegendaMapaHtml = `
       <div style="background-color: #ffffff; padding: 16px; border-radius: 12px; font-family: sans-serif; text-align: center; margin: 16px 0; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
@@ -747,85 +732,46 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     `;
 
     let html = getCanonicalHtml();
-    if (!html) return;
-    html = html.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
+    let appended = '';
 
+    const visualTags: Record<string, string> = {
+      '{{IA_CARD_BUSCA_GOOGLE}}': cardBuscaGoogleHtml,
+      '{{IA_CARD_LEGENDA_MAPA}}': cardLegendaMapaHtml,
+      '{{IA_MAPA_CALOR}}': mapaCalorHtml,
+      '{{IA_FICHA_CLINICA}}': fichaClinicaHtml,
+      '{{IA_PLACAR_PILARES}}': placarPilaresHtml,
+      '{{IA_RANKING_CONCORRENTES}}': rankingHtml,
+      '{{IA_PAGESPEED}}': pageSpeedHtml,
+      '{{IA_DINHEIRO_NA_MESA}}': dinheiroMesaVisualHtml,
+      '{{IA_RESUMO}}': resumoHtml,
+      '{{IA_PLACAR}}': placarHtml,
+      '{{IA_GMN}}': gmnHtml,
+      '{{IA_SITE}}': siteHtml,
+      '{{IA_ANUNCIOS}}': anunciosHtml,
+      '{{IA_DINHEIRO}}': dinheiroMesaHtml,
+      '{{IA_PLANO_ACAO}}': planoHtml,
+      '{{IA_CONCORRENTES}}': concorrentesHtml,
+    };
     let applied = 0;
     let unavailable = 0;
-
-    const liveProspect = {
-      ...prospectData,
-      clinicName: clinica || prospectData?.clinicName || (diagnosticData as any)?.nomeClinica || 'Clínica Odontológica',
-      ownerName: donoClinica || prospectData?.ownerName || (diagnosticData as any)?.nomeDono || 'Dr(a).',
-      location: cidadeBairro || prospectData?.location || (diagnosticData as any)?.cidade || '',
-      fullAddress: enderecoCompleto || prospectData?.fullAddress || (diagnosticData as any)?.endereco || '',
-      gmnRating: prospectData?.gmnRating || (diagnosticData as any)?.gmn?.rating || (diagnosticData as any)?.rating || '4.8',
-      gmnReviewsCount: prospectData?.gmnReviewsCount ?? (diagnosticData as any)?.gmn?.reviewsCount ?? (diagnosticData as any)?.reviewsCount ?? 0,
-    };
-
-    const applyTagToHtml = (currentHtml: string, tagCode: string, value: string): { newHtml: string; matched: boolean } => {
-      if (!tagCode || value === undefined || value === null) return { newHtml: currentHtml, matched: false };
-      const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
-      const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'gi');
-      
-      let matched = false;
-      let newHtml = currentHtml.replace(tagRegex, () => {
-        matched = true;
-        return value;
-      });
-
-      if (!matched && currentHtml.includes(tagCode)) {
-        newHtml = currentHtml.split(tagCode).join(value);
-        matched = true;
-      }
-
-      return { newHtml, matched };
-    };
-
-    const processedVisualTags = new Set<string>();
-
-    Object.entries(visualTags).forEach(([tagCode, visualValue]) => {
-      const fallbackValue = DEFAULT_VARIABLE_TAGS.find(t => t.code === tagCode)?.exampleValue(liveProspect, diagnosticData);
-      const targetValue = (visualValue && visualValue.trim()) ? visualValue : (fallbackValue || '');
-      
-      if (targetValue) {
-        const res = applyTagToHtml(html, tagCode, targetValue);
-        if (res.matched) {
-          html = res.newHtml;
-          applied += 1;
-          processedVisualTags.add(tagCode);
-        }
-      } else {
-        const rawName = tagCode.replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
-        const escapedName = rawName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const tagRegex = new RegExp(`(?:\\{\\{|&#123;&#123;)[^}]*?${escapedName}[^}]*?(?:\\}\\}|&#125;&#125;)`, 'i');
-        if (tagRegex.test(html) || html.includes(tagCode)) {
-          unavailable += 1;
-        }
-      }
-    });
-
-    DEFAULT_VARIABLE_TAGS.forEach((tag) => {
-      if (processedVisualTags.has(tag.code)) return;
-      const value = tag.exampleValue(liveProspect, diagnosticData);
-      const res = applyTagToHtml(html, tag.code, value);
-      if (res.matched) {
-        html = res.newHtml;
+    Object.entries(visualTags).forEach(([tag, value]) => {
+      if (!html.includes(tag)) return;
+      if (value) {
+        html = html.split(tag).join(value);
         applied += 1;
+      } else {
+        unavailable += 1;
       }
     });
-
-    setEditorHtml(html);
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: applied ? 'success' : 'info',
-      title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta',
-      text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined,
-      showConfirmButton: false,
-      timer: 2600
+    const liveProspect = { ...prospectData, clinicName: clinica || prospectData?.clinicName, ownerName: donoClinica || prospectData?.ownerName, location: cidadeBairro || prospectData?.location, fullAddress: enderecoCompleto || prospectData?.fullAddress };
+    DEFAULT_VARIABLE_TAGS.forEach((tag) => {
+      if (visualTags[tag.code] !== undefined) return;
+      if (!html.includes(tag.code)) return;
+      html = html.split(tag.code).join(tag.exampleValue(liveProspect, diagnosticData));
+      applied += 1;
     });
+    setEditorHtml(html);
+    Swal.fire({ toast: true, position: 'top-end', icon: applied ? 'success' : 'info', title: applied ? `${applied} tipo(s) de tag aplicado(s)` : 'Nenhuma tag encontrada na carta', text: unavailable ? `${unavailable} tag(s) visual(is) sem dados reais disponíveis.` : undefined, showConfirmButton: false, timer: 2600 });
   };
 
   const handleMarcarEntregue = async () => {
