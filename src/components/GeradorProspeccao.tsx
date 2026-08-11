@@ -598,17 +598,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
     const effectiveClientRank = hasValidClientRank ? clientRank : (gmn?.posicaoMedia ? Number(gmn.posicaoMedia) : 7);
+    const clientAddress = enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || '';
+    const clientRating = prospectData?.gmnRating ? Number(prospectData.gmnRating).toFixed(1) : (gmn?.rating ? Number(gmn.rating).toFixed(1) : '4.8');
+    const clientReviews = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
+
     const clientRankingHtml = `
       <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 12px 16px; margin: 8px 0; display: flex; align-items: flex-start; gap: 14px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.08); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 800; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
           ${effectiveClientRank}
         </div>
         <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 800; font-size: 10.5pt; color: #991b1b; margin-bottom: 2px;">
+          <div style="font-weight: 700; font-size: 10.5pt; color: #991b1b; margin-bottom: 3px; line-height: 1.3;">
             ${clinica || prospectData?.clinicName || 'Sua clínica'} (você)
           </div>
-          <div style="font-size: 8.5pt; font-weight: 700; color: #b91c1c;">
-            Posição no Google (Local Falcon)
+          ${clientAddress ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 4px; line-height: 1.3;">${clientAddress}</div>` : ''}
+          <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span>${clientRating}</span>
+            <span style="color: #f59e0b;">★★★★★</span>
+            <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${clientReviews} avaliações)</span>
+            <span style="color: #b91c1c; font-size: 8pt; font-weight: 700; margin-left: 4px;">• Posição no Google (Local Falcon)</span>
           </div>
         </div>
       </div>
@@ -622,7 +630,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           ${effectiveClientRank === 1 ? clientRankingHtml : ''}
           ${concorrentes.length ? concorrentes.map((c: any) => `
             <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-              <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 800; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: 500; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
                 ${c.posicao}
               </div>
               <div style="flex: 1; min-width: 0;">
