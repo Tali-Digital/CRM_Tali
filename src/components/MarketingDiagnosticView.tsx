@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
-import { generateMarketingDiagnostic } from '../services/geminiService';
+import { generateMarketingDiagnostic, generateOportunidadesPersonalizadasIA } from '../services/geminiService';
 import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
@@ -3065,18 +3065,34 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           const handleGerarOportunidadesIA = async () => {
             if (!selectedProspect) return;
             const currentDiag = diagnosticData || selectedProspect.marketingDiagnostic || {};
-            const newOps = computeOportunidadesDetectadas(currentDiag, formData, selectedProspect);
+
+            Swal.fire({
+              title: 'Analisando com IA...',
+              text: `Gerando 10 oportunidades estratégicas exclusivas para ${selectedProspect.clinicName}...`,
+              allowOutsideClick: false,
+              didOpen: () => { Swal.showLoading(); }
+            });
+
+            let newOps: string[] = [];
+            const aiRes = await generateOportunidadesPersonalizadasIA(selectedProspect, currentDiag);
+            if (aiRes.success && aiRes.oportunidades && aiRes.oportunidades.length > 0) {
+              newOps = aiRes.oportunidades;
+            } else {
+              newOps = computeOportunidadesDetectadas(currentDiag, formData, selectedProspect);
+            }
+
             const updatedDiag = { ...currentDiag, oportunidadesDetectadas: newOps };
             await saveProspectDoc(selectedProspect.id, { marketingDiagnostic: updatedDiag });
             setDiagnosticData(updatedDiag);
             setSelectedProspect({ ...selectedProspect, marketingDiagnostic: updatedDiag });
+
             Swal.fire({
               toast: true,
               position: 'top-end',
               icon: 'success',
-              title: 'Oportunidades e pontos fracos gerados!',
+              title: '10 Oportunidades personalizadas salvas com sucesso!',
               showConfirmButton: false,
-              timer: 2200
+              timer: 2500
             });
           };
 

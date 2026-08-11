@@ -32,70 +32,76 @@ export const computeOportunidadesDetectadas = (diagnosticData?: any, formData?: 
   const site = d.site || {};
   const gmn = d.gmn || {};
 
+  // Concorrentes de destaque
+  const concorrentes: any[] = Array.isArray(d.concorrentes) ? d.concorrentes : [];
+  const topConcorrente = concorrentes[0]?.nome || 'concorrentes locais da região';
+  const topConcorrenteReviews = concorrentes[0]?.avaliacoes || 150;
+
   // 1. Google Ads status
   const googleAdsActive = anuncios.clienteAnunciaGoogle === true || anuncios.googleAdsActive === true;
   if (!googleAdsActive) {
-    list.push(`Ausência de campanha ativa no Google Ads para a palavra-chave "${kw}" (perda de clientes com intenção imediata de agendamento na região)`);
+    list.push(`Ausência de campanhas ativas no Google Ads para a busca por "${kw}" em ${city}, deixando o caminho livre para a ${topConcorrente}`);
   } else {
-    list.push(`Campanha ativa no Google Ads identificada, porém com margem para otimização de termos de busca focados em "${kw}"`);
+    list.push(`Campanha ativa no Google Ads identificada para a ${clinic}, porém com margem de otimização nos termos de busca de ${city}`);
   }
 
   // 2. Meta Ads (Instagram & Facebook) status
   const metaAdsActive = anuncios.clienteAnunciaMeta === true || anuncios.metaAdsActive === true;
   if (!metaAdsActive) {
-    list.push(`Ausência de campanhas ativas de tráfego no Meta Ads (Instagram & Facebook) para captação local de novos pacientes`);
+    list.push(`Ausência de anúncios ativos de tráfego e captação no Meta Ads (Instagram & Facebook) para a ${clinic} na região de ${city}`);
   } else {
-    list.push(`Presença de anúncios no Meta Ads detectada, com oportunidade de escalar criativos de alta conversão em vídeo`);
+    list.push(`Presença de anúncios no Meta Ads identificada, com oportunidade de testar formatos de vídeo e Reels exclusivos para a ${clinic}`);
   }
 
   // 3. Website & Speed
   const siteUrl = site.url || prospect?.site;
   const siteVel = typeof site.velocidade === 'number' ? site.velocidade : (parseInt(site.velocidade, 10) || null);
   if (!siteUrl) {
-    list.push(`Site / Landing Page inexistente, impossibilitando a conversão de tráfego qualificado proveniente de pesquisas locais`);
+    list.push(`A ${clinic} não possui Landing Page otimizada cadastrada para converter os visitantes interessados por "${kw}" em ${city}`);
   } else if (siteVel && siteVel < 50) {
-    list.push(`Site com baixo desempenho de velocidade mobile (nota ${siteVel}/100 no Google PageSpeed), elevando a taxa de rejeição dos visitantes`);
+    list.push(`O site oficial da ${clinic} apresenta nota de velocidade mobile de apenas ${siteVel}/100 no Google PageSpeed, elevando a taxa de rejeição`);
   } else {
-    list.push(`Oportunidade de otimização da taxa de conversão (CRO) da Landing Page com botão direto de WhatsApp`);
+    list.push(`Oportunidade de implementar testes A/B na Landing Page da ${clinic} para otimizar chamadas de agendamento via WhatsApp`);
   }
 
   // 4. Google Maps positioning & invisibilty
   const foraTop20 = typeof gmn.foraTop20Percent === 'number' ? gmn.foraTop20Percent : (prospect?.percentForaTop20 ? parseInt(String(prospect.percentForaTop20), 10) : 50);
   const clientRank = Number(d.posicaoCliente ?? gmn.posicaoMedia ?? prospect?.posicaoMedia ?? 7);
   if (foraTop20 > 20 || clientRank > 3) {
-    list.push(`Posicionamento irregular no Google Maps, ficando invisível em posição 20+ em cerca de ${foraTop20}% dos pontos analisados na região`);
+    list.push(`Desempenho no Google Maps: a ${clinic} ocupa a posição #${clientRank} e fica invisível (20+) em cerca de ${foraTop20}% dos pontos analisados em ${city}`);
   } else {
-    list.push(`Posicionamento relevante no Google Maps, mas com necessidade de blindagem da liderança contra concorrentes diretos`);
+    list.push(`Bom posicionamento inicial no Google Maps (#${clientRank}), com oportunidade de consolidar o Top 3 em toda a extensão de ${city}`);
   }
 
-  // 5. Google Reviews volume
+  // 5. Google Reviews volume gap vs top competitor
   const reviewsCount = prospect?.gmnReviewsCount ?? gmn.reviewsCount ?? d.reviewsCount ?? 0;
   const rating = prospect?.gmnRating || gmn.rating || '4.8';
-  if (reviewsCount < 150) {
-    list.push(`Boa nota no Google (${rating}★), porém com volume total de avaliações (${reviewsCount}) inferior aos principais concorrentes da região`);
+  if (reviewsCount < topConcorrenteReviews) {
+    list.push(`Gargalo de prova social: a ${clinic} possui ${reviewsCount} avaliações (${rating}★), enquanto a ${topConcorrente} já acumula ${topConcorrenteReviews} avaliações na região`);
   } else {
-    list.push(`Excelente volume de avaliações (${reviewsCount} comentários), com oportunidade de implementar automação para coleta contínua`);
+    list.push(`Volume sólido de ${reviewsCount} avaliações (${rating}★), com oportunidade de automatizar a captação contínua de relatos de pacientes`);
   }
 
   // 6. GMN profile optimization
-  list.push(`Oportunidade de fortalecer a otimização SEO e inclusão da palavra-chave "${kw}" na categoria e descrição do perfil no Google Meu Negócio`);
+  list.push(`Oportunidade de incluir a palavra-chave "${kw}" no título e na descrição SEO da ficha do Google da ${clinic}`);
 
   // 7. Rastreamento e Métrica de Conversão
   const hasPixel = site.pixelMeta === true || site.pixelGoogle === true;
   if (!hasPixel) {
-    list.push(`Ausência de ferramentas de rastreamento de conversão (Pixel do Meta / Google Tag Manager) para medir cliques reais no WhatsApp`);
+    list.push(`Ausência de Pixel do Meta e Tag Manager no site da ${clinic}, impedindo a mensuração de leads reais gerados`);
   } else {
-    list.push(`Necessidade de auditoria no rastreamento de conversões para garantir atribuição correta dos leads captados`);
+    list.push(`Necessidade de revisar as tags de conversão do Google e Meta no site da ${clinic} para evitar contagens duplicadas`);
   }
 
   // 8. Resposta a Avaliações no Google
-  list.push(`Oportunidade de responder 100% das avaliações no perfil do Google utilizando palavras-chave estratégicas para engajar o algoritmo`);
+  list.push(`Oportunidade da ${clinic} responder 100% das avaliações no perfil do Google utilizando palavras-chave estratégicas de ${city}`);
 
   // 9. Presença e Posicionamento nas Redes Sociais
-  list.push(`Oportunidade de estruturar um calendário estratégico de conteúdos educativos e provas sociais nas redes sociais da ${clinic}`);
+  const insta = prospect?.clinicInstagram || 'Instagram oficial da clínica';
+  list.push(`Oportunidade de alinhar a bio e os destaques do ${insta} com chamadas diretas de agendamento para tratamentos de ${kw}`);
 
   // 10. Funil de Captação e Atendimento Rápido
-  list.push(`Possibilidade de estruturar um funil de captação acelerado com atendimento de WhatsApp padronizado para converter buscas por "${kw}" em ${city}`);
+  list.push(`Estruturação de atendimento automatizado via WhatsApp para responder leads que buscam por "${kw}" em ${city} em menos de 3 minutos`);
 
   return list.slice(0, 10);
 };

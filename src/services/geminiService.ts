@@ -705,3 +705,112 @@ Preencha os dados do relatório JSON estritamente conforme o esquema, estimando 
     return { success: false, error: error.message };
   }
 };
+
+export const generateOportunidadesPersonalizadasIA = async (
+  prospect: Prospect,
+  diagnosticData: any,
+  customApiKey?: string
+): Promise<{ success: boolean; oportunidades?: string[]; error?: string }> => {
+  try {
+    let apiKey = customApiKey;
+    if (!apiKey) {
+      const settings = await getGlobalSettings('gemini');
+      apiKey = settings?.key;
+    }
+    if (!apiKey) {
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+    }
+
+    const clinicName = prospect?.clinicName || (diagnosticData as any)?.nomeClinica || 'Clínica Odontológica';
+    const location = prospect?.location || prospect?.fullAddress || (diagnosticData as any)?.cidade || 'Região';
+    const kw = (prospect as any)?.keyword || diagnosticData?.termoPesquisado || diagnosticData?.gmn?.keyword || 'Dentista';
+    const rating = prospect?.gmnRating || diagnosticData?.gmn?.rating || '4.8';
+    const reviews = prospect?.gmnReviewsCount ?? diagnosticData?.gmn?.reviewsCount ?? 0;
+    const foraTop20 = diagnosticData?.gmn?.foraTop20Percent ?? prospect?.percentForaTop20 ?? 50;
+    const clientRank = diagnosticData?.posicaoCliente ?? diagnosticData?.gmn?.posicaoMedia ?? prospect?.posicaoMedia ?? 7;
+    const siteUrl = diagnosticData?.site?.url || prospect?.site || '';
+    const siteVel = diagnosticData?.site?.velocidade ?? 'N/A';
+    const siteSeo = diagnosticData?.site?.seo ?? 'N/A';
+    const metaAdsActive = diagnosticData?.anuncios?.clienteAnunciaMeta === true;
+    const googleAdsActive = diagnosticData?.anuncios?.clienteAnunciaGoogle === true;
+    const concorrentes = (diagnosticData?.concorrentes || []).map((c: any) => `${c.nome} (${c.avaliacoes || 0} avaliações, nota ${c.nota || '4.5'})`).join('; ');
+
+    const prompt = `Você é um consultor especialista em Marketing Odontológico e SEO Local.
+Analise os dados reais do relatório da clínica "${clinicName}" em "${location}":
+- Termo de busca analisado: "${kw}"
+- Avaliações no Google: ${rating} estrelas com ${reviews} avaliações.
+- Desempenho no Google Maps: Posição média #${clientRank}, ficando invisível (posição 20+) em ${foraTop20}% dos pontos analisados na região.
+- Principais Concorrentes Locais: ${concorrentes || 'Concorrentes locais da região'}.
+- Site / Landing Page: ${siteUrl ? `URL: ${siteUrl}, Velocidade Mobile: ${siteVel}/100, SEO Técnico: ${siteSeo}/100` : 'Sem site cadastrado'}.
+- Presença em Anúncios Pagos: Google Ads: ${googleAdsActive ? 'Ativo' : 'Inativo'}, Meta Ads (Instagram/Facebook): ${metaAdsActive ? 'Ativo' : 'Inativo'}.
+
+INSTRUÇÃO IMPORTANTE:
+Gere uma lista em JSON com exatamente 10 frases de Oportunidades & Pontos Fracos altamente personalizados, específicos e acionáveis para a clínica "${clinicName}".
+Cada frase deve conter dados reais do diagnóstico (ex: mencionar o nome da clínica, a palavra-chave "${kw}", a cidade/bairro, os concorrentes específicos, a nota técnica do site, a porcentagem de invisibilidade no mapa ou o volume de avaliações).
+EVITE FRASES GENÉRICAS que sirvam para qualquer clínica.
+
+Retorne no formato JSON estrito:
+{
+  "oportunidades": [
+    "frase 1 altamente personalizada",
+    "frase 2 altamente personalizada",
+    "frase 3 altamente personalizada",
+    "frase 4 altamente personalizada",
+    "frase 5 altamente personalizada",
+    "frase 6 altamente personalizada",
+    "frase 7 altamente personalizada",
+    "frase 8 altamente personalizada",
+    "frase 9 altamente personalizada",
+    "frase 10 altamente personalizada"
+  ]
+}`;
+
+    if (!apiKey) {
+      console.warn('[Gemini] Sem API key configurada, gerando oportunidades dinâmicas avançadas via fallback...');
+      return { success: false, error: 'Sem API Key configurada' };
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                oportunidades: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                }
+              },
+              required: ["oportunidades"]
+            }
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    const result = await response.json();
+    const dataText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!dataText) throw new Error('IA não retornou texto válido.');
+
+    const parsed = JSON.parse(dataText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim());
+    if (Array.isArray(parsed.oportunidades) && parsed.oportunidades.length >= 5) {
+      return { success: true, oportunidades: parsed.oportunidades.slice(0, 10) };
+    }
+
+    throw new Error('Formato retornado inválido.');
+  } catch (error: any) {
+    console.error('[Gemini Oportunidades] Erro:', error);
+    return { success: false, error: error?.message || 'Erro ao gerar IA' };
+  }
+};
