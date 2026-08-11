@@ -133,20 +133,23 @@ export const enrichSingleLeadWithOutscraper = async (
   // --- PASSO 3: Pesquisa Inteligente via Gemini AI (Se tiver chave Gemini) ---
   if (geminiKey && (!cnpj || !clinicInstagram || !ownerName || !age || !collaborators || !size)) {
     try {
-      const prompt = `Você é um pesquisador corporativo especializado em empresas brasileiras.
-Pesquise e identifique os dados públicos exatos da empresa:
+      const prompt = `Você é um auditor de dados corporativos estrito.
+Sua missão é extrair APENAS informações REAIS e VERIFICÁVEIS publicamente da empresa:
 - Nome da Clínica: "${clinicName}"
 - Cidade/Localidade: "${location}"
 - Website: "${siteUrl || ''}"
 
-Retorne APENAS um objeto JSON VÁLIDO no seguinte formato (sem explicações nem markdown):
+REGRA RÍGIDA E ABSOLUTA:
+NUNCA invente, adivinhe ou chute nenhum dado fictício. Se uma informação não for encontrada publicamente com 100% de certeza, retorne o campo como string vazia "".
+
+Retorne APENAS um objeto JSON VÁLIDO (sem markdown nem explicações):
 {
-  "cnpj": "CNPJ com 14 dígitos apenas números",
-  "instagram": "Link ou @handle do Instagram oficial da clínica",
-  "ownerName": "Nome dos sócios, donos ou administradores da clínica",
-  "age": "Idade estimada ou exata da empresa em anos (ex: '8 anos')",
-  "collaborators": "Nº estimado de colaboradores (ex: '8 colaboradores' ou '1 a 9 colaboradores')",
-  "size": "Tamanho da clínica em consultórios ou cadeiras (ex: '3 consultórios')"
+  "cnpj": "CNPJ real com 14 dígitos ou '' se não souber com certeza",
+  "instagram": "Link ou @handle real do Instagram ou '' se não souber com certeza",
+  "ownerName": "Nome dos sócios/donos reais ou '' se não souber com certeza",
+  "age": "Idade real em anos (ex: '8 anos') ou '' se não souber com certeza",
+  "collaborators": "Nº real ou porte de colaboradores (ex: '1 a 9 colaboradores') ou '' se não souber com certeza",
+  "size": "Número real de consultórios/cadeiras ou '' se não souber com certeza"
 }`;
 
       const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
