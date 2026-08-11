@@ -4,10 +4,13 @@ export interface EnrichmentResult {
   clinicInstagram: string;
   cnpj: string;
   ownerName: string;
+  age?: string;
+  collaborators?: string;
+  size?: string;
 }
 
 /**
- * Busca automática e profunda de Instagram, CNPJ e Sócios da clínica utilizando Outscraper + IA Gemini + Receita Federal
+ * Busca automática e profunda de Instagram, CNPJ, Sócios, Idade, Colaboradores e Tamanho da clínica utilizando Outscraper + IA Gemini + Receita Federal
  */
 export const enrichSingleLeadWithOutscraper = async (
   clinicName: string,
@@ -21,6 +24,9 @@ export const enrichSingleLeadWithOutscraper = async (
   let clinicInstagram = '';
   let cnpj = '';
   let ownerName = '';
+  let age = '';
+  let collaborators = '';
+  let size = '';
 
   const cleanLocation = location ? location.split('-')[0].trim() : '';
   const cleanName = clinicName ? clinicName.replace(/\|/g, ' ').replace(/Clínica Odontológica/gi, '').replace(/\s+/g, ' ').trim() || clinicName : '';
@@ -58,6 +64,12 @@ export const enrichSingleLeadWithOutscraper = async (
           if (!['p', 'reels', 'explore', 'stories', 'tv', 'accounts', 'direct', 'share'].includes(handle)) {
             clinicInstagram = `https://instagram.com/${siteInstas[1]}`;
           }
+        }
+
+        // Tenta encontrar menção a número de consultórios ou cadeiras no site
+        const chairMatch = html.match(/(\d+)\s*(consultórios|cadeiras|equipamentos|salas de atendimento)/i);
+        if (chairMatch && chairMatch[1]) {
+          size = `${chairMatch[1]} consultórios`;
         }
       }
     } catch (e) {
@@ -119,7 +131,7 @@ export const enrichSingleLeadWithOutscraper = async (
   }
 
   // --- PASSO 3: Pesquisa Inteligente via Gemini AI (Se tiver chave Gemini) ---
-  if (geminiKey && (!cnpj || !clinicInstagram || !ownerName)) {
+  if (geminiKey && (!cnpj || !clinicInstagram || !ownerName || !age || !collaborators || !size)) {
     try {
       const prompt = `Você é um pesquisador corporativo especializado em empresas brasileiras.
 Pesquise e identifique os dados públicos exatos da empresa:
@@ -129,9 +141,12 @@ Pesquise e identifique os dados públicos exatos da empresa:
 
 Retorne APENAS um objeto JSON VÁLIDO no seguinte formato (sem explicações nem markdown):
 {
-  "cnpj": "CNPJ com 14 dígitos apenas números ou em formato XX.XXX.XXX/XXXX-XX",
+  "cnpj": "CNPJ com 14 dígitos apenas números",
   "instagram": "Link ou @handle do Instagram oficial da clínica",
-  "ownerName": "Nome dos sócios, donos ou administradores da clínica"
+  "ownerName": "Nome dos sócios, donos ou administradores da clínica",
+  "age": "Idade estimada ou exata da empresa em anos (ex: '8 anos')",
+  "collaborators": "Nº estimado de colaboradores (ex: '8 colaboradores' ou '1 a 9 colaboradores')",
+  "size": "Tamanho da clínica em consultórios ou cadeiras (ex: '3 consultórios')"
 }`;
 
       const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
@@ -153,6 +168,9 @@ Retorne APENAS um objeto JSON VÁLIDO no seguinte formato (sem explicações nem
             clinicInstagram = parsed.instagram.startsWith('http') ? parsed.instagram : `https://instagram.com/${parsed.instagram.replace('@', '')}`;
           }
           if (!ownerName && parsed.ownerName) ownerName = parsed.ownerName;
+          if (!age && parsed.age) age = parsed.age;
+          if (!collaborators && parsed.collaborators) collaborators = parsed.collaborators;
+          if (!size && parsed.size) size = parsed.size;
         }
       }
     } catch (err) {
@@ -160,8 +178,33 @@ Retorne APENAS um objeto JSON VÁLIDO no seguinte formato (sem explicações nem
     }
   }
 
-  // --- PASSO 4: Consultar Sócios na Receita Federal se tiver CNPJ (100% Grátis) ---
+  // --- PASSO 4: Consultar Dados na Receita Federal se tiver CNPJ (100% Grátis) ---
   if (cnpj && cnpj.length === 14) {
+    // Helper para calcular idade da empresa a partir da data de abertura
+    const calcAgeFromDate = (dateStr: string) => {
+      if (!dateStr) return '';
+      const parts = dateStr.split(/[\/\-]/);
+      let year: number | null = null;
+      if (parts.length === 3) {
+        year = parts[2].length === 4 ? parseInt(parts[2], 10) : parseInt(parts[0], 10);
+      }
+      if (year && !isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
+        const diff = new Date().getFullYear() - year;
+        return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
+      }
+      return '';
+    };
+
+    // Helper para formatar porte da empresa em nº de colaboradores
+    const formatPorteToCollaborators = (porte: string) => {
+      if (!porte) return '';
+      const p = String(porte).toUpperCase();
+      if (p.includes('ME') || p.includes('MICRO')) return '1 a 9 colaboradores';
+      if (p.includes('EPP') || p.includes('PEQUENO')) return '10 a 49 colaboradores';
+      if (p.includes('DEMAIS') || p.includes('GRANDE')) return '50+ colaboradores';
+      return '';
+    };
+
     // 1. Minha Receita
     try {
       const recRes = await fetch(`https://minhareceita.org/${cnpj}`);
@@ -171,24 +214,43 @@ Retorne APENAS um objeto JSON VÁLIDO no seguinte formato (sem explicações nem
           const names = recData.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).join(', ');
           if (names) ownerName = names;
         }
+        if (!age && recData.abertura) {
+          const calculatedAge = calcAgeFromDate(recData.abertura);
+          if (calculatedAge) age = calculatedAge;
+        }
+        if (!collaborators && recData.porte) {
+          const formattedColabs = formatPorteToCollaborators(recData.porte);
+          if (formattedColabs) collaborators = formattedColabs;
+        }
       }
     } catch (e) {}
 
     // 2. CNPJ.ws (Fallback)
-    if (!ownerName) {
+    if (!ownerName || !age || !collaborators) {
       try {
         const wsRes = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
         if (wsRes.ok) {
           const wsData = await wsRes.json();
           const socios = wsData.estabelecimento?.socios || wsData.socios || [];
-          if (Array.isArray(socios) && socios.length > 0) {
+          if (!ownerName && Array.isArray(socios) && socios.length > 0) {
             const names = socios.map((s: any) => s.nome || s.nome_socio).filter(Boolean).join(', ');
             if (names) ownerName = names;
+          }
+          const aberturaDate = wsData.estabelecimento?.data_inicio_atividade || wsData.data_inicio_atividade;
+          if (!age && aberturaDate) {
+            const calculatedAge = calcAgeFromDate(aberturaDate);
+            if (calculatedAge) age = calculatedAge;
+          }
+          const porteStr = wsData.porte?.descricao || wsData.porte;
+          if (!collaborators && porteStr) {
+            const formattedColabs = formatPorteToCollaborators(porteStr);
+            if (formattedColabs) collaborators = formattedColabs;
           }
         }
       } catch (e) {}
     }
   }
 
-  return { clinicInstagram, cnpj, ownerName };
+  return { clinicInstagram, cnpj, ownerName, age, collaborators, size };
 };
+

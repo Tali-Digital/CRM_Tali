@@ -128,13 +128,20 @@ export const LeadGeneratorView: React.FC = () => {
           let initialOwner = place.owner_title || place.owner || '';
           let foundCnpj = '';
 
-          addLog(`🔍 Enriquecendo "${currentName}" (CNPJ, Instagram, Sócios)...`);
+          let initialAge = '';
+          let initialSize = '';
+          let initialCollaborators = '';
+
+          addLog(`🔍 Enriquecendo "${currentName}" (CNPJ, Instagram, Sócios, Idade, Colaboradores)...`);
 
           try {
             const enriched = await enrichSingleLeadWithOutscraper(currentName, searchLocation, websiteUrl);
             if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
             if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
             if (enriched.cnpj) foundCnpj = enriched.cnpj;
+            if (enriched.age) initialAge = enriched.age;
+            if (enriched.size) initialSize = enriched.size;
+            if (enriched.collaborators) initialCollaborators = enriched.collaborators;
           } catch (e) {
             console.warn('Erro ao enriquecer lead:', e);
           }
@@ -152,8 +159,9 @@ export const LeadGeneratorView: React.FC = () => {
             site: websiteUrl,
             ownerName: initialOwner,
             ownerInstagram: '',
-            size: '',
-            age: '',
+            size: initialSize,
+            age: initialAge,
+            collaborators: initialCollaborators,
             status: 'VERIFICAR ICP',
             hasAnswered: false,
             lastFollowUp: '',
@@ -220,16 +228,22 @@ export const LeadGeneratorView: React.FC = () => {
           let initialInsta = place.instagram || (place.social_media && place.social_media.find((s: string) => s.includes('instagram'))) || '';
           let initialOwner = place.owner_title || place.owner || '';
           let foundCnpj = '';
+          let initialAge = '';
+          let initialSize = '';
+          let initialCollaborators = '';
           const websiteUrl = place.site || place.website || '';
           const currentName = place.name || 'Sem Nome';
 
-          addLog(`Enriquecendo dados de "${currentName}" (CNPJ, Instagram, Sócios)...`);
+          addLog(`Enriquecendo dados de "${currentName}" (CNPJ, Instagram, Sócios, Idade)...`);
 
           try {
             const enriched = await enrichSingleLeadWithOutscraper(currentName, location.trim(), websiteUrl);
             if (!initialInsta && enriched.clinicInstagram) initialInsta = enriched.clinicInstagram;
             if (!initialOwner && enriched.ownerName) initialOwner = enriched.ownerName;
             if (enriched.cnpj) foundCnpj = enriched.cnpj;
+            if (enriched.age) initialAge = enriched.age;
+            if (enriched.size) initialSize = enriched.size;
+            if (enriched.collaborators) initialCollaborators = enriched.collaborators;
           } catch (e) {
             console.warn('Erro ao enriquecer lead:', e);
           }
@@ -247,8 +261,9 @@ export const LeadGeneratorView: React.FC = () => {
             site: websiteUrl,
             ownerName: initialOwner,
             ownerInstagram: '',
-            size: '',
-            age: '',
+            size: initialSize,
+            age: initialAge,
+            collaborators: initialCollaborators,
             status: 'VERIFICAR ICP',
             hasAnswered: false,
             lastFollowUp: '',
