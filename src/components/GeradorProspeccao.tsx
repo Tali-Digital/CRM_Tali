@@ -878,10 +878,13 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     }
   };
 
+  const isInitialModeloLoadedRef = useRef(false);
+
   useEffect(() => {
-    if (isModeloOnlyMode && modeloIdParaEditar && modelos.length > 0) {
+    if (isModeloOnlyMode && modeloIdParaEditar && modelos.length > 0 && !isInitialModeloLoadedRef.current) {
       const mod = modelos.find(m => m.id === modeloIdParaEditar);
       if (mod) {
+        isInitialModeloLoadedRef.current = true;
         setSelectedModeloId(mod.id);
         setNomeModeloState(mod.nome);
         setDescricaoModeloState(mod.descricao || '');
@@ -889,11 +892,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           setEditorHtml(mod.conteudo);
         }
       }
-    } else if (isModeloOnlyMode && !modeloIdParaEditar && !selectedModeloId) {
+    } else if (isModeloOnlyMode && !modeloIdParaEditar && !selectedModeloId && !isInitialModeloLoadedRef.current) {
+      isInitialModeloLoadedRef.current = true;
       setNomeModeloState('Novo Modelo');
       setDescricaoModeloState('');
     }
-  }, [isModeloOnlyMode, modeloIdParaEditar, modelos]);
+  }, [isModeloOnlyMode, modeloIdParaEditar, modelos, selectedModeloId]);
 
   // ── Modelos ──────────────────────────────────────────────────────────────
   const handleSelectModeloInMode = (modeloId: string) => {
@@ -1724,6 +1728,42 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     }
   };
 
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Ctrl + A ou Cmd + A -> Selecionar todo o conteúdo de todas as páginas A4
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      const editor = editorRef.current;
+      if (editor) {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          const range = document.createRange();
+          const pageContents = editor.querySelectorAll<HTMLElement>('.a4-page-content');
+          if (pageContents.length > 0) {
+            const first = pageContents[0];
+            const last = pageContents[pageContents.length - 1];
+            range.setStart(first, 0);
+            range.setEnd(last, last.childNodes.length);
+            sel.addRange(range);
+          } else {
+            range.selectNodeContents(editor);
+            sel.addRange(range);
+          }
+        }
+      }
+    }
+    // Ctrl + Z ou Cmd + Z -> Desfazer
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      document.execCommand('undo');
+      handleEditorInput();
+    }
+    // Ctrl + Y ou Cmd + Y ou Ctrl + Shift + Z -> Refazer
+    else if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
+      document.execCommand('redo');
+      handleEditorInput();
+    }
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div
@@ -1927,8 +1967,28 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                       <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: '500', fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)' }}>Descrição do Modelo</label>
                       <input type="text" className="input" style={{ fontSize: '0.85rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box', backgroundColor: 'white', color: '#1e293b', borderRadius: '6px' }} value={descricaoModeloState} onChange={e => setDescricaoModeloState(e.target.value)} placeholder="Descreva a finalidade..." />
                     </div>
-                    <button disabled={isSaving} onClick={handleSaveModeloOnly} style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: isSaving ? '#94a3b8' : 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                      <Save size={16} /> {isSaving ? 'Salvando...' : 'Salvar Modelo'}
+                    <button
+                      disabled={isSaving}
+                      onClick={handleSaveModeloOnly}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.2rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        backgroundColor: isSaving ? '#94a3b8' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: isSaving ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Save size={16} /> <span>{isSaving ? 'Salvando...' : 'Salvar Modelo'}</span>
                     </button>
                   </div>
                 ) : (
@@ -2196,6 +2256,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   className="editor-content"
                   contentEditable
                   suppressContentEditableWarning
+                  onKeyDown={handleEditorKeyDown}
                   onInput={handleEditorInput}
                   onBlur={() => {
                     if (dirtyPageRef.current) {

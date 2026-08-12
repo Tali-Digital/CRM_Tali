@@ -215,13 +215,14 @@ export const saveUser = async (user: any, overrides?: { name?: string, photoURL?
   }
 };
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export const adminCreateUser = async (email: string, name: string, role: 'admin' | 'client' | 'equipe', teamCategory?: 'terceirizado' | 'internalizado' | 'intermediados') => {
   try {
-    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+    const existingSecondaryApp = getApps().find(app => app.name === 'SecondaryApp');
+    const secondaryApp = existingSecondaryApp || initializeApp(firebaseConfig, 'SecondaryApp');
     const secondaryAuth = getAuth(secondaryApp);
 
     // Create user with a random password
@@ -945,8 +946,8 @@ export const updateCardTimer = async (
 ) => {
   try {
     const colName = sector === 'comercial' ? 'commercial_cards' :
-                   sector === 'financeiro' ? 'financial_cards' :
-                   sector === 'operacional' ? 'operation_cards' :
+                   sector === 'financeiro' || sector === 'integracao' ? 'financial_cards' :
+                   sector === 'operacional' || sector === 'operacao' ? 'operation_cards' :
                    'internal_tasks_cards';
 
     const cardRef = doc(db, colName, cardId);
@@ -1420,6 +1421,21 @@ export const updateModeloProspeccao = async (id: string, data: Partial<import('.
 
 export const deleteModeloProspeccao = async (id: string) => {
   await deleteDoc(doc(db, 'modelos_prospeccoes', id));
+};
+
+export const duplicateModeloProspeccao = async (id: string) => {
+  const docRef = doc(db, 'modelos_prospeccoes', id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) throw new Error('Modelo não encontrado');
+  const data = snap.data() as import('../types').ModeloProspeccao;
+  const { id: _, ...modelData } = data as any;
+  const newDocRef = await addDoc(collection(db, 'modelos_prospeccoes'), {
+    ...modelData,
+    nome: `${data.nome || 'Novo Modelo'} (Cópia)`,
+    ordem: (data.ordem ?? 0) + 1,
+    createdAt: new Date().toISOString()
+  });
+  return newDocRef.id;
 };
 
 // --- DIAGNOSTIC QUEUE (COMPARTILHADA / HISTÓRICO COMPLETO E PERMANENTE) ---

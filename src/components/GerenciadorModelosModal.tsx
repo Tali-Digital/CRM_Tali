@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, FileText, ChevronUp, ChevronDown, GripVertical, Plus } from 'lucide-react';
+import { X, Edit2, Trash2, FileText, ChevronUp, ChevronDown, GripVertical, Plus, Copy } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { subscribeToModelosProspeccao, updateModeloProspeccao, deleteModeloProspeccao } from '../services/firestoreService';
+import { subscribeToModelosProspeccao, updateModeloProspeccao, deleteModeloProspeccao, duplicateModeloProspeccao } from '../services/firestoreService';
 import { ModeloProspeccao } from '../types';
 import GeradorProspeccao from './GeradorProspeccao';
 
@@ -19,6 +19,28 @@ export default function GerenciadorModelosModal({ onClose }: Props) {
     const unsubscribe = subscribeToModelosProspeccao(setModelos);
     return () => unsubscribe();
   }, []);
+
+  // Duplicar Modelo
+  const handleDuplicate = async (id: string, nome: string) => {
+    try {
+      await duplicateModeloProspeccao(id);
+      Swal.fire({
+        title: 'Modelo Duplicado!',
+        text: `Uma cópia de "${nome}" foi criada com sucesso.`,
+        icon: 'success',
+        timer: 1600,
+        showConfirmButton: false,
+        didOpen: () => {
+          const swalContainer = document.querySelector('.swal2-container') as HTMLElement;
+          if (swalContainer) {
+            swalContainer.style.zIndex = '3500';
+          }
+        }
+      });
+    } catch (error) {
+      Swal.fire('Erro', 'Não foi possível duplicar o modelo.', 'error');
+    }
+  };
 
   // Excluir Modelo
   const handleDelete = async (id: string, nome: string) => {
@@ -224,7 +246,7 @@ export default function GerenciadorModelosModal({ onClose }: Props) {
                       </div>
                     </div>
 
-                    {/* Lado Direito: Ações de Editar & Excluir */}
+                    {/* Lado Direito: Ações de Editar, Duplicar & Excluir */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setEditingModeloId(m.id)}
@@ -232,6 +254,14 @@ export default function GerenciadorModelosModal({ onClose }: Props) {
                         title="Editar Nome e Conteúdo deste Modelo"
                       >
                         <Edit2 size={14} /> Editar
+                      </button>
+
+                      <button
+                        onClick={() => handleDuplicate(m.id, m.nome)}
+                        className="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-emerald-600 text-gray-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-all border border-gray-700 shadow-sm active:scale-95 cursor-pointer"
+                        title="Duplicar este Modelo"
+                      >
+                        <Copy size={14} /> Duplicar
                       </button>
 
                       <button
