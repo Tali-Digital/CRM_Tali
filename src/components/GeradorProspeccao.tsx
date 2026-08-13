@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut, Palette, Highlighter } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { VisualCropModal } from './VisualCropModal';
@@ -152,6 +152,26 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   });
 
   const [selectedLineHeight, setSelectedLineHeight] = useState<string>('1.5');
+  const [textColor, setTextColor] = useState<string>('#000000');
+  const [highlightColor, setHighlightColor] = useState<string>('#ffff00');
+
+  const handleApplyTextColor = (color: string) => {
+    setTextColor(color);
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    document.execCommand('foreColor', false, color);
+    handleEditorInput();
+  };
+
+  const handleApplyHighlightColor = (color: string) => {
+    setHighlightColor(color);
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    document.execCommand('hiliteColor', false, color);
+    handleEditorInput();
+  };
 
   const [marginTargetMode, setMarginTargetMode] = useState<'current' | 'all'>('current');
   const [activePageIndex, setActivePageIndex] = useState<number>(0);
@@ -2451,6 +2471,56 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <button onClick={() => handleFormat('italic')} className="editor-btn" title="Itálico"><Italic size={18} /></button>
                 <button onClick={() => handleFormat('underline')} className="editor-btn" title="Sublinhado"><Underline size={18} /></button>
                 <button onClick={() => handleFormat('strikethrough')} className="editor-btn" title="Tachado"><Strikethrough size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                {/* Seletor de Cor do Texto */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', padding: '0.2rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px' }} title="Cor do Texto Selecionado">
+                  <Palette size={16} style={{ color: textColor === '#ffffff' ? '#64748b' : textColor }} />
+                  <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Cor:</span>
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => handleApplyTextColor(e.target.value)}
+                    style={{ width: '24px', height: '22px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px' }}
+                    title="Escolher Cor Personalizada"
+                  />
+                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                    {['#000000', '#dc2626', '#2563eb', '#16a34a', '#d97706', '#7c3aed'].map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleApplyTextColor(c)}
+                        style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: c, border: textColor === c ? '2px solid #0f172a' : '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
+                        title={`Cor ${c}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Seletor de Cor de Fundo (Marca-Texto) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', padding: '0.2rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px' }} title="Cor de Fundo / Marca-Texto">
+                  <Highlighter size={16} style={{ color: highlightColor }} />
+                  <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Fundo:</span>
+                  <input
+                    type="color"
+                    value={highlightColor}
+                    onChange={(e) => handleApplyHighlightColor(e.target.value)}
+                    style={{ width: '24px', height: '22px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px' }}
+                    title="Escolher Cor do Marca-Texto"
+                  />
+                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                    {['#ffffff', '#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#f87171'].map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleApplyHighlightColor(c)}
+                        style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: c, border: highlightColor === c ? '2px solid #0f172a' : '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
+                        title={`Fundo ${c}`}
+                      />
+                    ))}
+                  </div>
+                </div>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
                 <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
