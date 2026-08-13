@@ -927,8 +927,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const cleanReviewsStr = (val: any) => String(val ?? '0').replace(/avaliaç[õo]es/gi, '').trim();
 
     const clientRankingHtml = `
-      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.06); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-        <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #dc2626; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
           ${effectiveClientRank}
         </div>
         <div style="flex: 1; min-width: 0;">
@@ -945,7 +945,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     `;
     const rankingHtml = (hasValidClientRank || concorrentes.length > 0) ? `
-      <div style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 14px 18px; margin: 14px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+      <div style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 14px 18px; margin: 14px 0; font-family: Arial, sans-serif; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
         <h3 style="margin: 0 0 10px 0; font-size: 13.5pt; font-weight: 800; color: #0f172a;">
           ${effectiveClientRank === 1 ? 'Concorrentes após você' : 'Quem aparece na frente de você'}
         </h3>
@@ -959,7 +959,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
             const revCount = rawRev != null ? cleanReviewsStr(rawRev) : null;
             return `
             <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-              <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
                 ${c.posicao}
               </div>
               <div style="flex: 1; min-width: 0;">
@@ -2957,6 +2957,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 )}
 
                 <style>{`
+                  @media print {
+                    * {
+                      box-shadow: none !important;
+                      -webkit-box-shadow: none !important;
+                    }
+                  }
+
                   .editor-content hr.page-break,
                   .editor-content hr[title="Quebra de Página"] {
                     display: none !important;
