@@ -2744,24 +2744,112 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 </div>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-                <button onClick={() => setViewHtml(!viewHtml)} className="editor-btn" title="Editar HTML" style={{ color: viewHtml ? 'var(--primary-color)' : 'var(--text-secondary)', backgroundColor: viewHtml ? '#e0f2fe' : 'transparent' }}><Code size={18} /></button>
+                <button
+                  onClick={() => {
+                    if (!viewHtml) {
+                      setPreviewHtml(getCanonicalHtml());
+                    } else {
+                      setEditorHtml(previewHtml);
+                    }
+                    setViewHtml(!viewHtml);
+                  }}
+                  className="editor-btn"
+                  title={viewHtml ? "Voltar ao Modo Visual (WYSIWYG)" : "Editar Código HTML do Documento"}
+                  style={{ color: viewHtml ? '#0284c7' : 'var(--text-secondary)', backgroundColor: viewHtml ? '#e0f2fe' : 'transparent', fontWeight: 'bold' }}
+                >
+                  <Code size={18} /> {viewHtml ? ' Ver Visual' : ''}
+                </button>
               </div>
 
               {/* Editor Workspace */}
               <div id="editor-scroll-container" style={{ flex: 1, overflowY: 'auto', padding: isMobileView ? '1rem 0.25rem' : '2rem 1rem', display: 'flex', justifyContent: 'center', overflowX: 'auto', position: 'relative' }}>
                 {viewHtml && (
-                  <textarea
-                    ref={(el) => { if (el) { setTimeout(() => { el.style.height = '1px'; el.style.height = `${el.scrollHeight + 20}px`; }, 0); } }}
-                    value={previewHtml}
-                    onChange={(e) => {
-                      setPreviewHtml(e.target.value);
-                      e.target.style.height = '1px';
-                      e.target.style.height = `${e.target.scrollHeight + 20}px`;
-                      if (editorRef.current) setEditorHtml(e.target.value);
-                    }}
-                    style={{ width: '100%', padding: `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`, outline: 'none', fontSize: '10pt', fontFamily: 'monospace', lineHeight: '1.5', minHeight: '297mm', color: '#334155', backgroundColor: 'rgba(248, 250, 252, 0.94)', border: 'none', resize: 'none', overflow: 'hidden', boxSizing: 'border-box' }}
-                    spellCheck={false}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '1000px', height: '100%', minHeight: '700px', backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+                    {/* Cabeçalho do Editor de Código */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 1rem', backgroundColor: '#1e293b', borderBottom: '1px solid #334155', color: 'white', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Code size={18} style={{ color: '#38bdf8' }} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Editor de Código HTML</span>
+                        <span style={{ fontSize: '0.7rem', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>HTML / Marcação</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              let formatted = previewHtml
+                                .replace(/></g, '>\n<')
+                                .trim();
+                              setPreviewHtml(formatted);
+                            } catch (e) {}
+                          }}
+                          style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#334155', color: '#f8fafc', border: '1px solid #475569', borderRadius: '6px', cursor: 'pointer' }}
+                          title="Organizar e quebrar linhas das tags HTML"
+                        >
+                          Formatador HTML
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(previewHtml);
+                            Swal.fire({ icon: 'success', title: 'Copiado!', text: 'Código HTML copiado para a área de transferência.', timer: 1500, showConfirmButton: false });
+                          }}
+                          style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#334155', color: '#f8fafc', border: '1px solid #475569', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          Copiar Código
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditorHtml(previewHtml);
+                            setViewHtml(false);
+                          }}
+                          style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          ✓ Aplicar & Voltar ao Visual
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Área de Edição do Código HTML */}
+                    <textarea
+                      value={previewHtml}
+                      onChange={(e) => setPreviewHtml(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab') {
+                          e.preventDefault();
+                          const target = e.target as HTMLTextAreaElement;
+                          const start = target.selectionStart;
+                          const end = target.selectionEnd;
+                          const newValue = target.value.substring(0, start) + '  ' + target.value.substring(end);
+                          setPreviewHtml(newValue);
+                          setTimeout(() => {
+                            target.selectionStart = target.selectionEnd = start + 2;
+                          }, 0);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '650px',
+                        padding: '1.2rem',
+                        outline: 'none',
+                        fontSize: '0.88rem',
+                        fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
+                        lineHeight: '1.6',
+                        color: '#f8fafc',
+                        backgroundColor: '#0f172a',
+                        border: 'none',
+                        resize: 'none',
+                        overflowY: 'auto',
+                        boxSizing: 'border-box',
+                        tabSize: 2
+                      }}
+                      spellCheck={false}
+                      placeholder="Digite ou edite o código HTML da sua carta de prospecção..."
+                    />
+                  </div>
                 )}
 
                 <style>{`
