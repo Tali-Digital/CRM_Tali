@@ -154,23 +154,52 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [selectedLineHeight, setSelectedLineHeight] = useState<string>('1.5');
   const [textColor, setTextColor] = useState<string>('#000000');
   const [highlightColor, setHighlightColor] = useState<string>('#ffff00');
+  const [showColorPopover, setShowColorPopover] = useState<boolean>(false);
+  const [showHighlightPopover, setShowHighlightPopover] = useState<boolean>(false);
 
-  const handleApplyTextColor = (color: string) => {
-    setTextColor(color);
-    if (editorRef.current) {
-      editorRef.current.focus();
-    }
-    document.execCommand('foreColor', false, color);
-    handleEditorInput();
+  const handleOpenColorPopover = () => {
+    saveSelection();
+    setShowHighlightPopover(false);
+    setShowColorPopover(!showColorPopover);
   };
 
-  const handleApplyHighlightColor = (color: string) => {
-    setHighlightColor(color);
+  const handleOpenHighlightPopover = () => {
+    saveSelection();
+    setShowColorPopover(false);
+    setShowHighlightPopover(!showHighlightPopover);
+  };
+
+  const applyTextColor = (color: string | null) => {
+    restoreSelection();
     if (editorRef.current) {
       editorRef.current.focus();
     }
-    document.execCommand('hiliteColor', false, color);
+    if (color === null) {
+      document.execCommand('removeFormat', false, undefined);
+      document.execCommand('foreColor', false, '#000000');
+      setTextColor('#000000');
+    } else {
+      document.execCommand('foreColor', false, color);
+      setTextColor(color);
+    }
     handleEditorInput();
+    setShowColorPopover(false);
+  };
+
+  const applyHighlightColor = (color: string | null) => {
+    restoreSelection();
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    if (color === null) {
+      document.execCommand('hiliteColor', false, 'transparent');
+      setHighlightColor('#ffffff');
+    } else {
+      document.execCommand('hiliteColor', false, color);
+      setHighlightColor(color);
+    }
+    handleEditorInput();
+    setShowHighlightPopover(false);
   };
 
   const [marginTargetMode, setMarginTargetMode] = useState<'current' | 'all'>('current');
@@ -2472,54 +2501,194 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <button onClick={() => handleFormat('underline')} className="editor-btn" title="Sublinhado"><Underline size={18} /></button>
                 <button onClick={() => handleFormat('strikethrough')} className="editor-btn" title="Tachado"><Strikethrough size={18} /></button>
 
-                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+                {/* Botão Discreto de Cor do Texto */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={handleOpenColorPopover}
+                    className="editor-btn"
+                    title="Cor do Texto Selecionado"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0.3rem 0.4rem',
+                      backgroundColor: showColorPopover ? '#f1f5f9' : 'transparent',
+                      borderColor: showColorPopover ? '#cbd5e1' : 'transparent'
+                    }}
+                  >
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Palette size={18} style={{ color: '#334155' }} />
+                      <div style={{ position: 'absolute', bottom: '-3px', left: 0, right: 0, height: '3px', backgroundColor: textColor, borderRadius: '2px' }} />
+                    </div>
+                  </button>
 
-                {/* Seletor de Cor do Texto */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', padding: '0.2rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px' }} title="Cor do Texto Selecionado">
-                  <Palette size={16} style={{ color: textColor === '#ffffff' ? '#64748b' : textColor }} />
-                  <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Cor:</span>
-                  <input
-                    type="color"
-                    value={textColor}
-                    onChange={(e) => handleApplyTextColor(e.target.value)}
-                    style={{ width: '24px', height: '22px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px' }}
-                    title="Escolher Cor Personalizada"
-                  />
-                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                    {['#000000', '#dc2626', '#2563eb', '#16a34a', '#d97706', '#7c3aed'].map(c => (
+                  {showColorPopover && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        left: 0,
+                        zIndex: 100,
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        padding: '0.6rem',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                        width: '180px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>Cor do Texto</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowColorPopover(false)}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+                        {['#000000', '#475569', '#dc2626', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0284c7', '#059669', '#ea580c', '#ffffff'].map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => applyTextColor(c)}
+                            style={{
+                              width: '22px', height: '22px', borderRadius: '4px', backgroundColor: c,
+                              border: c === '#ffffff' ? '1px solid #cbd5e1' : '1px solid transparent',
+                              cursor: 'pointer', boxShadow: textColor === c ? '0 0 0 2px #3b82f6' : 'none'
+                            }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', paddingTop: '0.2rem', borderTop: '1px solid #f1f5f9' }}>
+                        <input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          style={{ width: '28px', height: '26px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => applyTextColor(textColor)}
+                          style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Aplicar Cor
+                        </button>
+                      </div>
+
                       <button
-                        key={c}
                         type="button"
-                        onClick={() => handleApplyTextColor(c)}
-                        style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: c, border: textColor === c ? '2px solid #0f172a' : '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
-                        title={`Cor ${c}`}
-                      />
-                    ))}
-                  </div>
+                        onClick={() => applyTextColor(null)}
+                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
+                      >
+                        ↺ Resetar Cor (Padrão)
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Seletor de Cor de Fundo (Marca-Texto) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', padding: '0.2rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px' }} title="Cor de Fundo / Marca-Texto">
-                  <Highlighter size={16} style={{ color: highlightColor }} />
-                  <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Fundo:</span>
-                  <input
-                    type="color"
-                    value={highlightColor}
-                    onChange={(e) => handleApplyHighlightColor(e.target.value)}
-                    style={{ width: '24px', height: '22px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px' }}
-                    title="Escolher Cor do Marca-Texto"
-                  />
-                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                    {['#ffffff', '#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#f87171'].map(c => (
+                {/* Botão Discreto de Marca-Texto */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={handleOpenHighlightPopover}
+                    className="editor-btn"
+                    title="Cor de Fundo / Marca-Texto"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justify: 'center',
+                      padding: '0.3rem 0.4rem',
+                      backgroundColor: showHighlightPopover ? '#f1f5f9' : 'transparent',
+                      borderColor: showHighlightPopover ? '#cbd5e1' : 'transparent'
+                    }}
+                  >
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Highlighter size={18} style={{ color: '#334155' }} />
+                      <div style={{ position: 'absolute', bottom: '-3px', left: 0, right: 0, height: '3px', backgroundColor: highlightColor, borderRadius: '2px' }} />
+                    </div>
+                  </button>
+
+                  {showHighlightPopover && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        left: 0,
+                        zIndex: 100,
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        padding: '0.6rem',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                        width: '180px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>Cor de Fundo</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowHighlightPopover(false)}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+                        {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#ddd6fe', '#fef3c7', '#d9f99d', '#bae6fd', '#fecdd3', '#e9d5ff', '#ffffff'].map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => applyHighlightColor(c)}
+                            style={{
+                              width: '22px', height: '22px', borderRadius: '4px', backgroundColor: c,
+                              border: c === '#ffffff' ? '1px solid #cbd5e1' : '1px solid transparent',
+                              cursor: 'pointer', boxShadow: highlightColor === c ? '0 0 0 2px #3b82f6' : 'none'
+                            }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', paddingTop: '0.2rem', borderTop: '1px solid #f1f5f9' }}>
+                        <input
+                          type="color"
+                          value={highlightColor}
+                          onChange={(e) => setHighlightColor(e.target.value)}
+                          style={{ width: '28px', height: '26px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => applyHighlightColor(highlightColor)}
+                          style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Aplicar Fundo
+                        </button>
+                      </div>
+
                       <button
-                        key={c}
                         type="button"
-                        onClick={() => handleApplyHighlightColor(c)}
-                        style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: c, border: highlightColor === c ? '2px solid #0f172a' : '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
-                        title={`Fundo ${c}`}
-                      />
-                    ))}
-                  </div>
+                        onClick={() => applyHighlightColor(null)}
+                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
+                      >
+                        ↺ Resetar Fundo (Transparente)
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
