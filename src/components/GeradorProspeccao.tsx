@@ -151,6 +151,70 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     page: { top: 15, right: 15, bottom: 15, left: 15 }
   });
 
+  const [selectedLineHeight, setSelectedLineHeight] = useState<string>('1.5');
+
+  const handleUpdateMargin = (top: number, right: number, bottom: number, left: number) => {
+    const newPage = {
+      top: Math.max(0, top),
+      right: Math.max(0, right),
+      bottom: Math.max(0, bottom),
+      left: Math.max(0, left)
+    };
+    const newEstilos = { ...estilos, page: newPage };
+    setEstilos(newEstilos);
+    localStorage.setItem('tali_estilos_prospeccao_v1', JSON.stringify(newEstilos));
+
+    if (editorRef.current) {
+      const contents = editorRef.current.querySelectorAll<HTMLElement>('.a4-page-content');
+      contents.forEach(content => {
+        content.style.padding = `${newPage.top}mm ${newPage.right}mm ${newPage.bottom}mm ${newPage.left}mm`;
+      });
+      schedulePagination();
+    }
+  };
+
+  const handleApplyLineHeight = (heightVal: string) => {
+    const val = parseFloat(heightVal);
+    if (isNaN(val) || val <= 0) return;
+    const strVal = String(val);
+    setSelectedLineHeight(strVal);
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      const anchorNode = selection?.anchorNode;
+      const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+      const activeBlock = anchorElement?.closest('p, div, h1, h2, h3, li') as HTMLElement;
+      if (activeBlock && editorRef.current?.contains(activeBlock)) {
+        activeBlock.style.lineHeight = strVal;
+      } else if (editorRef.current) {
+        const blocks = editorRef.current.querySelectorAll<HTMLElement>('.a4-page-content p, .a4-page-content h1, .a4-page-content h2, .a4-page-content h3, .a4-page-content li');
+        blocks.forEach(b => b.style.lineHeight = strVal);
+      }
+      handleEditorInput();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    let container: HTMLElement | null = range.commonAncestorContainer as HTMLElement;
+    if (container && container.nodeType === Node.TEXT_NODE) {
+      container = container.parentElement;
+    }
+
+    if (container && editorRef.current?.contains(container)) {
+      const parentBlock = container.closest('p, div, h1, h2, h3, li') as HTMLElement;
+      if (parentBlock) {
+        parentBlock.style.lineHeight = strVal;
+      }
+      const allBlocks = editorRef.current.querySelectorAll<HTMLElement>('p, div, h1, h2, h3, li');
+      allBlocks.forEach(b => {
+        if (selection.containsNode(b, true)) {
+          b.style.lineHeight = strVal;
+        }
+      });
+    }
+    handleEditorInput();
+  };
+
   const editorRef = useRef<HTMLDivElement>(null);
   const paginationFrameRef = useRef<HTMLDivElement>(null);
   const isPaginatingRef = useRef(false);
@@ -1146,6 +1210,22 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     } else if (selectedEditorImage && !(targetEl.closest('.inline-image-cropper-overlay'))) {
       setSelectedEditorImage(null);
     }
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      let node = selection.anchorNode;
+      if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+      if (node instanceof HTMLElement) {
+        const block = node.closest('p, div, h1, h2, h3, li') as HTMLElement || node;
+        const lh = block.style.lineHeight || window.getComputedStyle(block).lineHeight;
+        if (lh) {
+          const parsed = parseFloat(lh);
+          if (!isNaN(parsed) && parsed < 10) {
+            setSelectedLineHeight(String(parsed));
+          }
+        }
+      }
+    }
   };
 
   const handleFixWordBreaks = () => {
@@ -2114,6 +2194,85 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <div><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
                       </div>
                     </div>
+
+                    {/* Bloco 4: Margens da Folha (A4) */}
+                    <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        📐 Margens da Folha (mm)
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>
+                        Ajuste as bordas de cada folha A4 para permitir que o texto suba ou ocupe todo o topo da folha.
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Topo (mm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={estilos.page.top}
+                            onChange={(e) => handleUpdateMargin(Number(e.target.value), estilos.page.right, estilos.page.bottom, estilos.page.left)}
+                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Baixo (mm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={estilos.page.bottom}
+                            onChange={(e) => handleUpdateMargin(estilos.page.top, estilos.page.right, Number(e.target.value), estilos.page.left)}
+                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Esquerda (mm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={estilos.page.left}
+                            onChange={(e) => handleUpdateMargin(estilos.page.top, estilos.page.right, estilos.page.bottom, Number(e.target.value))}
+                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Direita (mm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={estilos.page.right}
+                            onChange={(e) => handleUpdateMargin(estilos.page.top, Number(e.target.value), estilos.page.bottom, estilos.page.left)}
+                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.2rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateMargin(5, 10, 5, 10)}
+                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fcd34d', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          5mm (Mínima)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateMargin(15, 15, 15, 15)}
+                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          15mm (Normal)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateMargin(0, 5, 0, 5)}
+                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          0mm (Sem limite)
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -2195,6 +2354,40 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
                 <button onClick={() => handleFormat('outdent')} className="editor-btn" title="Diminuir Recuo"><Outdent size={18} /></button>
                 <button onClick={() => handleFormat('indent')} className="editor-btn" title="Aumentar Recuo"><Indent size={18} /></button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+
+                {/* Controle de Altura de Linha (Line Height) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', padding: '0.15rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '6px' }} title="Altura da linha (espaçamento entre linhas) do texto selecionado">
+                  <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>Alt. Linha:</span>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min="0.5"
+                    max="4.0"
+                    value={selectedLineHeight}
+                    onChange={(e) => handleApplyLineHeight(e.target.value)}
+                    style={{ width: '48px', padding: '0.2rem', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', textAlign: 'center', color: '#0f172a', backgroundColor: 'white' }}
+                  />
+                  <select
+                    onChange={(e) => handleApplyLineHeight(e.target.value)}
+                    value={selectedLineHeight}
+                    className="editor-select"
+                    style={{ padding: '0.2rem 0.3rem', fontSize: '0.75rem', fontWeight: 'bold' }}
+                  >
+                    <option value="0.9">0.9</option>
+                    <option value="1.0">1.0 (Simples)</option>
+                    <option value="1.1">1.1</option>
+                    <option value="1.15">1.15</option>
+                    <option value="1.2">1.2 (Justo)</option>
+                    <option value="1.3">1.3</option>
+                    <option value="1.4">1.4</option>
+                    <option value="1.5">1.5 (Padrão)</option>
+                    <option value="1.6">1.6</option>
+                    <option value="1.8">1.8</option>
+                    <option value="2.0">2.0 (Duplo)</option>
+                  </select>
+                </div>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
                 <button onClick={() => setViewHtml(!viewHtml)} className="editor-btn" title="Editar HTML" style={{ color: viewHtml ? 'var(--primary-color)' : 'var(--text-secondary)', backgroundColor: viewHtml ? '#e0f2fe' : 'transparent' }}><Code size={18} /></button>
