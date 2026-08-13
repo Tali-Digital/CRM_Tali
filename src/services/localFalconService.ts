@@ -1,4 +1,4 @@
-﻿import { getGlobalSettings } from './firestoreService';
+import { getGlobalSettings } from './firestoreService';
 
 export interface LocalFalconScanParams {
   keyword: string;
@@ -41,7 +41,7 @@ const normalizeBusinessName = (name: string) => name
   .replace(/[^a-z0-9]/g, '');
 
 const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetName = ''): { competitors: LocalFalconCompetitor[]; clientRank?: number } => {
-  const competitorMap: Record<string, { nome: string; totalRank: number; count: number }> = {};
+  const competitorMap: Record<string, { nome: string; totalRank: number; count: number; rating?: number; reviews?: number; address?: string }> = {};
 
   for (const point of dataPoints) {
     const results = Array.isArray(point.results) ? point.results : typeof point.results === 'object' && point.results !== null ? Object.values(point.results) : [];
@@ -50,8 +50,17 @@ const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetN
       const name = result.name || result.business_name || result.title;
       const placeId = result.place_id || result.placeId || result.google_place_id || result.cid || name;
       if (!placeId || !name || !Number.isFinite(rank) || rank <= 0) continue;
+
+      const rating = Number.isFinite(Number(result.rating)) ? Number(result.rating) : (Number.isFinite(Number(result.rating_val)) ? Number(result.rating_val) : undefined);
+      const reviews = Number.isFinite(Number(result.reviews)) ? Number(result.reviews) : (Number.isFinite(Number(result.reviews_count)) ? Number(result.reviews_count) : (Number.isFinite(Number(result.user_ratings_total)) ? Number(result.user_ratings_total) : undefined));
+      const address = result.address || result.vicinity || result.formatted_address || result.full_address || undefined;
+
       if (!competitorMap[placeId]) {
-        competitorMap[placeId] = { nome: name, totalRank: 0, count: 0 };
+        competitorMap[placeId] = { nome: name, totalRank: 0, count: 0, rating, reviews, address };
+      } else {
+        if (rating && !competitorMap[placeId].rating) competitorMap[placeId].rating = rating;
+        if (reviews && !competitorMap[placeId].reviews) competitorMap[placeId].reviews = reviews;
+        if (address && !competitorMap[placeId].address) competitorMap[placeId].address = address;
       }
       competitorMap[placeId].totalRank += rank;
       competitorMap[placeId].count += 1;
@@ -63,7 +72,10 @@ const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetN
       placeId,
       nome: value.nome,
       averageRank: value.totalRank / value.count,
-      aparecimentos: value.count
+      aparecimentos: value.count,
+      nota: value.rating ?? null,
+      avaliacoes: value.reviews ?? null,
+      endereco: value.address ?? null
     }))
     .sort((a, b) => a.averageRank - b.averageRank);
 
@@ -81,10 +93,7 @@ const extractCompetitorRanking = (dataPoints: any[], targetPlaceId = '', targetN
   return {
     competitors: rankedBusinesses.map(({ averageRank, ...business }, index): LocalFalconCompetitor => ({
       ...business,
-      posicao: index + 1,
-      nota: null,
-      avaliacoes: null,
-      endereco: null
+      posicao: index + 1
     })).slice(0, 10),
     clientRank: clientIndex >= 0 ? clientIndex + 1 : undefined
   };
@@ -99,19 +108,23 @@ const extractCompetitorReportRanking = (reportData: any, targetPlaceId = '', tar
       const ranks = dataPoints
         .map((point: any) => Number(point.rank))
         .filter((rank: number) => Number.isFinite(rank) && rank > 0);
+
+      const rating = Number.isFinite(Number(business.rating)) ? Number(business.rating) : (Number.isFinite(Number(business.rating_val)) ? Number(business.rating_val) : null);
+      const reviews = Number.isFinite(Number(business.reviews)) ? Number(business.reviews) : (Number.isFinite(Number(business.reviews_count)) ? Number(business.reviews_count) : (Number.isFinite(Number(business.user_ratings_total)) ? Number(business.user_ratings_total) : null));
+      const address = business.address || business.vicinity || business.formatted_address || business.full_address || null;
+
       return {
         placeId: business.place_id || business.placeId || business.cid || business.name,
         nome: business.name || business.business_name || 'Empresa sem nome',
         solv: Number.isFinite(Number(business.solv)) ? Number(business.solv) : 0,
         arp: Number.isFinite(Number(business.arp)) ? Number(business.arp) : Number.MAX_SAFE_INTEGER,
         aparecimentos: ranks.length,
-        nota: Number.isFinite(Number(business.rating)) ? Number(business.rating) : null,
-        avaliacoes: Number.isFinite(Number(business.reviews)) ? Number(business.reviews) : null,
-        endereco: business.address || null
+        nota: rating,
+        avaliacoes: reviews,
+        endereco: address
       };
     })
     .filter((business: any) => business.placeId && business.nome)
-    // Replicates the Local Falcon competitor table when the SoLV column is sorted descending.
     .sort((a: any, b: any) => (b.solv - a.solv) || (a.arp - b.arp));
 
   const clientIndex = rankedBusinesses.findIndex((business: any) => {

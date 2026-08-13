@@ -810,24 +810,31 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         </h3>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           ${effectiveClientRank === 1 ? clientRankingHtml : ''}
-          ${concorrentes.length ? concorrentes.map((c: any) => `
+          ${concorrentes.length ? concorrentes.map((c: any) => {
+            const addr = c.endereco || c.address || c.fullAddress || c.location || c.vicinity || c.formatted_address || cidadeBairro || prospectData?.location || '';
+            const ratingVal = c.nota ?? c.rating ?? c.gmnRating ?? c.stars ?? c.score;
+            const formattedRating = ratingVal ? Number(ratingVal).toFixed(1) : '—';
+            const rawRev = c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.reviews_count ?? c.user_ratings_total ?? c.gmnReviewsCount;
+            const revCount = rawRev != null ? cleanReviewsStr(rawRev) : null;
+            return `
             <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin: 0; display: flex; align-items: center; gap: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
               <div style="width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); -webkit-print-color-adjust: exact; print-color-adjust: exact;">
                 ${c.posicao}
               </div>
               <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 700; font-size: 10.5pt; color: #0f172a; margin-bottom: 3px; line-height: 1.3;">
-                  ${c.nome || 'Concorrente'}
+                  ${c.nome || c.name || 'Concorrente'}
                 </div>
-                ${c.endereco ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 3px; line-height: 1.3;">${c.endereco}</div>` : ''}
+                ${addr ? `<div style="font-size: 8.5pt; color: #64748b; margin-bottom: 3px; line-height: 1.3;">${addr}</div>` : ''}
                 <div style="font-size: 9pt; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span>${c.nota ? Number(c.nota).toFixed(1) : '5.0'}</span>
+                  <span>${formattedRating}</span>
                   <span style="color: #f59e0b;">★★★★★</span>
-                  <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${cleanReviewsStr(c.avaliacoes)} avaliações)</span>
+                  <span style="color: #94a3b8; font-weight: 400; font-size: 8.5pt;">(${revCount !== null ? `${revCount} avaliações` : 'sem avaliações'})</span>
                 </div>
               </div>
             </div>
-          `).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700; margin: 6px 0;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
+          `;
+          }).join('') : '<p style="color: #059669; font-size: 10pt; font-weight: 700; margin: 6px 0;">Sua empresa está em 1º lugar entre os resultados analisados.</p>'}
           ${effectiveClientRank !== 1 ? clientRankingHtml : ''}
         </div>
       </div>

@@ -15,6 +15,40 @@ import { VariableMappingModal } from './VariableMappingModal';
 import { VisualCropModal } from './VisualCropModal';
 import Swal from 'sweetalert2';
 
+// ── Helper functions for competitor details normalization ──
+const getCompetitorAddress = (c: any, defaultLoc = ''): string => {
+  if (!c) return defaultLoc || 'Endereço não informado';
+  const raw = c.endereco || c.address || c.fullAddress || c.location || c.vicinity || c.formatted_address;
+  if (raw && typeof raw === 'string' && raw.trim() && raw.trim().toLowerCase() !== 'valparaíso de goiás - go') {
+    return raw.trim();
+  }
+  if (raw && typeof raw === 'string' && raw.trim()) {
+    return raw.trim();
+  }
+  return defaultLoc || 'Endereço não informado';
+};
+
+const getCompetitorRating = (c: any): string => {
+  if (!c) return '—';
+  const val = c.nota ?? c.rating ?? c.gmnRating ?? c.stars ?? c.score ?? c.rating_val;
+  if (val !== null && val !== undefined && val !== '') {
+    const num = Number(val);
+    if (!isNaN(num) && num > 0) return num.toFixed(1);
+  }
+  return '—';
+};
+
+const getCompetitorReviews = (c: any): number | null => {
+  if (!c) return null;
+  const val = c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.reviews_count ?? c.user_ratings_total ?? c.gmnReviewsCount;
+  if (val !== null && val !== undefined && val !== '') {
+    const cleanStr = String(val).replace(/avaliaç[õo]es/gi, '').replace(/\D/g, '').trim();
+    const num = parseInt(cleanStr, 10);
+    if (!isNaN(num)) return num;
+  }
+  return null;
+};
+
 // ── Queue Types ──
 interface QueueLogEntry {
   timestamp: number;
@@ -571,9 +605,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         pool.push({
           nome: p.clinicName,
           posicao: idx + 1,
-          nota: p.gmnRating ? Number(p.gmnRating) : 4.7,
-          avaliacoes: p.gmnReviewsCount ? Number(p.gmnReviewsCount) : 120,
-          endereco: p.location || currentCity,
+          nota: p.gmnRating ? Number(p.gmnRating) : (diag.gmnRating ? Number(diag.gmnRating) : null),
+          avaliacoes: p.gmnReviewsCount ? Number(p.gmnReviewsCount) : (diag.gmnReviewsCount ? Number(diag.gmnReviewsCount) : null),
+          endereco: p.fullAddress || p.location || currentCity,
           anunciaGoogle: diag.anuncios?.clienteAnunciaGoogle ?? true,
           anunciaMeta: diag.anuncios?.clienteAnunciaMeta ?? false,
           respondeAvaliacoes: null,
@@ -590,9 +624,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           pool.push({
             nome: c.nome,
             posicao: c.posicao || pool.length + 1,
-            nota: c.nota || 4.8,
-            avaliacoes: c.avaliacoes || 100,
-            endereco: c.endereco || currentCity,
+            nota: c.nota ?? c.rating ?? c.gmnRating ?? null,
+            avaliacoes: c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.user_ratings_total ?? null,
+            endereco: c.endereco || c.address || c.fullAddress || c.location || c.vicinity || currentCity,
             anunciaGoogle: c.anunciaGoogle ?? true,
             anunciaMeta: c.anunciaMeta ?? false,
             respondeAvaliacoes: null,
@@ -841,7 +875,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             concorrentes: hasSolv && historyResult.competitors && historyResult.competitors.length > 0
               ? historyResult.competitors.map((c: any) => ({
                   nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos,
-                  nota: c.nota ?? null, avaliacoes: c.avaliacoes ?? null, endereco: c.endereco ?? null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null
+                  nota: c.nota ?? c.rating ?? c.gmnRating ?? null,
+                  avaliacoes: c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.user_ratings_total ?? null,
+                  endereco: c.endereco ?? c.address ?? c.fullAddress ?? c.location ?? c.vicinity ?? null,
+                  anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null
                 }))
               : (existingDiag.concorrentes || []),
             posicaoCliente: hasSolv ? (historyResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
@@ -985,7 +1022,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               resumo1: hasSolv ? `Ao pesquisar por "${form.keyword}" na região de ${form.cityName}, o perfil da empresa possui Share of Local Voice (SoLV) de ${localFalconResult.solv}% e está na posição #${localFalconResult.clientRank || 'sem dados'}.` : (existingDiag.resumo1 || `Sem dados do Local Falcon para a palavra-chave "${form.keyword}".`),
               resumo2: hasSolv ? `Sua empresa aparece em posição de destaque (Top 3) em ${localFalconResult.solv}% dos pontos analisados no mapa local.` : (existingDiag.resumo2 || `Sem dados de posição no mapa local para "${form.keyword}".`),
               concorrentes: hasSolv && localFalconResult.competitors?.length > 0
-                ? localFalconResult.competitors.map((c: any) => ({ nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos, nota: c.nota ?? null, avaliacoes: c.avaliacoes ?? null, endereco: c.endereco ?? null, anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null }))
+                ? localFalconResult.competitors.map((c: any) => ({
+                    nome: c.nome, placeId: c.placeId, posicao: c.posicao, aparecimentos: c.aparecimentos,
+                    nota: c.nota ?? c.rating ?? c.gmnRating ?? null,
+                    avaliacoes: c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.user_ratings_total ?? null,
+                    endereco: c.endereco ?? c.address ?? c.fullAddress ?? c.location ?? c.vicinity ?? null,
+                    anunciaGoogle: null, anunciaMeta: null, respondeAvaliacoes: null, postaFrequencia: null, siteRapido: null
+                  }))
                 : (existingDiag.concorrentes || []),
               posicaoCliente: hasSolv ? (localFalconResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
               gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, radius: Number(form.radius || 5), gridSize: form.gridSize || '5x5', oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}" (Raio: ${form.radius || 5}km).`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
@@ -2125,21 +2168,28 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </p>
 
           <div className="space-y-3">
-            {clientRank !== 1 && topCompetitors.map((c: any, i: number) => (
-              <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
-                  {c.posicao}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-white text-sm">{c.nome}</h4>
-                  <p className="text-xs text-gray-400">{c.endereco || 'Valparaíso de Goiás - GO'}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-amber-400 font-bold text-xs">{c.nota || 4.8} ★</span>
-                    <span className="text-gray-500 text-xs">({c.avaliacoes || 0} avaliações)</span>
+            {clientRank !== 1 && topCompetitors.map((c: any, i: number) => {
+              const compAddr = getCompetitorAddress(c, selectedProspect.location || selectedProspect.fullAddress || formData.cityName);
+              const compRating = getCompetitorRating(c);
+              const compReviews = getCompetitorReviews(c);
+              return (
+                <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
+                    {c.posicao}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-white text-sm">{c.nome || c.name || 'Concorrente'}</h4>
+                    <p className="text-xs text-gray-400">{compAddr}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-amber-400 font-bold text-xs">{compRating !== '—' ? `${compRating} ★` : '—'}</span>
+                      <span className="text-gray-500 text-xs">
+                        ({compReviews !== null ? `${compReviews} avaliações` : 'sem avaliações'})
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {hasValidClientRank && topCompetitors.length === 0 && (
               <p className="text-sm text-emerald-400 font-medium">Sua empresa está em 1º lugar entre os resultados analisados.</p>
@@ -2170,21 +2220,28 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             )}
 
-            {clientRank === 1 && topCompetitors.map((c: any, i: number) => (
-              <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
-                  {c.posicao}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-white text-sm">{c.nome}</h4>
-                  <p className="text-xs text-gray-400">{c.endereco || 'Endereço não informado'}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-amber-400 font-bold text-xs">{c.nota || 4.8} ★</span>
-                    <span className="text-gray-500 text-xs">({c.avaliacoes || 0} avaliações)</span>
+            {clientRank === 1 && topCompetitors.map((c: any, i: number) => {
+              const compAddr = getCompetitorAddress(c, selectedProspect.location || selectedProspect.fullAddress || formData.cityName);
+              const compRating = getCompetitorRating(c);
+              const compReviews = getCompetitorReviews(c);
+              return (
+                <div key={i} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0">
+                    {c.posicao}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-white text-sm">{c.nome || c.name || 'Concorrente'}</h4>
+                    <p className="text-xs text-gray-400">{compAddr}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-amber-400 font-bold text-xs">{compRating !== '—' ? `${compRating} ★` : '—'}</span>
+                      <span className="text-gray-500 text-xs">
+                        ({compReviews !== null ? `${compReviews} avaliações` : 'sem avaliações'})
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -3929,18 +3986,25 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                       </div>
 
                       <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-                        {topCompetitors.map((c: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-3.5 bg-gray-900/80 rounded-xl text-sm border border-gray-800">
-                            <div className="min-w-0 flex-1 pr-3">
-                              <span className="font-bold text-gray-100 block truncate">#{c.posicao} {c.nome || c.name || 'Concorrente'}</span>
-                              <span className="text-xs text-gray-400 block truncate">{c.endereco || (formData.cityName ? `${formData.cityName} - DF` : 'Localidade')}</span>
+                        {topCompetitors.map((c: any, idx: number) => {
+                          const compAddr = getCompetitorAddress(c, selectedProspect.location || formData.cityName);
+                          const compRating = getCompetitorRating(c);
+                          const compReviews = getCompetitorReviews(c);
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-3.5 bg-gray-900/80 rounded-xl text-sm border border-gray-800">
+                              <div className="min-w-0 flex-1 pr-3">
+                                <span className="font-bold text-gray-100 block truncate">#{c.posicao} {c.nome || c.name || 'Concorrente'}</span>
+                                <span className="text-xs text-gray-400 block truncate">{compAddr}</span>
+                              </div>
+                              <span className="text-amber-400 font-bold shrink-0 text-right text-sm">
+                                {compRating !== '—' ? `${compRating}★` : '—'}
+                                <span className="text-xs text-gray-400 font-normal block">
+                                  ({compReviews !== null ? `${compReviews} avaliações` : '—'})
+                                </span>
+                              </span>
                             </div>
-                            <span className="text-amber-400 font-bold shrink-0 text-right text-sm">
-                              {c.nota ? `${c.nota}★` : '—'}
-                              {c.avaliacoes != null && <span className="text-xs text-gray-400 font-normal block">({c.avaliacoes} avaliações)</span>}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
 
                         {/* Highlight Box VOCÊ */}
                         <div className="p-4 bg-amber-950/40 border border-amber-500/50 rounded-xl text-sm">
