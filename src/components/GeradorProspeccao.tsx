@@ -153,23 +153,66 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const [selectedLineHeight, setSelectedLineHeight] = useState<string>('1.5');
 
-  const handleUpdateMargin = (top: number, right: number, bottom: number, left: number) => {
-    const newPage = {
+  const [marginTargetMode, setMarginTargetMode] = useState<'current' | 'all'>('current');
+  const [activePageIndex, setActivePageIndex] = useState<number>(0);
+  const [activePageMargins, setActivePageMargins] = useState<{ top: number; right: number; bottom: number; left: number }>({ top: 15, right: 15, bottom: 15, left: 15 });
+
+  const updateActivePageFromSelection = () => {
+    if (!editorRef.current) return;
+    const selection = window.getSelection();
+    const anchorNode = selection?.anchorNode;
+    const anchorEl = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+    const pageEl = anchorEl?.closest<HTMLElement>('.a4-page');
+    if (pageEl && editorRef.current) {
+      const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+      const idx = pages.indexOf(pageEl);
+      if (idx !== -1) {
+        setActivePageIndex(idx);
+        const content = pageEl.querySelector<HTMLElement>(':scope > .a4-page-content');
+        if (content) {
+          const pTop = parseFloat(content.style.paddingTop) || estilos.page.top;
+          const pRight = parseFloat(content.style.paddingRight) || estilos.page.right;
+          const pBottom = parseFloat(content.style.paddingBottom) || estilos.page.bottom;
+          const pLeft = parseFloat(content.style.paddingLeft) || estilos.page.left;
+          setActivePageMargins({ top: pTop, right: pRight, bottom: pBottom, left: pLeft });
+        }
+      }
+    }
+  };
+
+  const handleUpdateMargin = (top: number, right: number, bottom: number, left: number, targetAll: boolean = marginTargetMode === 'all') => {
+    const newMargins = {
       top: Math.max(0, top),
       right: Math.max(0, right),
       bottom: Math.max(0, bottom),
       left: Math.max(0, left)
     };
-    const newEstilos = { ...estilos, page: newPage };
-    setEstilos(newEstilos);
-    localStorage.setItem('tali_estilos_prospeccao_v1', JSON.stringify(newEstilos));
+    setActivePageMargins(newMargins);
 
-    if (editorRef.current) {
-      const contents = editorRef.current.querySelectorAll<HTMLElement>('.a4-page-content');
-      contents.forEach(content => {
-        content.style.padding = `${newPage.top}mm ${newPage.right}mm ${newPage.bottom}mm ${newPage.left}mm`;
-      });
-      schedulePagination();
+    if (targetAll) {
+      const newEstilos = { ...estilos, page: newMargins };
+      setEstilos(newEstilos);
+      localStorage.setItem('tali_estilos_prospeccao_v1', JSON.stringify(newEstilos));
+
+      if (editorRef.current) {
+        const contents = editorRef.current.querySelectorAll<HTMLElement>('.a4-page-content');
+        contents.forEach(content => {
+          content.style.padding = `${newMargins.top}mm ${newMargins.right}mm ${newMargins.bottom}mm ${newMargins.left}mm`;
+        });
+        schedulePagination();
+      }
+    } else {
+      if (editorRef.current) {
+        const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+        const targetPageEl = pages[activePageIndex] || pages[0];
+        if (targetPageEl) {
+          const content = targetPageEl.querySelector<HTMLElement>(':scope > .a4-page-content');
+          if (content) {
+            content.style.padding = `${newMargins.top}mm ${newMargins.right}mm ${newMargins.bottom}mm ${newMargins.left}mm`;
+          }
+        }
+        schedulePagination();
+      }
     }
   };
 
@@ -1211,6 +1254,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       setSelectedEditorImage(null);
     }
 
+    updateActivePageFromSelection();
+
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       let node = selection.anchorNode;
@@ -2201,8 +2246,71 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         📐 Margens da Folha (mm)
                       </h4>
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>
-                        Ajuste as bordas de cada folha A4 para permitir que o texto suba ou ocupe todo o topo da folha.
+                        Configure as margens desta folha específica ou de todas as páginas.
                       </p>
+
+                      {/* Seletor de Alvo da Margem */}
+                      <div style={{ backgroundColor: 'rgba(0,0,0,0.25)', padding: '0.45rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <label style={{ fontSize: '0.72rem', color: '#fcd34d', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
+                          Aplicar alteração em:
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.3rem', marginBottom: totalPages > 1 ? '0.3rem' : '0' }}>
+                          <button
+                            type="button"
+                            onClick={() => setMarginTargetMode('current')}
+                            style={{
+                              flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
+                              backgroundColor: marginTargetMode === 'current' ? '#3b82f6' : 'rgba(255,255,255,0.1)',
+                              color: 'white', border: marginTargetMode === 'current' ? '1px solid #60a5fa' : '1px solid transparent'
+                            }}
+                          >
+                            Folha {activePageIndex + 1} Apenas
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMarginTargetMode('all')}
+                            style={{
+                              flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
+                              backgroundColor: marginTargetMode === 'all' ? '#6366f1' : 'rgba(255,255,255,0.1)',
+                              color: 'white', border: marginTargetMode === 'all' ? '1px solid #818cf8' : '1px solid transparent'
+                            }}
+                          >
+                            Todas as Folhas
+                          </button>
+                        </div>
+
+                        {totalPages > 1 && (
+                          <select
+                            value={activePageIndex}
+                            onChange={(e) => {
+                              const idx = Number(e.target.value);
+                              setActivePageIndex(idx);
+                              if (editorRef.current) {
+                                const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+                                if (pages[idx]) {
+                                  pages[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  const content = pages[idx].querySelector<HTMLElement>(':scope > .a4-page-content');
+                                  if (content) {
+                                    const pTop = parseFloat(content.style.paddingTop) || estilos.page.top;
+                                    const pRight = parseFloat(content.style.paddingRight) || estilos.page.right;
+                                    const pBottom = parseFloat(content.style.paddingBottom) || estilos.page.bottom;
+                                    const pLeft = parseFloat(content.style.paddingLeft) || estilos.page.left;
+                                    setActivePageMargins({ top: pTop, right: pRight, bottom: pBottom, left: pLeft });
+                                  }
+                                }
+                              }
+                            }}
+                            style={{ width: '100%', padding: '0.3rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '4px', cursor: 'pointer' }}
+                          >
+                            {Array.from({ length: totalPages }).map((_, i) => (
+                              <option key={i} value={i}>
+                                Folha {i + 1} {i === activePageIndex ? '(Ativa)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
                         <div>
                           <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Topo (mm)</label>
@@ -2210,8 +2318,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                             type="number"
                             min="0"
                             max="60"
-                            value={estilos.page.top}
-                            onChange={(e) => handleUpdateMargin(Number(e.target.value), estilos.page.right, estilos.page.bottom, estilos.page.left)}
+                            value={activePageMargins.top}
+                            onChange={(e) => handleUpdateMargin(Number(e.target.value), activePageMargins.right, activePageMargins.bottom, activePageMargins.left)}
                             style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
                           />
                         </div>
@@ -2221,8 +2329,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                             type="number"
                             min="0"
                             max="60"
-                            value={estilos.page.bottom}
-                            onChange={(e) => handleUpdateMargin(estilos.page.top, estilos.page.right, Number(e.target.value), estilos.page.left)}
+                            value={activePageMargins.bottom}
+                            onChange={(e) => handleUpdateMargin(activePageMargins.top, activePageMargins.right, Number(e.target.value), activePageMargins.left)}
                             style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
                           />
                         </div>
@@ -2232,8 +2340,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                             type="number"
                             min="0"
                             max="60"
-                            value={estilos.page.left}
-                            onChange={(e) => handleUpdateMargin(estilos.page.top, estilos.page.right, estilos.page.bottom, Number(e.target.value))}
+                            value={activePageMargins.left}
+                            onChange={(e) => handleUpdateMargin(activePageMargins.top, activePageMargins.right, activePageMargins.bottom, Number(e.target.value))}
                             style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
                           />
                         </div>
@@ -2243,8 +2351,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                             type="number"
                             min="0"
                             max="60"
-                            value={estilos.page.right}
-                            onChange={(e) => handleUpdateMargin(estilos.page.top, Number(e.target.value), estilos.page.bottom, estilos.page.left)}
+                            value={activePageMargins.right}
+                            onChange={(e) => handleUpdateMargin(activePageMargins.top, Number(e.target.value), activePageMargins.bottom, activePageMargins.left)}
                             style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
                           />
                         </div>
