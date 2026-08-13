@@ -17,7 +17,13 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
   cleaned = cleaned.replace(/src="http:\/\/crm\.talidigital\.com\.br/gi, 'src="https://crm.talidigital.com.br');
   cleaned = cleaned.replace(/src='http:\/\/crm\.talidigital\.com\.br/gi, "src='https://crm.talidigital.com.br");
 
-  // Corrigir caminhos relativos de imagens (ex: src="uploads/...")
+  // Corrigir falta de /uploads/ em links de imagens do crm.talidigital.com.br
+  cleaned = cleaned.replace(/src="https:\/\/crm\.talidigital\.com\.br\/img_/gi, 'src="https://crm.talidigital.com.br/uploads/img_');
+  cleaned = cleaned.replace(/src='https:\/\/crm\.talidigital\.com\.br\/img_/gi, "src='https://crm.talidigital.com.br/uploads/img_");
+
+  // Corrigir caminhos relativos de imagens (ex: src="img_..." ou src="uploads/...")
+  cleaned = cleaned.replace(/src="(?!\/|https?:\/\/|data:|blob:)(img_[^"]+)"/gi, 'src="https://crm.talidigital.com.br/uploads/$1"');
+  cleaned = cleaned.replace(/src='(?!\/|https?:\/\/|data:|blob:)(img_[^']+)'/gi, "src='https://crm.talidigital.com.br/uploads/$1'");
   cleaned = cleaned.replace(/src="(?!\/|https?:\/\/|data:|blob:)([^"]+)"/gi, 'src="https://crm.talidigital.com.br/$1"');
   cleaned = cleaned.replace(/src='(?!\/|https?:\/\/|data:|blob:)([^']+)'/gi, "src='https://crm.talidigital.com.br/$1'");
 
@@ -34,11 +40,19 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
 
       if (src.startsWith('http://crm.talidigital.com.br')) {
         src = src.replace('http://', 'https://');
-        img.setAttribute('src', src);
-      } else if (!src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('blob:') && src.length > 0) {
-        src = `https://crm.talidigital.com.br/${src.replace(/^\//, '')}`;
-        img.setAttribute('src', src);
       }
+
+      if (src.startsWith('https://crm.talidigital.com.br/img_')) {
+        src = src.replace('https://crm.talidigital.com.br/img_', 'https://crm.talidigital.com.br/uploads/img_');
+      } else if (!src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('blob:') && src.length > 0) {
+        const cleanPath = src.replace(/^\//, '');
+        if (cleanPath.startsWith('img_')) {
+          src = `https://crm.talidigital.com.br/uploads/${cleanPath}`;
+        } else {
+          src = `https://crm.talidigital.com.br/${cleanPath}`;
+        }
+      }
+      img.setAttribute('src', src);
 
       if (!src || src === 'undefined' || src === 'null' || src === 'about:blank') {
         img.remove();
@@ -1690,23 +1704,40 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
               <script>
                 function triggerPrint() {
                   const images = Array.from(document.querySelectorAll('img'));
+                  let printed = false;
+
+                  const doPrint = () => {
+                    if (printed) return;
+                    printed = true;
+                    setTimeout(() => {
+                      window.print();
+                    }, 200);
+                  };
+
                   if (images.length === 0) {
-                    window.print();
+                    doPrint();
                     return;
                   }
+
                   let loaded = 0;
                   const onCheck = () => {
                     loaded++;
                     if (loaded >= images.length) {
-                      setTimeout(() => window.print(), 300);
+                      doPrint();
                     }
                   };
+
+                  // Fallback timer: se alguma imagem falhar ou demorar mais de 1.5s, força a impressão
+                  const fallbackTimer = setTimeout(() => {
+                    doPrint();
+                  }, 1500);
+
                   images.forEach(img => {
-                    if (img.complete && img.naturalHeight !== 0) {
+                    if (img.complete) {
                       onCheck();
                     } else {
-                      img.onload = onCheck;
-                      img.onerror = onCheck;
+                      img.onload = () => onCheck();
+                      img.onerror = () => onCheck();
                     }
                   });
                 }
