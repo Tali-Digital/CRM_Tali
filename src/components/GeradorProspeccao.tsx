@@ -174,9 +174,18 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     if (editorRef.current) {
       editorRef.current.focus();
     }
+    const sel = window.getSelection();
     if (color === null) {
       document.execCommand('removeFormat', false, undefined);
       document.execCommand('foreColor', false, '#000000');
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
+        if (parent && editorRef.current?.contains(parent) && parent !== editorRef.current) {
+          parent.style.color = '';
+        }
+      }
       setTextColor('#000000');
     } else {
       document.execCommand('foreColor', false, color);
@@ -191,11 +200,22 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     if (editorRef.current) {
       editorRef.current.focus();
     }
+    const sel = window.getSelection();
     if (color === null) {
       document.execCommand('hiliteColor', false, 'transparent');
+      document.execCommand('backColor', false, 'transparent');
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
+        if (parent && editorRef.current?.contains(parent) && parent !== editorRef.current) {
+          parent.style.backgroundColor = '';
+        }
+      }
       setHighlightColor('#ffffff');
     } else {
       document.execCommand('hiliteColor', false, color);
+      document.execCommand('backColor', false, color);
       setHighlightColor(color);
     }
     handleEditorInput();
@@ -322,7 +342,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       const range = sel.getRangeAt(0);
-      if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+      if (!range.collapsed && editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
         savedSelectionRef.current = range.cloneRange();
       }
     }
@@ -2481,9 +2501,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   <option disabled>──────────</option>
                   <option value="CONFIG">⚙️ Personalizar Estilos...</option>
                 </select>
-
-                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-
+                
                 <select onChange={(e) => handleFormat('fontSize', e.target.value)} className="editor-select" defaultValue="3">
                   <option value="1">Tam. 1</option>
                   <option value="2">Tam. 2</option>
@@ -2505,6 +2523,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <div style={{ position: 'relative' }}>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handleOpenColorPopover}
                     className="editor-btn"
                     title="Cor do Texto Selecionado"
@@ -2526,6 +2545,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
                   {showColorPopover && (
                     <div
+                      onMouseDown={(e) => e.preventDefault()}
                       style={{
                         position: 'absolute',
                         top: 'calc(100% + 6px)',
@@ -2546,6 +2566,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>Cor do Texto</span>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => setShowColorPopover(false)}
                           style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}
                         >
@@ -2558,6 +2579,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                           <button
                             key={c}
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => applyTextColor(c)}
                             style={{
                               width: '22px', height: '22px', borderRadius: '4px', backgroundColor: c,
@@ -2573,11 +2595,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <input
                           type="color"
                           value={textColor}
+                          onMouseDown={(e) => e.stopPropagation()}
                           onChange={(e) => setTextColor(e.target.value)}
                           style={{ width: '28px', height: '26px', border: 'none', background: 'transparent', cursor: 'pointer' }}
                         />
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => applyTextColor(textColor)}
                           style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                         >
@@ -2587,10 +2611,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => applyTextColor(null)}
-                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
+                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
                       >
-                        ↺ Resetar Cor (Padrão)
+                        ↺ Resetar Cor (Preto Padrão)
                       </button>
                     </div>
                   )}
@@ -2600,6 +2625,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <div style={{ position: 'relative' }}>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handleOpenHighlightPopover}
                     className="editor-btn"
                     title="Cor de Fundo / Marca-Texto"
@@ -2621,6 +2647,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
                   {showHighlightPopover && (
                     <div
+                      onMouseDown={(e) => e.preventDefault()}
                       style={{
                         position: 'absolute',
                         top: 'calc(100% + 6px)',
@@ -2641,6 +2668,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>Cor de Fundo</span>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => setShowHighlightPopover(false)}
                           style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}
                         >
@@ -2653,6 +2681,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                           <button
                             key={c}
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => applyHighlightColor(c)}
                             style={{
                               width: '22px', height: '22px', borderRadius: '4px', backgroundColor: c,
@@ -2668,11 +2697,13 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <input
                           type="color"
                           value={highlightColor}
+                          onMouseDown={(e) => e.stopPropagation()}
                           onChange={(e) => setHighlightColor(e.target.value)}
                           style={{ width: '28px', height: '26px', border: 'none', background: 'transparent', cursor: 'pointer' }}
                         />
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => applyHighlightColor(highlightColor)}
                           style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                         >
@@ -2682,8 +2713,9 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
 
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => applyHighlightColor(null)}
-                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
+                        style={{ width: '100%', padding: '0.3rem', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: '#f8fafc', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '4px', cursor: 'pointer', textAlign: 'center' }}
                       >
                         ↺ Resetar Fundo (Transparente)
                       </button>
