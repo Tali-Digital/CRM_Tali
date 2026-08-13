@@ -170,54 +170,126 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   };
 
   const applyTextColor = (color: string | null) => {
+    try {
+      document.execCommand('styleWithCSS', false, true);
+    } catch (e) {}
+
     restoreSelection();
-    if (editorRef.current) {
-      editorRef.current.focus();
-    }
     const sel = window.getSelection();
+
     if (color === null) {
-      document.execCommand('removeFormat', false, undefined);
-      document.execCommand('foreColor', false, '#000000');
+      try {
+        document.execCommand('removeFormat', false, undefined);
+        document.execCommand('foreColor', false, '#000000');
+      } catch (e) {}
+
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const container = range.commonAncestorContainer;
         const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
-        if (parent && editorRef.current?.contains(parent) && parent !== editorRef.current) {
-          parent.style.color = '';
+        if (parent && editorRef.current?.contains(parent)) {
+          const styledEl = parent.closest<HTMLElement>('[style*="color"]');
+          if (styledEl && styledEl !== editorRef.current && !styledEl.classList.contains('a4-page-content')) {
+            styledEl.style.color = '';
+          }
         }
       }
       setTextColor('#000000');
     } else {
-      document.execCommand('foreColor', false, color);
+      let applied = false;
+
+      if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+        try {
+          applied = document.execCommand('foreColor', false, color);
+        } catch (e) {}
+
+        const range = sel.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
+
+        if (parent && editorRef.current?.contains(parent)) {
+          if (parent.tagName === 'SPAN' || parent.tagName === 'FONT') {
+            parent.style.color = color;
+            applied = true;
+          }
+        }
+      }
+
+      if (!applied || !sel || sel.isCollapsed) {
+        const anchorNode = sel?.anchorNode;
+        const anchorEl = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+        const block = anchorEl?.closest<HTMLElement>('p, h1, h2, h3, li, td, th, span, div.a4-page-content > *');
+        if (block && editorRef.current?.contains(block)) {
+          block.style.color = color;
+        }
+      }
+
       setTextColor(color);
     }
+
     handleEditorInput();
     setShowColorPopover(false);
   };
 
   const applyHighlightColor = (color: string | null) => {
+    try {
+      document.execCommand('styleWithCSS', false, true);
+    } catch (e) {}
+
     restoreSelection();
-    if (editorRef.current) {
-      editorRef.current.focus();
-    }
     const sel = window.getSelection();
+
     if (color === null) {
-      document.execCommand('hiliteColor', false, 'transparent');
-      document.execCommand('backColor', false, 'transparent');
+      try {
+        document.execCommand('hiliteColor', false, 'transparent');
+        document.execCommand('backColor', false, 'transparent');
+      } catch (e) {}
+
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const container = range.commonAncestorContainer;
         const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
-        if (parent && editorRef.current?.contains(parent) && parent !== editorRef.current) {
-          parent.style.backgroundColor = '';
+        if (parent && editorRef.current?.contains(parent)) {
+          const styledEl = parent.closest<HTMLElement>('[style*="background"]');
+          if (styledEl && styledEl !== editorRef.current && !styledEl.classList.contains('a4-page-content')) {
+            styledEl.style.backgroundColor = '';
+          }
         }
       }
       setHighlightColor('#ffffff');
     } else {
-      document.execCommand('hiliteColor', false, color);
-      document.execCommand('backColor', false, color);
+      let applied = false;
+      if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+        try {
+          applied = document.execCommand('hiliteColor', false, color);
+          if (!applied) {
+            applied = document.execCommand('backColor', false, color);
+          }
+        } catch (e) {}
+
+        const range = sel.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const parent = container.nodeType === 3 ? container.parentElement : (container as HTMLElement);
+        if (parent && editorRef.current?.contains(parent)) {
+          if (parent.tagName === 'SPAN' || parent.tagName === 'FONT' || parent.tagName === 'MARK') {
+            parent.style.backgroundColor = color;
+            applied = true;
+          }
+        }
+      }
+
+      if (!applied || !sel || sel.isCollapsed) {
+        const anchorNode = sel?.anchorNode;
+        const anchorEl = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+        const block = anchorEl?.closest<HTMLElement>('p, h1, h2, h3, li, td, th, span, div.a4-page-content > *');
+        if (block && editorRef.current?.contains(block)) {
+          block.style.backgroundColor = color;
+        }
+      }
+
       setHighlightColor(color);
     }
+
     handleEditorInput();
     setShowHighlightPopover(false);
   };
