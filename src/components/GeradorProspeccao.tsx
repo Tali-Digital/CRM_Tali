@@ -13,6 +13,9 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
   let cleaned = rawHtml;
 
+  // Substituir qualquer ocorrência de fontes como Times New Roman ou Serif por Arial, sans-serif
+  cleaned = cleaned.replace(/font-family\s*:\s*[^;"]*(times|serif|georgia|roman)[^;"]*/gi, 'font-family: Arial, sans-serif');
+
   // Corrigir URLs HTTP de imagens antigas do servidor Hostinger para HTTPS (evita bloqueio de mixed content)
   cleaned = cleaned.replace(/src="http:\/\/crm\.talidigital\.com\.br/gi, 'src="https://crm.talidigital.com.br');
   cleaned = cleaned.replace(/src='http:\/\/crm\.talidigital\.com\.br/gi, "src='https://crm.talidigital.com.br");
@@ -34,6 +37,15 @@ export const cleanDocumentHtml = (rawHtml: string): string => {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(cleaned, 'text/html');
+
+    doc.querySelectorAll('*').forEach(el => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.style && htmlEl.style.fontFamily) {
+        if (/times|serif|georgia|roman/i.test(htmlEl.style.fontFamily)) {
+          htmlEl.style.fontFamily = 'Arial, sans-serif';
+        }
+      }
+    });
 
     doc.querySelectorAll('img').forEach(img => {
       let src = img.getAttribute('src')?.trim() || '';
@@ -1671,10 +1683,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   color-adjust: exact !important;
                 }
                  @page { size: A4; margin: 0; }
-                  html, body { margin: 0; padding: 0; width: 210mm; font-family: Arial, sans-serif; background: white; }
+                  html, body { margin: 0; padding: 0; width: 210mm; font-family: Arial, sans-serif !important; background: white; }
                   .print-page { width: 210mm; height: 297mm; box-sizing: border-box; overflow: hidden; break-after: page; page-break-after: always; background: white; }
                   .print-page:last-child { break-after: auto; page-break-after: auto; }
-                  .content-cell { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; text-align: justify; }
+                  .content-cell, .content-cell * { font-family: Arial, sans-serif !important; }
+                  .content-cell { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; font-size: 11pt; line-height: 1.5; text-align: justify; }
                  .content-cell h1 { font-family: Arial, sans-serif; font-size: ${estilos.h1.size}pt !important; line-height: 1.5; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0; }
                  .content-cell h2 { font-family: Arial, sans-serif; font-size: ${estilos.h2.size}pt !important; line-height: 1.5; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0 10px; }
                  .content-cell h3 { font-family: Arial, sans-serif; font-size: ${estilos.h3.size}pt !important; line-height: 1.5; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; margin: 12px 0 8px; }
@@ -2399,7 +2412,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         .editor-btn:hover { background: #f1f5f9; color: var(--primary-color); border-color: #cbd5e1; }
         .editor-select { padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 4px; outline: none; color: var(--text-secondary); background: white; font-size: 0.85rem; cursor: pointer; }
         .editor-select:hover { border-color: #cbd5e1; }
-        .editor-content, .editor-content * { font-family: Arial, sans-serif; }
+        .editor-content, .editor-content * { font-family: Arial, sans-serif !important; }
         .editor-content h1 { font-size: ${estilos.h1.size}pt !important; line-height: 1.5; font-weight: ${estilos.h1.bold ? 'bold' : 'normal'} !important; text-align: center; text-transform: ${estilos.h1.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0; }
         .editor-content h2 { font-size: ${estilos.h2.size}pt !important; line-height: 1.5; font-weight: ${estilos.h2.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h2.uppercase ? 'uppercase' : 'none'} !important; margin: 15px 0 10px; }
         .editor-content h3 { font-size: ${estilos.h3.size}pt !important; line-height: 1.5; font-weight: ${estilos.h3.bold ? 'bold' : 'normal'} !important; text-transform: ${estilos.h3.uppercase ? 'uppercase' : 'none'} !important; margin: 12px 0 8px; }
