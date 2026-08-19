@@ -10,6 +10,7 @@ import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHisto
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
+import { enrichSingleLeadWithOutscraper, calcAgeFromDate } from '../services/outscraperEnrichment';
 import { auth } from '../firebase';
 import { VariableMappingModal } from './VariableMappingModal';
 import { VisualCropModal } from './VisualCropModal';
@@ -533,6 +534,145 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       enqueueDiagnostic(selectedProspect, 'force_new_gmn', moduleName);
     } else {
       enqueueDiagnostic(selectedProspect, 'rerun_module', moduleName);
+    }
+  };
+
+  const [isRefetchingCnpj, setIsRefetchingCnpj] = useState(false);
+
+  const handleReanalyzeCnpj = async () => {
+    if (!selectedProspect) return;
+    setIsRefetchingCnpj(true);
+    try {
+      const cleanCnpj = (selectedProspect.cnpj || '').replace(/\D/g, '');
+      let updatedCnpj = selectedProspect.cnpj || '';
+      let updatedOwnerName = selectedProspect.ownerName || '';
+      let updatedAge = selectedProspect.age || '';
+      let updatedClinicName = selectedProspect.clinicName || '';
+      let updatedFullAddress = selectedProspect.fullAddress || selectedProspect.location || '';
+
+      const toTitleCase = (str: string) => {
+        if (!str) return '';
+        return str.toLowerCase().replace(/(?:^|\s|-)\S/g, (a) => a.toUpperCase());
+      };
+
+      if (cleanCnpj.length === 14) {
+        try {
+          const res = await fetch(`https://minhareceita.org/${cleanCnpj}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.razao_social || data.nome_fantasia) {
+              updatedClinicName = data.nome_fantasia || data.razao_social || updatedClinicName;
+            }
+            if (data.qsa && Array.isArray(data.qsa) && data.qsa.length > 0) {
+              const names = data.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).map((n: string) => toTitleCase(n)).join(', ');
+              if (names) updatedOwnerName = names;
+            }
+            if (data.abertura) {
+              const calcAge = calcAgeFromDate(data.abertura);
+              if (calcAge) updatedAge = calcAge;
+            }
+            if (data.logradouro) {
+              updatedFullAddress = [
+                data.logradouro,
+                data.numero,
+                data.complemento,
+                data.bairro,
+                data.municipio ? `${data.municipio} - ${data.uf}` : null,
+                data.cep ? `CEP: ${data.cep}` : null
+              ].filter(Boolean).join(', ');
+            }
+          } else {
+            const wsRes = await fetch(`https://publica.cnpj.ws/cnpj/${cleanCnpj}`);
+            if (wsRes.ok) {
+              const wsData = await wsRes.json();
+              if (wsData.estabelecimento?.nome_fantasia || wsData.razao_social) {
+                updatedClinicName = wsData.estabelecimento?.nome_fantasia || wsData.razao_social || updatedClinicName;
+              }
+              const socios = wsData.estabelecimento?.socios || wsData.socios || [];
+              if (Array.isArray(socios) && socios.length > 0) {
+                const names = socios.map((s: any) => s.nome || s.nome_socio).filter(Boolean).map((n: string) => toTitleCase(n)).join(', ');
+                if (names) updatedOwnerName = names;
+              }
+              const aberturaDate = wsData.estabelecimento?.data_inicio_atividade || wsData.data_inicio_atividade;
+              if (aberturaDate) {
+                const calcAge = calcAgeFromDate(aberturaDate);
+                if (calcAge) updatedAge = calcAge;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Erro ao consultar API de CNPJ:', err);
+        }
+      }
+
+      // Enriquecimento profundo se CNPJ, Dono ou Idade ainda não foram encontrados
+      if (!updatedCnpj || !updatedOwnerName || !updatedAge) {
+        try {
+          const enriched = await enrichSingleLeadWithOutscraper(
+            updatedClinicName || selectedProspect.clinicName,
+            selectedProspect.location,
+            selectedProspect.site
+          );
+
+          if (enriched.cnpj && enriched.cnpj.length === 14) {
+            updatedCnpj = enriched.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+            if (!updatedAge && enriched.cnpj) {
+              const rawNum = enriched.cnpj.replace(/\D/g, '');
+              if (rawNum.length === 14) {
+                const r2 = await fetch(`https://minhareceita.org/${rawNum}`);
+                if (r2.ok) {
+                  const d2 = await r2.json();
+                  if (d2.abertura) updatedAge = calcAgeFromDate(d2.abertura);
+                  if (d2.qsa && Array.isArray(d2.qsa) && !updatedOwnerName) {
+                    updatedOwnerName = d2.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).map((n: string) => toTitleCase(n)).join(', ');
+                  }
+                }
+              }
+            }
+          }
+          if (enriched.ownerName && !updatedOwnerName) updatedOwnerName = enriched.ownerName;
+          if (enriched.age && !updatedAge) updatedAge = enriched.age;
+        } catch (enrichErr) {
+          console.warn('Erro ao enriquecer dados adicionais:', enrichErr);
+        }
+      }
+
+      const updates: Partial<Prospect> = {
+        clinicName: updatedClinicName || selectedProspect.clinicName,
+        ownerName: updatedOwnerName || selectedProspect.ownerName,
+        cnpj: updatedCnpj || selectedProspect.cnpj,
+        age: updatedAge || selectedProspect.age,
+        fullAddress: updatedFullAddress || selectedProspect.fullAddress
+      };
+
+      await updateProspect(selectedProspect.id, updates);
+      setSelectedProspect(prev => prev ? { ...prev, ...updates } : null);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Ficha de CNPJ Atualizada!',
+        html: `
+          <div style="text-align: left; font-size: 13px; line-height: 1.6;">
+            <p style="margin-bottom: 4px;"><strong>Clínica:</strong> ${updates.clinicName || 'N/A'}</p>
+            <p style="margin-bottom: 4px;"><strong>Proprietário:</strong> ${updates.ownerName || 'Não Informado'}</p>
+            <p style="margin-bottom: 4px;"><strong>CNPJ:</strong> ${updates.cnpj || 'Não Informado'}</p>
+            <p style="margin-bottom: 4px;"><strong>Tempo de Abertura:</strong> ${updates.age || 'Não Informado'}</p>
+          </div>
+        `,
+        timer: 3500,
+        timerProgressBar: true,
+        toast: true,
+        position: 'top-end'
+      });
+    } catch (error: any) {
+      console.error('Erro ao reanalisar CNPJ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro na análise de CNPJ',
+        text: error?.message || 'Não foi possível atualizar os dados do CNPJ.'
+      });
+    } finally {
+      setIsRefetchingCnpj(false);
     }
   };
 
@@ -1894,6 +2034,27 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Website / Landing Page</p>
               <p className="font-bold text-blue-400 text-xs truncate">{selectedProspect.site || 'Não Informado'}</p>
+            </div>
+            <div className="flex items-end justify-start sm:justify-end">
+              <button
+                type="button"
+                onClick={handleReanalyzeCnpj}
+                disabled={isRefetchingCnpj}
+                className="w-full py-2.5 px-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+                title="Refazer análise do CNPJ (Empresa, Dono, CNPJ e Tempo de Abertura)"
+              >
+                {isRefetchingCnpj ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin text-indigo-400" />
+                    <span>Analisando CNPJ...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={14} className="text-indigo-400" />
+                    <span>Refazer Ficha CNPJ</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
