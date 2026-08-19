@@ -1866,7 +1866,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 bg-[#0d0f19] p-6 rounded-xl border border-gray-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 bg-[#0d0f19] p-6 rounded-xl border border-gray-800">
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Empresa / Clínica</p>
               <p className="font-bold text-gray-100">{selectedProspect.clinicName || 'N/A'}</p>
@@ -1878,6 +1878,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">CNPJ</p>
               <p className="font-bold text-gray-100 font-mono">{selectedProspect.cnpj || 'Não Informado'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-bold mb-1">Tempo de Abertura</p>
+              <p className="font-bold text-emerald-400">{selectedProspect.age ? (selectedProspect.age.toLowerCase().includes('ano') ? selectedProspect.age : `${selectedProspect.age} anos`) : 'Não Informado'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Endereço Completo</p>
@@ -3894,7 +3898,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   </div>
 
                   {/* Ficha rápida */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-5 bg-[#090b13] p-6 rounded-2xl border border-gray-800">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-5 bg-[#090b13] p-6 rounded-2xl border border-gray-800">
                     <div>
                       <span className="text-xs text-gray-400 font-black uppercase tracking-wider block mb-1">Clínica</span>
                       <p className="text-base font-bold text-white truncate">{selectedProspect.clinicName}</p>
@@ -3904,12 +3908,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                       <p className="text-base font-bold text-indigo-300 truncate">{selectedProspect.ownerName || 'Não Informado'}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-gray-400 font-black uppercase tracking-wider block mb-1">Endereço</span>
-                      <p className="text-base font-bold text-gray-300 truncate">{selectedProspect.location || 'Não Informado'}</p>
-                    </div>
-                    <div>
                       <span className="text-xs text-gray-400 font-black uppercase tracking-wider block mb-1">CNPJ</span>
                       <p className="text-base font-bold text-gray-300 truncate">{selectedProspect.cnpj || 'Não Informado'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-400 font-black uppercase tracking-wider block mb-1">Tempo de Abertura</span>
+                      <p className="text-base font-bold text-emerald-400 truncate">{selectedProspect.age ? (selectedProspect.age.toLowerCase().includes('ano') ? selectedProspect.age : `${selectedProspect.age} anos`) : 'Não Informado'}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-400 font-black uppercase tracking-wider block mb-1">Endereço</span>
+                      <p className="text-base font-bold text-gray-300 truncate">{selectedProspect.location || 'Não Informado'}</p>
                     </div>
                   </div>
 

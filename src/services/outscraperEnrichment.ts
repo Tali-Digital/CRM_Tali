@@ -1,5 +1,20 @@
 import { getGlobalSettings } from './firestoreService';
 
+// Helper para calcular idade da empresa a partir da data de abertura
+export const calcAgeFromDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split(/[\/\-]/);
+  let year: number | null = null;
+  if (parts.length === 3) {
+    year = parts[2].length === 4 ? parseInt(parts[2], 10) : parseInt(parts[0], 10);
+  }
+  if (year && !isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
+    const diff = new Date().getFullYear() - year;
+    return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
+  }
+  return '';
+};
+
 export interface EnrichmentResult {
   clinicInstagram: string;
   cnpj: string;
@@ -183,21 +198,6 @@ Retorne APENAS um objeto JSON VÁLIDO (sem markdown nem explicações):
 
   // --- PASSO 4: Consultar Dados na Receita Federal se tiver CNPJ (100% Grátis) ---
   if (cnpj && cnpj.length === 14) {
-    // Helper para calcular idade da empresa a partir da data de abertura
-    const calcAgeFromDate = (dateStr: string) => {
-      if (!dateStr) return '';
-      const parts = dateStr.split(/[\/\-]/);
-      let year: number | null = null;
-      if (parts.length === 3) {
-        year = parts[2].length === 4 ? parseInt(parts[2], 10) : parseInt(parts[0], 10);
-      }
-      if (year && !isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
-        const diff = new Date().getFullYear() - year;
-        return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
-      }
-      return '';
-    };
-
     // Helper para formatar porte da empresa em nº de colaboradores
     const formatPorteToCollaborators = (porte: string) => {
       if (!porte) return '';

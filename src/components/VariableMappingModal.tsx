@@ -18,6 +18,7 @@ const MAPPING_SOURCE_PRESETS = [
   { id: 'clinicName', label: 'Nome da Clínica / Empresa', category: 'Geral & Empresa', defaultCode: 'NOME_CLINICA_NOVO', desc: 'Nome oficial da clínica prospectada' },
   { id: 'ownerName', label: 'Nome do Proprietário / Dono', category: 'Geral & Empresa', defaultCode: 'NOME_DONO_NOVO', desc: 'Nome do proprietário ou sócio' },
   { id: 'cnpj', label: 'CNPJ da Clínica', category: 'Geral & Empresa', defaultCode: 'CNPJ_CLINICA', desc: 'Número do CNPJ formatado' },
+  { id: 'age', label: 'Tempo de Abertura / Anos de Empresa', category: 'Geral & Empresa', defaultCode: 'TEMPO_ABERTURA', desc: 'Anos em funcionamento calculados via CNPJ' },
   { id: 'location', label: 'Cidade / Região', category: 'Geral & Empresa', defaultCode: 'CIDADE_REGIAO', desc: 'Cidade ou município da clínica' },
   { id: 'fullAddress', label: 'Endereço Completo', category: 'Geral & Empresa', defaultCode: 'ENDERECO_COMPLETO', desc: 'Endereço completo da unidade' },
   { id: 'clinicInstagram', label: 'Instagram da Clínica', category: 'Geral & Empresa', defaultCode: 'INSTAGRAM_CLINICA', desc: 'Handle ou link do Instagram' },
@@ -105,6 +106,7 @@ export const VariableMappingModal: React.FC<Props> = ({
       case 'clinicName': return (p?.clinicName && !p.clinicName.includes('???')) ? p.clinicName : 'Sua Clínica';
       case 'ownerName': return (p?.ownerName && !p.ownerName.includes('???')) ? p.ownerName : 'Proprietário';
       case 'cnpj': return p?.cnpj || '00.000.000/0001-00';
+      case 'age': return p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado';
       case 'location': return p?.location || 'Brasília - DF';
       case 'fullAddress': return p?.fullAddress || p?.location || 'Endereço da Clínica';
       case 'clinicInstagram': return p?.clinicInstagram || '@instagram';

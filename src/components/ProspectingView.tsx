@@ -48,7 +48,7 @@ import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
 import { subscribeToProspects, subscribeToProspeccaoDocs, addProspect, updateProspect, deleteProspect, updateGlobalSettings, getGlobalSettings, addProspeccaoDoc } from '../services/firestoreService';
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
-import { enrichSingleLeadWithOutscraper } from '../services/outscraperEnrichment';
+import { enrichSingleLeadWithOutscraper, calcAgeFromDate } from '../services/outscraperEnrichment';
 import { geocodeAndSaveProspect } from '../utils/geocode';
 
 interface ProspectingViewProps {
@@ -844,6 +844,7 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       const data = await response.json();
 
       if (data.qsa && Array.isArray(data.qsa)) {
+        const fetchedAge = data.abertura ? calcAgeFromDate(data.abertura) : '';
         const newOwners = data.qsa.map((socio: any) => {
           const formattedName = toTitleCase(socio.nome_socio);
           const role = socio.qualificacao_socio?.trim() || '';
@@ -873,7 +874,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
             ...prev,
             owners: newOwners,
             ownerName: newName,
-            fullAddress: prev.fullAddress || fetchedAddress
+            fullAddress: prev.fullAddress || fetchedAddress,
+            age: prev.age || fetchedAge
           }));
           Swal.fire({
             toast: true,
@@ -899,6 +901,9 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
         // Fallback to cnpj.ws
         const fallbackResponse = await fetch(`https://publica.cnpj.ws/cnpj/${cleanCnpj}`);
         const fallbackData = await fallbackResponse.json();
+
+        const aberturaDate = fallbackData.estabelecimento?.data_inicio_atividade || fallbackData.data_inicio_atividade;
+        const fetchedAge = aberturaDate ? calcAgeFromDate(aberturaDate) : '';
 
         if (fallbackData.socios && Array.isArray(fallbackData.socios)) {
           const newOwners = fallbackData.socios.map((socio: any) => {
@@ -931,7 +936,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               ...prev,
               owners: newOwners,
               ownerName: newName,
-              fullAddress: prev.fullAddress || fetchedAddress
+              fullAddress: prev.fullAddress || fetchedAddress,
+              age: prev.age || fetchedAge
             }));
             Swal.fire({
               toast: true,
