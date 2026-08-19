@@ -168,18 +168,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     description: 'Número do CNPJ da clínica (formatado)',
     exampleValue: (p) => p?.cnpj || '05.575.976/0001-06'
   },
-  {
-    code: '{{TEMPO_ABERTURA}}',
-    category: 'Geral & Empresa',
-    description: 'Anos em funcionamento / Tempo de abertura da empresa via CNPJ',
-    exampleValue: (p) => p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado'
-  },
-  {
-    code: '{{ANOS_EMPRESA}}',
-    category: 'Geral & Empresa',
-    description: 'Idade da empresa calculada a partir do CNPJ',
-    exampleValue: (p) => p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado'
-  },
+
   {
     code: '{{NUMERO_ANOS_EMPRESA}}',
     category: 'Geral & Empresa',
