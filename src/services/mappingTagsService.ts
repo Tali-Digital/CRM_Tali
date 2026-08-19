@@ -8,6 +8,28 @@ export interface VariableTag {
   exampleValue: (prospect?: Prospect | null, diagnosticData?: any) => string;
 }
 
+export const extractOnlyYearsFromAge = (ageStr?: string): string => {
+  if (!ageStr) return 'Não Informado';
+  if (ageStr.includes(' e ')) {
+    const yearsPart = ageStr.split(/\s+e\s+/i)[0].trim();
+    if (yearsPart.toLowerCase().includes('ano')) {
+      return yearsPart;
+    }
+  }
+  if (ageStr.toLowerCase().includes('mês') || ageStr.toLowerCase().includes('meses')) {
+    return 'Menos de 1 ano';
+  }
+  if (ageStr.toLowerCase().includes('ano')) {
+    return ageStr;
+  }
+  const numMatch = ageStr.match(/\d+/);
+  if (numMatch) {
+    const n = parseInt(numMatch[0], 10);
+    return n === 1 ? '1 ano' : `${n} anos`;
+  }
+  return ageStr;
+};
+
 export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
   const kw = (p as any)?.keyword || d?.termoPesquisado || d?.gmn?.keyword || '';
   if (kw && kw.trim().length > 6 && kw.toLowerCase().includes(' em ')) {
@@ -157,6 +179,34 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     category: 'Geral & Empresa',
     description: 'Idade da empresa calculada a partir do CNPJ',
     exampleValue: (p) => p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado'
+  },
+  {
+    code: '{{APENAS_ANOS_EMPRESA}}',
+    category: 'Geral & Empresa',
+    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
+    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
+  },
+  {
+    code: '{{ANOS_SEM_MESES}}',
+    category: 'Geral & Empresa',
+    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
+    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
+  },
+  {
+    code: '{{APENAS_ANOS}}',
+    category: 'Geral & Empresa',
+    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
+    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
+  },
+  {
+    code: '{{NUMERO_ANOS_EMPRESA}}',
+    category: 'Geral & Empresa',
+    description: 'Apenas o número de anos de abertura (ex: "23")',
+    exampleValue: (p) => {
+      const val = extractOnlyYearsFromAge(p?.age);
+      const match = val.match(/\d+/);
+      return match ? match[0] : '0';
+    }
   },
   {
     code: '{{CIDADE}}',

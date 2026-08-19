@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Search, Sparkles, Plus, Code, Layers, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
 import { Prospect } from '../types';
-import { DEFAULT_VARIABLE_TAGS, VariableTag } from '../services/mappingTagsService';
+import { DEFAULT_VARIABLE_TAGS, VariableTag, extractOnlyYearsFromAge } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 
 interface Props {
@@ -18,7 +18,8 @@ const MAPPING_SOURCE_PRESETS = [
   { id: 'clinicName', label: 'Nome da Clínica / Empresa', category: 'Geral & Empresa', defaultCode: 'NOME_CLINICA_NOVO', desc: 'Nome oficial da clínica prospectada' },
   { id: 'ownerName', label: 'Nome do Proprietário / Dono', category: 'Geral & Empresa', defaultCode: 'NOME_DONO_NOVO', desc: 'Nome do proprietário ou sócio' },
   { id: 'cnpj', label: 'CNPJ da Clínica', category: 'Geral & Empresa', defaultCode: 'CNPJ_CLINICA', desc: 'Número do CNPJ formatado' },
-  { id: 'age', label: 'Tempo de Abertura / Anos de Empresa', category: 'Geral & Empresa', defaultCode: 'TEMPO_ABERTURA', desc: 'Anos em funcionamento calculados via CNPJ' },
+  { id: 'age', label: 'Tempo de Abertura Completo (Anos & Meses)', category: 'Geral & Empresa', defaultCode: 'TEMPO_ABERTURA', desc: 'Tempo em funcionamento com anos e meses' },
+  { id: 'ageOnlyYears', label: 'Apenas Anos de Empresa (sem meses)', category: 'Geral & Empresa', defaultCode: 'APENAS_ANOS_EMPRESA', desc: 'Retorna a quantidade de anos desconsiderando os meses' },
   { id: 'location', label: 'Cidade / Região', category: 'Geral & Empresa', defaultCode: 'CIDADE_REGIAO', desc: 'Cidade ou município da clínica' },
   { id: 'fullAddress', label: 'Endereço Completo', category: 'Geral & Empresa', defaultCode: 'ENDERECO_COMPLETO', desc: 'Endereço completo da unidade' },
   { id: 'clinicInstagram', label: 'Instagram da Clínica', category: 'Geral & Empresa', defaultCode: 'INSTAGRAM_CLINICA', desc: 'Handle ou link do Instagram' },
@@ -107,6 +108,7 @@ export const VariableMappingModal: React.FC<Props> = ({
       case 'ownerName': return (p?.ownerName && !p.ownerName.includes('???')) ? p.ownerName : 'Proprietário';
       case 'cnpj': return p?.cnpj || '00.000.000/0001-00';
       case 'age': return p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado';
+      case 'ageOnlyYears': return extractOnlyYearsFromAge(p?.age);
       case 'location': return p?.location || 'Brasília - DF';
       case 'fullAddress': return p?.fullAddress || p?.location || 'Endereço da Clínica';
       case 'clinicInstagram': return p?.clinicInstagram || '@instagram';
