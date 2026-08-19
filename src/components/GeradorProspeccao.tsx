@@ -3,7 +3,7 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut, Palette, Highlighter } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut, Palette, Highlighter, FileX, Trash2 } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { VisualCropModal } from './VisualCropModal';
@@ -2045,6 +2045,148 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     }
   };
 
+  // --- REMOVER QUEBRA DE PÁGINA ---
+  const handleRemovePageBreak = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const pageBreaks = Array.from(editor.querySelectorAll('hr.page-break, hr[title="Quebra de Página"]'));
+    if (pageBreaks.length === 0) {
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: 'Nenhuma quebra de página manual encontrada.',
+        showConfirmButton: false,
+        timer: 2200
+      });
+      return;
+    }
+
+    const selection = window.getSelection();
+    let breakToRemove: Element | null = null;
+
+    if (selection && selection.rangeCount > 0) {
+      const anchorNode = selection.anchorNode;
+      if (anchorNode && editor.contains(anchorNode)) {
+        const parentEl = anchorNode instanceof HTMLElement ? anchorNode : anchorNode.parentElement;
+        if (parentEl) {
+          const currentPage = parentEl.closest('.a4-page');
+          if (currentPage) {
+            const breakInPage = currentPage.querySelector('hr.page-break, hr[title="Quebra de Página"]');
+            if (breakInPage) {
+              breakToRemove = breakInPage;
+            } else {
+              const prevPage = currentPage.previousElementSibling;
+              if (prevPage) {
+                const prevBreak = prevPage.querySelector('hr.page-break, hr[title="Quebra de Página"]');
+                if (prevBreak) breakToRemove = prevBreak;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!breakToRemove) {
+      breakToRemove = pageBreaks[pageBreaks.length - 1];
+    }
+
+    if (breakToRemove) {
+      breakToRemove.remove();
+      paginateEditor();
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Quebra de página removida!',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    }
+  };
+
+  // --- OBTER BLOCO / CAIXA SELECIONADA ---
+  const getActiveBlockContainer = (): HTMLElement | null => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const editor = editorRef.current;
+    if (!editor) return null;
+
+    let node = selection.anchorNode;
+    if (!node) return null;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+
+    let current = node as HTMLElement | null;
+    while (current && current !== editor && !current.classList?.contains('a4-page-content')) {
+      const isBlockContainer = 
+        current.tagName === 'TABLE' ||
+        current.tagName === 'BLOCKQUOTE' ||
+        current.tagName === 'HR' ||
+        (current.tagName === 'DIV' && (
+          current.style.border !== '' ||
+          current.style.borderRadius !== '' ||
+          current.style.background !== '' ||
+          current.style.backgroundColor !== '' ||
+          current.className.includes('card') ||
+          current.className.includes('block')
+        ));
+
+      if (isBlockContainer) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+
+    current = node as HTMLElement | null;
+    while (current && current.parentElement && !current.parentElement.classList?.contains('a4-page-content')) {
+      current = current.parentElement;
+    }
+    return (current && current.parentElement?.classList?.contains('a4-page-content')) ? current : null;
+  };
+
+  // --- REMOVER BLOCO / CAIXA SELECIONADA ---
+  const handleRemoveSelectedBlock = () => {
+    const block = getActiveBlockContainer();
+    if (!block) {
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: 'Posicione o cursor dentro do bloco ou caixa que deseja remover.',
+        showConfirmButton: false,
+        timer: 2500
+      });
+      return;
+    }
+
+    const textClean = (block.textContent || '').replace(/[\s\n\r\t\u200B]+/g, '');
+    const isEmp = textClean.length === 0;
+
+    if (!isEmp) {
+      Swal.fire({
+        title: 'Remover este bloco?',
+        text: 'Você removerá esta caixa/bloco do documento.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, remover bloco',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          block.remove();
+          paginateEditor();
+          Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bloco removido!', showConfirmButton: false, timer: 2000 });
+        }
+      });
+    } else {
+      block.remove();
+      paginateEditor();
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bloco removido!', showConfirmButton: false, timer: 2000 });
+    }
+  };
+
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Ctrl + A ou Cmd + A -> Selecionar todo o conteúdo de todas as páginas A4
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
@@ -2078,6 +2220,37 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     else if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
       document.execCommand('redo');
       handleEditorInput();
+    }
+    // Backspace ou Delete em bloco/caixa vazia ou quebra de página
+    else if (e.key === 'Backspace' || e.key === 'Delete') {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        let node = selection.anchorNode;
+        if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+        if (node instanceof HTMLElement) {
+          const container = node.closest('div[style*="border"], div[style*="background"], div[class*="card"], blockquote, table, hr.page-break, hr[title="Quebra de Página"]');
+          if (container && container instanceof HTMLElement && editorRef.current?.contains(container)) {
+            const isHr = container.tagName === 'HR';
+            const textContent = (container.textContent || '').replace(/[\s\n\r\t\u200B]+/g, '');
+            const hasMedia = container.querySelectorAll('img, table, iframe').length > 0;
+            
+            if (isHr || (!textContent && !hasMedia)) {
+              e.preventDefault();
+              const parent = container.parentElement;
+              container.remove();
+              if (parent) {
+                const range = document.createRange();
+                range.selectNodeContents(parent);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+              }
+              paginateEditor();
+              return;
+            }
+          }
+        }
+      }
     }
   };
 
@@ -2799,7 +2972,11 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
                 <button onClick={handleCropSelectedImage} className="editor-btn" title="Recortar & Redimensionar Imagem Visualmente (Arrastar Cantos)" style={{ color: '#8b5cf6' }}><Crop size={18} /></button>
                 <button onClick={handleInsertTable} className="editor-btn" title="Inserir Tabela Personalizada na Carta" style={{ color: '#6366f1' }}><Table size={18} /></button>
-                <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Quebra de Página" style={{ color: '#ef4444' }}><Scissors size={18} /></button>
+                <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Inserir Quebra de Página (Forçar Próxima Folha)" style={{ color: '#ef4444' }}><Scissors size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>+Quebra</span></button>
+                <button onClick={handleRemovePageBreak} className="editor-btn" title="Remover Quebra de Página Inserida (Remover Folha Extra)" style={{ color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fee2e2' }}><FileX size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>-Quebra</span></button>
+                
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+                <button onClick={handleRemoveSelectedBlock} className="editor-btn" title="Excluir Caixa / Bloco Selecionado (Remover Card do Ranking ou Caixa Vazia)" style={{ color: '#dc2626', backgroundColor: '#fff1f2', border: '1px solid #fecdd3' }}><Trash2 size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>Excluir Bloco</span></button>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
 
