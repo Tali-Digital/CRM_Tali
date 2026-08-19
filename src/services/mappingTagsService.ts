@@ -181,27 +181,9 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     exampleValue: (p) => p?.age ? (p.age.toLowerCase().includes('ano') ? p.age : `${p.age} anos`) : 'Não Informado'
   },
   {
-    code: '{{APENAS_ANOS_EMPRESA}}',
-    category: 'Geral & Empresa',
-    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
-    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
-  },
-  {
-    code: '{{ANOS_SEM_MESES}}',
-    category: 'Geral & Empresa',
-    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
-    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
-  },
-  {
-    code: '{{APENAS_ANOS}}',
-    category: 'Geral & Empresa',
-    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23 anos")',
-    exampleValue: (p) => extractOnlyYearsFromAge(p?.age)
-  },
-  {
     code: '{{NUMERO_ANOS_EMPRESA}}',
     category: 'Geral & Empresa',
-    description: 'Apenas o número de anos de abertura (ex: "23")',
+    description: 'Quantidade de anos de abertura desconsiderando os meses (ex: "23")',
     exampleValue: (p) => {
       const val = extractOnlyYearsFromAge(p?.age);
       const match = val.match(/\d+/);
