@@ -3,14 +3,13 @@ import { getGlobalSettings } from './firestoreService';
 // Helper para calcular idade da empresa a partir da data de abertura
 export const calcAgeFromDate = (dateStr: string): string => {
   if (!dateStr) return '';
-  const parts = dateStr.split(/[\/\-]/);
-  let year: number | null = null;
-  if (parts.length === 3) {
-    year = parts[2].length === 4 ? parseInt(parts[2], 10) : parseInt(parts[0], 10);
-  }
-  if (year && !isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
-    const diff = new Date().getFullYear() - year;
-    return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
+  const match = dateStr.match(/\b(19\d\d|20\d\d)\b/);
+  if (match) {
+    const year = parseInt(match[1], 10);
+    if (year > 1900 && year <= new Date().getFullYear()) {
+      const diff = new Date().getFullYear() - year;
+      return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
+    }
   }
   return '';
 };
@@ -217,7 +216,7 @@ Retorne APENAS um objeto JSON VÁLIDO (sem markdown nem explicações):
           const names = recData.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).join(', ');
           if (names) ownerName = names;
         }
-        if (!age && recData.abertura) {
+        if (recData.abertura) {
           const calculatedAge = calcAgeFromDate(recData.abertura);
           if (calculatedAge) age = calculatedAge;
         }
@@ -240,7 +239,7 @@ Retorne APENAS um objeto JSON VÁLIDO (sem markdown nem explicações):
             if (names) ownerName = names;
           }
           const aberturaDate = wsData.estabelecimento?.data_inicio_atividade || wsData.data_inicio_atividade;
-          if (!age && aberturaDate) {
+          if (aberturaDate) {
             const calculatedAge = calcAgeFromDate(aberturaDate);
             if (calculatedAge) age = calculatedAge;
           }
