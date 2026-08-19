@@ -10,7 +10,7 @@ import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHisto
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
-import { enrichSingleLeadWithOutscraper, calcAgeFromDate, fetchCnpjBizData } from '../services/outscraperEnrichment';
+import { enrichSingleLeadWithOutscraper, calcAgeFromDate } from '../services/outscraperEnrichment';
 import { auth } from '../firebase';
 import { VariableMappingModal } from './VariableMappingModal';
 import { VisualCropModal } from './VisualCropModal';
@@ -556,13 +556,6 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       };
 
       if (cleanCnpj.length === 14) {
-        try {
-          const bizData = await fetchCnpjBizData(cleanCnpj);
-          if (bizData.age) {
-            updatedAge = bizData.age;
-          }
-        } catch (e) {}
-
         try {
           const res = await fetch(`https://minhareceita.org/${cleanCnpj}`);
           if (res.ok) {
