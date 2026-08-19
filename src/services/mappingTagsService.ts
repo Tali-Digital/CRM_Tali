@@ -193,8 +193,8 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   {
     code: '{{RATING_GOOGLE}}',
     category: 'Notas & Desempenho',
-    description: 'Nota de avaliações no Google (ex: 4.7 estrelas)',
-    exampleValue: (p) => p?.gmnRating ? `${p.gmnRating} ★` : '4.7 ★'
+    description: 'Nota de avaliações no Google (ex: 4.7)',
+    exampleValue: (p) => p?.gmnRating ? String(p.gmnRating).replace('★', '').trim() : '4.7'
   },
   {
     code: '{{REVIEWS_COUNT}}',

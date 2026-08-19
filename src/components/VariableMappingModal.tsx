@@ -30,7 +30,7 @@ const MAPPING_SOURCE_PRESETS = [
   { id: 'percentResultados', label: 'Porcentagem dos Resultados (ex: 38,78%)', category: 'SEO & Google Maps', defaultCode: 'PERCENTUAL_RESULTADOS', desc: 'Participação do SoLV nos resultados' },
   { id: 'posicaoForaTop20', label: 'Indicador de Posição 20+', category: 'SEO & Google Maps', defaultCode: 'FORA_TOP20', desc: 'Indicador de áreas invisíveis no mapa' },
   { id: 'notaGeral', label: 'Nota Geral do Diagnóstico (0-100)', category: 'Notas & Desempenho', defaultCode: 'NOTA_GERAL_DIAG', desc: 'Pontuação geral de presença digital' },
-  { id: 'gmnRating', label: 'Nota Estrelas no Google (★)', category: 'Notas & Desempenho', defaultCode: 'ESTRELAS_GOOGLE', desc: 'Classificação de estrelas no Google' },
+  { id: 'gmnRating', label: 'Nota no Google (ex: 4.8)', category: 'Notas & Desempenho', defaultCode: 'RATING_GOOGLE', desc: 'Nota de avaliações no Google (somente número)' },
   { id: 'gmnReviewsCount', label: 'Quantidade de Avaliações Google', category: 'Notas & Desempenho', defaultCode: 'QTD_AVALIACOES', desc: 'Número total de avaliações' },
   { id: 'scoreGoogle', label: 'Pilar Google (0-100)', category: 'Notas & Desempenho', defaultCode: 'SCORE_PILAR_GOOGLE', desc: 'Pontuação do pilar Google Meu Negócio' },
   { id: 'scoreReputacao', label: 'Pilar Reputação (0-100)', category: 'Notas & Desempenho', defaultCode: 'SCORE_PILAR_REPUTACAO', desc: 'Pontuação do pilar Reputação' },
@@ -118,7 +118,7 @@ export const VariableMappingModal: React.FC<Props> = ({
       case 'percentResultados': return d?.solvPercent ? `${d.solvPercent}%` : '38,78%';
       case 'posicaoForaTop20': return '20+';
       case 'notaGeral': return d?.notaGeral ? `${d.notaGeral}/100` : '65/100';
-      case 'gmnRating': return p?.gmnRating ? `${p.gmnRating} ★` : '4.8 ★';
+      case 'gmnRating': return p?.gmnRating ? String(p.gmnRating).replace('★', '').trim() : '4.8';
       case 'gmnReviewsCount': return p?.gmnReviewsCount ? `${p.gmnReviewsCount} avaliações` : '150 avaliações';
       case 'scoreGoogle': return d?.placar?.google ? `${d.placar.google}/100` : '21/100';
       case 'scoreReputacao': return d?.placar?.reputacao ? `${d.placar.reputacao}/100` : '92/100';
