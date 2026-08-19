@@ -10,7 +10,7 @@ import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHisto
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
-import { enrichSingleLeadWithOutscraper, calcAgeFromDate } from '../services/outscraperEnrichment';
+import { enrichSingleLeadWithOutscraper, calcAgeFromDate, fetchCnpjBizData } from '../services/outscraperEnrichment';
 import { auth } from '../firebase';
 import { VariableMappingModal } from './VariableMappingModal';
 import { VisualCropModal } from './VisualCropModal';
@@ -557,6 +557,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
       if (cleanCnpj.length === 14) {
         try {
+          const bizData = await fetchCnpjBizData(cleanCnpj);
+          if (bizData.age) {
+            updatedAge = bizData.age;
+          }
+        } catch (e) {}
+
+        try {
           const res = await fetch(`https://minhareceita.org/${cleanCnpj}`);
           if (res.ok) {
             const data = await res.json();
@@ -567,7 +574,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               const names = data.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).map((n: string) => toTitleCase(n)).join(', ');
               if (names) updatedOwnerName = names;
             }
-            if (data.abertura) {
+            if (!updatedAge && data.abertura) {
               const calcAge = calcAgeFromDate(data.abertura);
               if (calcAge) updatedAge = calcAge;
             }

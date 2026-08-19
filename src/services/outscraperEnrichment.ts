@@ -14,6 +14,124 @@ export const calcAgeFromDate = (dateStr: string): string => {
   return '';
 };
 
+/**
+ * Captura a data / tempo de abertura especificamente do site cnpj.biz
+ */
+export const fetchCnpjBizData = async (
+  rawCnpj: string,
+  outscraperKey?: string,
+  geminiKey?: string
+): Promise<{ age?: string; aberturaDate?: string; ownerName?: string; clinicName?: string }> => {
+  const cleanCnpj = (rawCnpj || '').replace(/\D/g, '');
+  if (cleanCnpj.length !== 14) return {};
+
+  const formattedCnpj = cleanCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+
+  // Estratégia 1: Fetch via Proxy da página do cnpj.biz
+  const targetUrls = [
+    `https://cnpj.biz/${cleanCnpj}`,
+    `https://cnpj.biz/${formattedCnpj}`
+  ];
+
+  for (const url of targetUrls) {
+    try {
+      const proxyUrls = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`
+      ];
+
+      for (const pUrl of proxyUrls) {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(pUrl, { signal: controller.signal }).catch(() => null);
+        clearTimeout(tid);
+
+        if (res && res.ok) {
+          const html = await res.text();
+          if (html && html.length > 500) {
+            const matchAge = html.match(/aberta\s+há\s+([^<,\.\n\r]+)/i) || html.match(/idade[^\d]*(\d+\s*anos?)/i);
+            const matchDate = html.match(/fundada\s+em\s+(\d{2}\/\d{2}\/\d{4})/i) || html.match(/abertura[^\d]*(\d{2}\/\d{2}\/\d{4})/i);
+
+            let age = '';
+            if (matchAge && matchAge[1]) {
+              age = matchAge[1].trim();
+            } else if (matchDate && matchDate[1]) {
+              age = calcAgeFromDate(matchDate[1]);
+            }
+
+            if (age) {
+              return { age, aberturaDate: matchDate ? matchDate[1] : undefined };
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Estratégia 2: Outscraper Google Search v2 especificando site:cnpj.biz
+  if (outscraperKey) {
+    try {
+      const query = `site:cnpj.biz "${formattedCnpj}"`;
+      const searchUrl = `https://api.app.outscraper.com/google-search-v2?query=${encodeURIComponent(query)}&limit=1&async=false`;
+      const res = await fetch(searchUrl, { headers: { 'X-API-KEY': outscraperKey } }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = await res.json();
+        const snippet = JSON.stringify(data);
+
+        const matchDate = snippet.match(/(\d{2}\/\d{2}\/\d{4})/);
+        const matchAge = snippet.match(/(\d+)\s*anos?/i);
+
+        let age = '';
+        if (matchDate) {
+          age = calcAgeFromDate(matchDate[1]);
+        } else if (matchAge) {
+          age = `${matchAge[1]} anos`;
+        }
+
+        if (age) {
+          return { age, aberturaDate: matchDate ? matchDate[1] : undefined };
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Estratégia 3: Gemini AI buscando informações do cnpj.biz
+  if (geminiKey) {
+    try {
+      const prompt = `Consulte ou extraia os dados do CNPJ ${formattedCnpj} (${cleanCnpj}) referente à página cnpj.biz/ (https://cnpj.biz/${cleanCnpj}).
+Retorne APENAS um JSON VÁLIDO contendo a data de abertura e tempo de empresa exibido no cnpj.biz:
+{
+  "aberturaDate": "DD/MM/YYYY ou ''",
+  "age": "ex: '12 anos' ou ''"
+}`;
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      }).catch(() => null);
+
+      if (geminiRes && geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          let age = parsed.age || '';
+          if (!age && parsed.aberturaDate) {
+            age = calcAgeFromDate(parsed.aberturaDate);
+          }
+          if (age) {
+            return { age, aberturaDate: parsed.aberturaDate };
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  return {};
+};
+
 export interface EnrichmentResult {
   clinicInstagram: string;
   cnpj: string;
