@@ -574,8 +574,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               const names = data.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).map((n: string) => toTitleCase(n)).join(', ');
               if (names) updatedOwnerName = names;
             }
-            if (!updatedAge && data.abertura) {
-              const calcAge = calcAgeFromDate(data.abertura);
+            const inicioAtividade = data.data_inicio_atividade || data.abertura;
+            if (inicioAtividade) {
+              const calcAge = calcAgeFromDate(inicioAtividade);
               if (calcAge) updatedAge = calcAge;
             }
             if (data.logradouro) {

@@ -1,17 +1,61 @@
 import { getGlobalSettings } from './firestoreService';
 
-// Helper para calcular idade da empresa a partir da data de abertura
-export const calcAgeFromDate = (dateStr: string): string => {
+// Helper para calcular o tempo exato de abertura em anos e meses a partir de data_inicio_atividade (ex: minhareceita.org)
+export const calcAgeFromDate = (dateStr: string, refDate: Date = new Date()): string => {
   if (!dateStr) return '';
-  const match = dateStr.match(/\b(19\d\d|20\d\d)\b/);
-  if (match) {
-    const year = parseInt(match[1], 10);
-    if (year > 1900 && year <= new Date().getFullYear()) {
-      const diff = new Date().getFullYear() - year;
-      return diff <= 0 ? 'Menos de 1 ano' : `${diff} ano${diff > 1 ? 's' : ''}`;
+
+  let year = 0, month = 0, day = 0;
+
+  const isoMatch = dateStr.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+  const brMatch = dateStr.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{4})/);
+
+  if (isoMatch) {
+    year = parseInt(isoMatch[1], 10);
+    month = parseInt(isoMatch[2], 10) - 1;
+    day = parseInt(isoMatch[3], 10);
+  } else if (brMatch) {
+    day = parseInt(brMatch[1], 10);
+    month = parseInt(brMatch[2], 10) - 1;
+    year = parseInt(brMatch[3], 10);
+  } else {
+    const match = dateStr.match(/\b(19\d\d|20\d\d)\b/);
+    if (match) {
+      year = parseInt(match[1], 10);
+      month = 0;
+      day = 1;
+    } else {
+      return '';
     }
   }
-  return '';
+
+  if (isNaN(year) || year < 1900 || year > refDate.getFullYear()) return '';
+
+  const startDate = new Date(year, month, day);
+  let years = refDate.getFullYear() - startDate.getFullYear();
+  let months = refDate.getMonth() - startDate.getMonth();
+  let days = refDate.getDate() - startDate.getDate();
+
+  if (days < 0) {
+    months -= 1;
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  if (years <= 0 && months <= 0) {
+    return 'Menos de 1 mês';
+  }
+
+  const parts: string[] = [];
+  if (years > 0) {
+    parts.push(`${years} ${years === 1 ? 'ano' : 'anos'}`);
+  }
+  if (months > 0) {
+    parts.push(`${months} ${months === 1 ? 'mês' : 'meses'}`);
+  }
+
+  return parts.join(' e ') || 'Menos de 1 ano';
 };
 
 /**
@@ -334,8 +378,9 @@ Retorne APENAS um objeto JSON VÁLIDO (sem markdown nem explicações):
           const names = recData.qsa.map((s: any) => s.nome_socio || s.nome).filter(Boolean).join(', ');
           if (names) ownerName = names;
         }
-        if (recData.abertura) {
-          const calculatedAge = calcAgeFromDate(recData.abertura);
+        const inicioAtividade = recData.data_inicio_atividade || recData.abertura;
+        if (inicioAtividade) {
+          const calculatedAge = calcAgeFromDate(inicioAtividade);
           if (calculatedAge) age = calculatedAge;
         }
         if (!collaborators && recData.porte) {

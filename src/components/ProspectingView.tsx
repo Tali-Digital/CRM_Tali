@@ -844,7 +844,8 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       const data = await response.json();
 
       if (data.qsa && Array.isArray(data.qsa)) {
-        const fetchedAge = data.abertura ? calcAgeFromDate(data.abertura) : '';
+        const inicioAtividade = data.data_inicio_atividade || data.abertura;
+        const fetchedAge = inicioAtividade ? calcAgeFromDate(inicioAtividade) : '';
         const newOwners = data.qsa.map((socio: any) => {
           const formattedName = toTitleCase(socio.nome_socio);
           const role = socio.qualificacao_socio?.trim() || '';
