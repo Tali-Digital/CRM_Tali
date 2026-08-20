@@ -3,15 +3,20 @@ import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspecc
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
-import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut, Palette, Highlighter, FileX, Trash2 } from 'lucide-react';
+import { X, Printer, Brain, FileText, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Undo, Redo, Eraser, Indent, Outdent, Wand2, Code, Sparkles, Image as ImageIcon, Scissors, Check, CheckSquare, Edit2, Plus, Save, Table, Crop, Layers, ZoomIn, ZoomOut, Palette, Highlighter, FileX, Trash2, BoxSelect, Minus, ChevronDown } from 'lucide-react';
 import { VariableMappingModal } from './VariableMappingModal';
 import { InlineImageCropperOverlay } from './InlineImageCropperOverlay';
 import { VisualCropModal } from './VisualCropModal';
+import { InteractiveMarginResizer } from './InteractiveMarginResizer';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
   let cleaned = rawHtml;
+
+  // Remover quebras manuais obsoletas (<hr class="page-break">)
+  cleaned = cleaned.replace(/<hr[^>]*class="[^"]*page-break[^"]*"[^>]*>/gi, '');
+  cleaned = cleaned.replace(/<hr[^>]*title="Quebra de Página"[^>]*>/gi, '');
 
   // Substituir qualquer ocorrência de fontes como Times New Roman ou Serif por Arial, sans-serif
   cleaned = cleaned.replace(/font-family\s*:\s*[^;"]*(times|serif|georgia|roman)[^;"]*/gi, 'font-family: Arial, sans-serif');
@@ -88,6 +93,9 @@ interface GeradorProspeccaoProps {
 }
 
 export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospeccaoParaEditar, isModeloOnlyMode, modeloIdParaEditar }: GeradorProspeccaoProps) {
+  const [showMargins, setShowMargins] = useState<boolean>(true);
+  const [selectedFontSizeNum, setSelectedFontSizeNum] = useState<number>(3);
+  const [showFontSizePopover, setShowFontSizePopover] = useState<boolean>(false);
   const [donoClinica, setDonoClinica] = useState('');
   const [opcoesDono, setOpcoesDono] = useState<string[]>([]);
   const [clinica, setClinica] = useState('');
@@ -156,6 +164,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
   const [highlightColor, setHighlightColor] = useState<string>('#ffff00');
   const [showColorPopover, setShowColorPopover] = useState<boolean>(false);
   const [showHighlightPopover, setShowHighlightPopover] = useState<boolean>(false);
+  const [isRemoveElementMode, setIsRemoveElementMode] = useState<boolean>(false);
 
   const handleOpenColorPopover = () => {
     saveSelection();
@@ -409,6 +418,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
   const savedSelectionRef = useRef<Range | null>(null);
+  const draggedImageRef = useRef<HTMLImageElement | null>(null);
 
   const saveSelection = () => {
     const sel = window.getSelection();
@@ -429,6 +439,28 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     }
     return false;
   };
+
+  // Escutar arrasto interno de imagens entre páginas A4
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === 'IMG') {
+        draggedImageRef.current = target as HTMLImageElement;
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('text/plain', 'INTERNAL_IMAGE_DRAG');
+          e.dataTransfer.effectAllowed = 'move';
+        }
+      }
+    };
+
+    editor.addEventListener('dragstart', handleDragStart);
+    return () => {
+      editor.removeEventListener('dragstart', handleDragStart);
+    };
+  }, []);
 
   // Escutar clique em qualquer imagem dentro do editor e manter a seleção de texto atualizada
   // Escutar clique em qualquer lugar para selecionar/desmarcar imagem e manter a seleção de texto atualizada
@@ -567,7 +599,14 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const content = document.createElement('div');
     content.className = 'a4-page-content';
     content.contentEditable = 'true';
-    content.style.padding = `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`;
+
+    const lastPageContent = editorRef.current?.querySelector('.a4-page:last-child .a4-page-content') as HTMLElement | null;
+    if (lastPageContent && lastPageContent.style.padding) {
+      content.style.padding = lastPageContent.style.padding;
+    } else {
+      content.style.padding = `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`;
+    }
+
     page.appendChild(content);
     return { page, content };
   };
@@ -587,6 +626,46 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     setTotalPages(Math.max(1, count));
   };
 
+  const splitBlockAtSelection = (block: HTMLElement): HTMLElement | null => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+
+    if (!block.contains(range.endContainer)) return null;
+
+    try {
+      const endRange = document.createRange();
+      endRange.selectNodeContents(block);
+      endRange.setStart(range.endContainer, range.endOffset);
+
+      const extracted = endRange.extractContents();
+      if (extracted && extracted.childNodes.length > 0 && (extracted.textContent || '').trim().length > 0) {
+        const newBlock = block.cloneNode(false) as HTMLElement;
+        newBlock.appendChild(extracted);
+        return newBlock;
+      }
+    } catch (e) {
+      console.warn('Split block error:', e);
+    }
+    return null;
+  };
+
+  const isCursorAtStartOfContent = (content: HTMLElement, range: Range): boolean => {
+    if (!range.collapsed) return false;
+    try {
+      const preRange = document.createRange();
+      preRange.selectNodeContents(content);
+      preRange.setEnd(range.startContainer, range.startOffset);
+
+      const textBefore = (preRange.toString() || '').replace(/[\s\n\r\t\u200B]+/g, '');
+      const mediaBefore = preRange.cloneContents().querySelectorAll('img, table, iframe').length;
+
+      return textBefore.length === 0 && mediaBefore === 0;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const balancePagesFrom = (startContent: HTMLElement | null) => {
     const editor = editorRef.current;
     if (!editor || !startContent || isPaginatingRef.current || !startContent.isConnected) return;
@@ -598,6 +677,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         if (!content) break;
 
         while (content.lastChild && exceedsPageContent(content, content.lastChild)) {
+          const lastNode = content.lastChild;
+
+          // Se o elemento for uma imagem ou contiver uma imagem, NÃO passa para a próxima folha automaticamente!
+          // Imagens permanecem sempre na folha atual e só mudam de folha se forem arrastadas (drag & drop).
+          const isImageNode = (lastNode instanceof HTMLElement) && (lastNode.tagName === 'IMG' || lastNode.querySelector('img') !== null);
+          if (isImageNode) {
+            const imgEl = lastNode.tagName === 'IMG' ? (lastNode as HTMLImageElement) : lastNode.querySelector('img');
+            if (imgEl) {
+              const contentRect = content.getBoundingClientRect();
+              const contentStyles = window.getComputedStyle(content);
+              const paddingTop = parseFloat(contentStyles.paddingTop || '0');
+              const paddingBottom = parseFloat(contentStyles.paddingBottom || '0');
+              const maxAvailHeight = contentRect.height - paddingTop - paddingBottom - 15;
+              imgEl.style.maxHeight = `${Math.max(80, maxAvailHeight)}px`;
+              imgEl.style.objectFit = 'contain';
+            }
+            break;
+          }
+
           let nextPage = page.nextElementSibling as HTMLElement | null;
           if (!nextPage?.classList.contains('a4-page')) {
             nextPage = createPage().page;
@@ -605,7 +703,17 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           }
           const nextContent = nextPage.querySelector<HTMLElement>(':scope > .a4-page-content');
           if (!nextContent) break;
-          nextContent.insertBefore(content.lastChild, nextContent.firstChild);
+
+          let nodeToMove: Node = lastNode;
+
+          if (lastNode instanceof HTMLElement && lastNode.tagName !== 'TABLE' && lastNode.tagName !== 'IMG') {
+            const splitResult = splitBlockAtSelection(lastNode);
+            if (splitResult) {
+              nodeToMove = splitResult;
+            }
+          }
+
+          nextContent.insertBefore(nodeToMove, nextContent.firstChild);
         }
 
         let nextPage = page.nextElementSibling as HTMLElement | null;
@@ -660,34 +768,43 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     try {
       const fragment = document.createDocumentFragment();
       const existingPages = Array.from(editor.querySelectorAll<HTMLElement>(':scope > .a4-page'));
+      const pagePaddings: string[] = [];
+
       if (existingPages.length) {
         existingPages.forEach(page => {
           const content = page.querySelector<HTMLElement>(':scope > .a4-page-content');
-          if (content) while (content.firstChild) fragment.appendChild(content.firstChild);
+          if (content) {
+            pagePaddings.push(content.style.padding || '');
+            while (content.firstChild) fragment.appendChild(content.firstChild);
+          }
         });
       } else {
         while (editor.firstChild) fragment.appendChild(editor.firstChild);
       }
 
       editor.replaceChildren();
-      let current = createPage();
+
+      let pageCountIndex = 0;
+      const getNewPage = () => {
+        const pageObj = createPage();
+        if (pagePaddings[pageCountIndex]) {
+          pageObj.content.style.padding = pagePaddings[pageCountIndex];
+        }
+        pageCountIndex++;
+        return pageObj;
+      };
+
+      let current = getNewPage();
       editor.appendChild(current.page);
       const nodes = Array.from(fragment.childNodes);
 
       nodes.forEach(node => {
         if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) return;
-        const isManualBreak = node instanceof HTMLElement && node.matches('hr.page-break, hr[title="Quebra de Página"]');
-        if (isManualBreak) {
-          current.content.appendChild(node);
-          current = createPage();
-          editor.appendChild(current.page);
-          return;
-        }
 
         current.content.appendChild(node);
         if (exceedsPageContent(current.content, node) && current.content.childNodes.length > 1) {
           current.content.removeChild(node);
-          current = createPage();
+          current = getNewPage();
           editor.appendChild(current.page);
           current.content.appendChild(node);
         }
@@ -894,13 +1011,29 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
 
-    const mapImageUrl = gmn?.mapaCalorImg || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '');
+    const mapImageUrl = gmn?.mapaCalorImg
+      || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '')
+      || (diagnosticData as any)?.mapaCalorImg
+      || ((diagnosticData as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(diagnosticData as any).scanId}` : '')
+      || (prospectData as any)?.mapaCalorImg
+      || (prospectData as any)?.mapaCalorUrl
+      || ((prospectData as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(prospectData as any).scanId}` : '')
+      || (prospectData as any)?.marketingDiagnostic?.gmn?.mapaCalorImg
+      || ((prospectData as any)?.marketingDiagnostic?.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(prospectData as any).marketingDiagnostic.gmn.scanId}` : '')
+      || (prospeccaoParaEditar as any)?.mapaCalorImg
+      || ((prospeccaoParaEditar as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(prospeccaoParaEditar as any).scanId}` : '')
+      || '';
+
     const mapaCalorHtml = mapImageUrl ? `
       <div style="margin: 24px 0; text-align: center;">
         <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" />
-        <p style="margin: 8px 0 0; color: #475569; font-size: 9pt;">Mapa da varredura Local Falcon${gmn?.scanId ? ` | Scan: ${gmn.scanId}` : ''}</p>
       </div>
-    ` : '';
+    ` : `
+      <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center; color: #64748b; font-family: sans-serif;">
+        <div style="font-size: 14pt; font-weight: bold; color: #475569; margin-bottom: 6px;">🗺️ Mapa de Calor (Local Falcon)</div>
+        <div style="font-size: 9.5pt; color: #64748b;">Nenhuma varredura do Local Falcon encontrada para esta prospect. Realize a varredura no diagnóstico de marketing ou adicione a imagem do mapa.</div>
+      </div>
+    `;
     const fichaClinicaHtml = `
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; color:#0f172a;">
         <div style="font-size:18pt; font-weight:800; margin-bottom:6px;">${clinica || prospectData?.clinicName || 'Clínica'}</div>
@@ -1063,6 +1196,12 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     `;
 
     let html = getCanonicalHtml();
+
+    // Purga qualquer texto de legenda do Local Falcon / Scan ID do documento ao aplicar as tags
+    html = html.replace(/(<p[^>]*>)?\s*Mapa da varredura Local Falcon[^\n<]*(\s*<\/p>)?/gi, '');
+    html = html.replace(/Mapa da varredura Local Falcon\s*\|\s*Scan:\s*[^\s<]+/gi, '');
+    html = html.replace(/Scan:\s*[a-f0-9]{10,}/gi, '');
+
     let appended = '';
 
     const visualTags: Record<string, string> = {
@@ -1356,15 +1495,105 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     handleEditorInput();
   };
 
+  const fontSizeLabels: Record<number, string> = {
+    1: '10pt',
+    2: '12pt',
+    3: '14pt',
+    4: '18pt',
+    5: '24pt',
+    6: '32pt',
+    7: '48pt',
+  };
+
+  const handleApplyFontSize = (numSize: number) => {
+    const boundedSize = Math.max(1, Math.min(7, numSize));
+    setSelectedFontSizeNum(boundedSize);
+
+    restoreSelection();
+    const sel = window.getSelection();
+    let currentRange: Range | null = null;
+    if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+      currentRange = sel.getRangeAt(0).cloneRange();
+    } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed) {
+      currentRange = savedSelectionRef.current.cloneRange();
+    }
+
+    document.execCommand('fontSize', false, String(boundedSize));
+
+    if (currentRange) {
+      const currentSel = window.getSelection();
+      if (currentSel) {
+        const anchor = currentSel.anchorNode;
+        const parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement;
+        if (parent) {
+          const fontEl = parent.closest('font[size], span[style*="font-size"]');
+          if (fontEl) {
+            const newRange = document.createRange();
+            newRange.selectNodeContents(fontEl);
+            currentSel.removeAllRanges();
+            currentSel.addRange(newRange);
+            savedSelectionRef.current = newRange.cloneRange();
+          } else if (currentRange.startContainer.isConnected && currentRange.endContainer.isConnected) {
+            currentSel.removeAllRanges();
+            currentSel.addRange(currentRange);
+            savedSelectionRef.current = currentRange.cloneRange();
+          }
+        }
+      }
+    }
+
+    editorRef.current?.focus();
+    handleEditorInput();
+  };
+
   const handleFormat = (command: string, value?: string) => {
     if (command === 'removeFormat') {
       clearFormatting();
-    } else if (command === 'pageBreak') {
-      editorRef.current?.focus();
-      document.execCommand('insertHTML', false, '<hr class="page-break" title="Quebra de Página" />');
-      paginateEditor();
+      return;
+    }
+
+    restoreSelection();
+    const sel = window.getSelection();
+    let currentRange: Range | null = null;
+    if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+      currentRange = sel.getRangeAt(0).cloneRange();
+    } else if (savedSelectionRef.current && !savedSelectionRef.current.collapsed) {
+      currentRange = savedSelectionRef.current.cloneRange();
+    }
+
+    document.execCommand(command, false, value);
+
+    if (currentRange) {
+      setTimeout(() => {
+        const currentSel = window.getSelection();
+        if (currentSel) {
+          const anchor = currentSel.anchorNode;
+          const parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement;
+
+          if (command === 'fontSize' && parent) {
+            const fontEl = parent.closest('font[size], span[style*="font-size"]');
+            if (fontEl) {
+              const newRange = document.createRange();
+              newRange.selectNodeContents(fontEl);
+              currentSel.removeAllRanges();
+              currentSel.addRange(newRange);
+              savedSelectionRef.current = newRange.cloneRange();
+              editorRef.current?.focus();
+              handleEditorInput();
+              return;
+            }
+          }
+
+          if (currentRange.startContainer.isConnected && currentRange.endContainer.isConnected) {
+            currentSel.removeAllRanges();
+            currentSel.addRange(currentRange);
+            savedSelectionRef.current = currentRange.cloneRange();
+          }
+        }
+        editorRef.current?.focus();
+        handleEditorInput();
+      }, 0);
     } else {
-      document.execCommand(command, false, value);
       editorRef.current?.focus();
       handleEditorInput();
     }
@@ -1394,11 +1623,62 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleEditorClick = (e: React.MouseEvent) => {
     const targetEl = e.target as HTMLElement;
+    if (!targetEl) return;
+
+    if (isRemoveElementMode) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const hrTarget = targetEl.tagName === 'HR' ? targetEl : targetEl.closest('hr');
+      if (hrTarget) {
+        hrTarget.remove();
+        handleEditorInput();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Linha removida!', showConfirmButton: false, timer: 1500 });
+        return;
+      }
+
+      const imgTarget = targetEl.tagName === 'IMG' ? targetEl : targetEl.closest('img');
+      if (imgTarget) {
+        imgTarget.remove();
+        setSelectedEditorImage(null);
+        handleEditorInput();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Imagem removida!', showConfirmButton: false, timer: 1500 });
+        return;
+      }
+
+      const blockTarget = targetEl.closest('table, blockquote, div[style*="border"], div[style*="background"], p, h1, h2, h3, h4, li') || targetEl;
+
+      if (blockTarget && blockTarget !== editorRef.current && !blockTarget.classList.contains('a4-page-content') && !blockTarget.classList.contains('a4-page')) {
+        blockTarget.remove();
+        handleEditorInput();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Elemento removido!', showConfirmButton: false, timer: 1500 });
+        return;
+      }
+    }
+
+    if (targetEl instanceof HTMLElement) {
+        const currentBlock = targetEl.closest('p, div, h1, h2, h3, h4, section, hr, li') || targetEl;
+        if (currentBlock instanceof HTMLElement && (currentBlock.style.borderBottom || currentBlock.style.borderBottomWidth)) {
+          const rect = currentBlock.getBoundingClientRect();
+          const distFromBottom = Math.abs(e.clientY - rect.bottom);
+          if (distFromBottom <= 14) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentBlock.style.borderBottom = '';
+            currentBlock.style.borderBottomWidth = '';
+            currentBlock.style.borderBottomStyle = '';
+            currentBlock.style.paddingBottom = '';
+            handleEditorInput();
+            return;
+          }
+        }
+    }
+
     if (targetEl && targetEl.tagName === 'IMG') {
       e.preventDefault();
       e.stopPropagation();
       setSelectedEditorImage(targetEl as HTMLImageElement);
-    } else if (selectedEditorImage && !(targetEl.closest('.inline-image-cropper-overlay'))) {
+    } else if (selectedEditorImage && !(targetEl?.closest('.inline-image-cropper-overlay'))) {
       setSelectedEditorImage(null);
     }
 
@@ -1582,6 +1862,41 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+
+    // 1. Arraste interno de imagem entre folhas A4
+    if (draggedImageRef.current) {
+      const draggedImg = draggedImageRef.current;
+      draggedImageRef.current = null;
+
+      const targetEl = e.target as HTMLElement;
+      const targetPageContent = targetEl.closest<HTMLElement>('.a4-page-content');
+
+      if (targetPageContent && editorRef.current?.contains(targetPageContent)) {
+        let wrapper: HTMLElement = draggedImg;
+        let parent = draggedImg.parentElement;
+        while (parent && parent !== editorRef.current && !parent.classList.contains('a4-page-content')) {
+          if (parent.tagName === 'P' || parent.tagName === 'FIGURE' || parent.classList.contains('image-wrapper') || parent.tagName === 'DIV') {
+            wrapper = parent;
+            break;
+          }
+          parent = parent.parentElement;
+        }
+
+        if (targetEl && targetEl !== targetPageContent && targetPageContent.contains(targetEl)) {
+          targetPageContent.insertBefore(wrapper, targetEl);
+        } else {
+          targetPageContent.appendChild(wrapper);
+        }
+
+        draggedImg.style.maxHeight = '';
+        editorRef.current?.focus();
+        handleEditorInput();
+        balancePagesFrom(targetPageContent);
+        return;
+      }
+    }
+
+    // 2. Upload externo de novas imagens
     const dt = e.dataTransfer;
     if (dt && dt.files && dt.files.length > 0) {
       for (let i = 0; i < dt.files.length; i++) {
@@ -1589,8 +1904,16 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
         if (file.type.startsWith('image/')) {
           resizeImage(file).then(resizedBase64 => {
             uploadImageToHostinger(resizedBase64).then(finalUrl => {
-              document.execCommand('insertHTML', false, `<img src="${finalUrl}" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`);
-              handleEditorInput();
+              const targetEl = e.target as HTMLElement;
+              const targetPageContent = targetEl.closest<HTMLElement>('.a4-page-content') || editorRef.current?.querySelector('.a4-page-content');
+              if (targetPageContent) {
+                const p = document.createElement('p');
+                p.style.textAlign = 'center';
+                p.style.margin = '12px 0';
+                p.innerHTML = `<img src="${finalUrl}" style="max-width: 100%; border-radius: 8px; margin: 0 auto; display: block;" />`;
+                targetPageContent.appendChild(p);
+                handleEditorInput();
+              }
             });
           });
         }
@@ -1932,7 +2255,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
       const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
       const printablePages = pages.map(page => {
         const content = page.querySelector<HTMLElement>(':scope > .a4-page-content');
-        return `<section class="print-page"><div class="content-cell" style="${content?.getAttribute('style') || ''}">${content?.innerHTML || ''}</div></section>`;
+        const stylePadding = content?.style.padding || `${estilos.page.top}mm ${estilos.page.right}mm ${estilos.page.bottom}mm ${estilos.page.left}mm`;
+        return `<section class="print-page"><div class="content-cell" style="padding: ${stylePadding} !important; ${content?.getAttribute('style') || ''}">${content?.innerHTML || ''}</div></section>`;
       }).join('');
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
@@ -2038,6 +2362,17 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         `);
         doc.close();
         setTimeout(() => {
+          try {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+          } catch (e) {
+            console.error('Erro ao disparar impressão:', e);
+          }
+        }, 400);
+
+        setTimeout(() => {
           document.title = originalTitle;
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
         }, 15000);
@@ -2045,66 +2380,7 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
     }
   };
 
-  // --- REMOVER QUEBRA DE PÁGINA ---
-  const handleRemovePageBreak = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
 
-    const pageBreaks = Array.from(editor.querySelectorAll('hr.page-break, hr[title="Quebra de Página"]'));
-    if (pageBreaks.length === 0) {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'info',
-        title: 'Nenhuma quebra de página manual encontrada.',
-        showConfirmButton: false,
-        timer: 2200
-      });
-      return;
-    }
-
-    const selection = window.getSelection();
-    let breakToRemove: Element | null = null;
-
-    if (selection && selection.rangeCount > 0) {
-      const anchorNode = selection.anchorNode;
-      if (anchorNode && editor.contains(anchorNode)) {
-        const parentEl = anchorNode instanceof HTMLElement ? anchorNode : anchorNode.parentElement;
-        if (parentEl) {
-          const currentPage = parentEl.closest('.a4-page');
-          if (currentPage) {
-            const breakInPage = currentPage.querySelector('hr.page-break, hr[title="Quebra de Página"]');
-            if (breakInPage) {
-              breakToRemove = breakInPage;
-            } else {
-              const prevPage = currentPage.previousElementSibling;
-              if (prevPage) {
-                const prevBreak = prevPage.querySelector('hr.page-break, hr[title="Quebra de Página"]');
-                if (prevBreak) breakToRemove = prevBreak;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (!breakToRemove) {
-      breakToRemove = pageBreaks[pageBreaks.length - 1];
-    }
-
-    if (breakToRemove) {
-      breakToRemove.remove();
-      paginateEditor();
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Quebra de página removida!',
-        showConfirmButton: false,
-        timer: 2000
-      });
-    }
-  };
 
   // --- OBTER BLOCO / CAIXA SELECIONADA ---
   const getActiveBlockContainer = (): HTMLElement | null => {
@@ -2221,20 +2497,102 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
       document.execCommand('redo');
       handleEditorInput();
     }
-    // Backspace ou Delete em bloco/caixa vazia ou quebra de página
-    else if (e.key === 'Backspace' || e.key === 'Delete') {
+    // Backspace ou Delete em bloco/caixa vazia ou no início da página
+    else if (e.key === 'Backspace') {
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        let node = selection.anchorNode;
+      if (selection && selection.rangeCount > 0 && selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        const anchorNode = range.startContainer;
+        const anchorEl = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : (anchorNode as HTMLElement);
+        const currentPage = anchorEl?.closest<HTMLElement>('.a4-page');
+        const currentContent = currentPage?.querySelector<HTMLElement>('.a4-page-content');
+
+        if (currentPage && currentContent && editorRef.current?.contains(currentPage)) {
+          const prevPage = currentPage.previousElementSibling as HTMLElement | null;
+          if (prevPage?.classList.contains('a4-page')) {
+            const prevContent = prevPage.querySelector<HTMLElement>('.a4-page-content');
+
+            if (isCursorAtStartOfContent(currentContent, range) && prevContent) {
+              e.preventDefault();
+
+              const firstChild = currentContent.firstChild as HTMLElement | null;
+              const lastPrevChild = prevContent.lastChild as HTMLElement | null;
+
+              if (firstChild && lastPrevChild && firstChild.tagName === 'P' && lastPrevChild.tagName === 'P') {
+                const textLenBefore = (lastPrevChild.textContent || '').length;
+                while (firstChild.firstChild) {
+                  lastPrevChild.appendChild(firstChild.firstChild);
+                }
+                firstChild.remove();
+
+                const newRange = document.createRange();
+                const textNodes: Node[] = [];
+                const walk = document.createTreeWalker(lastPrevChild, NodeFilter.SHOW_TEXT);
+                let currentTextNode: Node | null;
+                while (currentTextNode = walk.nextNode()) {
+                  textNodes.push(currentTextNode);
+                }
+
+                let currentOffsetCount = 0;
+                let setDone = false;
+                for (const tNode of textNodes) {
+                  const len = tNode.textContent?.length || 0;
+                  if (currentOffsetCount + len >= textLenBefore) {
+                    newRange.setStart(tNode, Math.min(len, textLenBefore - currentOffsetCount));
+                    newRange.collapse(true);
+                    setDone = true;
+                    break;
+                  }
+                  currentOffsetCount += len;
+                }
+
+                if (!setDone) {
+                  newRange.selectNodeContents(lastPrevChild);
+                  newRange.collapse(false);
+                }
+
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                savedSelectionRef.current = newRange.cloneRange();
+              } else if (firstChild) {
+                if (!firstChild.textContent?.trim() && firstChild.querySelectorAll('img, table').length === 0) {
+                  firstChild.remove();
+                } else {
+                  prevContent.appendChild(firstChild);
+                }
+                
+                const newRange = document.createRange();
+                newRange.selectNodeContents(prevContent);
+                newRange.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                savedSelectionRef.current = newRange.cloneRange();
+              }
+
+              if (!currentContent.childNodes.length) {
+                currentPage.remove();
+              }
+
+              editorRef.current?.focus();
+              balancePagesFrom(prevContent);
+              return;
+            }
+          }
+        }
+      }
+
+      // Deletar contêiner/card de bloco vazio
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        let node = sel.anchorNode;
         if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
         if (node instanceof HTMLElement) {
-          const container = node.closest('div[style*="border"], div[style*="background"], div[class*="card"], blockquote, table, hr.page-break, hr[title="Quebra de Página"]');
+          const container = node.closest('div[style*="border"], div[style*="background"], div[class*="card"], blockquote, table');
           if (container && container instanceof HTMLElement && editorRef.current?.contains(container)) {
-            const isHr = container.tagName === 'HR';
             const textContent = (container.textContent || '').replace(/[\s\n\r\t\u200B]+/g, '');
             const hasMedia = container.querySelectorAll('img, table, iframe').length > 0;
             
-            if (isHr || (!textContent && !hasMedia)) {
+            if (!textContent && !hasMedia) {
               e.preventDefault();
               const parent = container.parentElement;
               container.remove();
@@ -2242,8 +2600,8 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 const range = document.createRange();
                 range.selectNodeContents(parent);
                 range.collapse(false);
-                selection.removeAllRanges();
-                selection.addRange(range);
+                sel.removeAllRanges();
+                sel.addRange(range);
               }
               paginateEditor();
               return;
@@ -2560,148 +2918,6 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                         <div><strong style={{ color: 'white' }}>Endereço:</strong> {enderecoCompleto || '-'}</div>
                       </div>
                     </div>
-
-                    {/* Bloco 4: Margens da Folha (A4) */}
-                    <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        📐 Margens da Folha (mm)
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>
-                        Configure as margens desta folha específica ou de todas as páginas.
-                      </p>
-
-                      {/* Seletor de Alvo da Margem */}
-                      <div style={{ backgroundColor: 'rgba(0,0,0,0.25)', padding: '0.45rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <label style={{ fontSize: '0.72rem', color: '#fcd34d', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
-                          Aplicar alteração em:
-                        </label>
-                        <div style={{ display: 'flex', gap: '0.3rem', marginBottom: totalPages > 1 ? '0.3rem' : '0' }}>
-                          <button
-                            type="button"
-                            onClick={() => setMarginTargetMode('current')}
-                            style={{
-                              flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
-                              backgroundColor: marginTargetMode === 'current' ? '#3b82f6' : 'rgba(255,255,255,0.1)',
-                              color: 'white', border: marginTargetMode === 'current' ? '1px solid #60a5fa' : '1px solid transparent'
-                            }}
-                          >
-                            Folha {activePageIndex + 1} Apenas
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setMarginTargetMode('all')}
-                            style={{
-                              flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
-                              backgroundColor: marginTargetMode === 'all' ? '#6366f1' : 'rgba(255,255,255,0.1)',
-                              color: 'white', border: marginTargetMode === 'all' ? '1px solid #818cf8' : '1px solid transparent'
-                            }}
-                          >
-                            Todas as Folhas
-                          </button>
-                        </div>
-
-                        {totalPages > 1 && (
-                          <select
-                            value={activePageIndex}
-                            onChange={(e) => {
-                              const idx = Number(e.target.value);
-                              setActivePageIndex(idx);
-                              if (editorRef.current) {
-                                const pages = Array.from(editorRef.current.querySelectorAll<HTMLElement>(':scope > .a4-page'));
-                                if (pages[idx]) {
-                                  pages[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  const content = pages[idx].querySelector<HTMLElement>(':scope > .a4-page-content');
-                                  if (content) {
-                                    const pTop = parseFloat(content.style.paddingTop) || estilos.page.top;
-                                    const pRight = parseFloat(content.style.paddingRight) || estilos.page.right;
-                                    const pBottom = parseFloat(content.style.paddingBottom) || estilos.page.bottom;
-                                    const pLeft = parseFloat(content.style.paddingLeft) || estilos.page.left;
-                                    setActivePageMargins({ top: pTop, right: pRight, bottom: pBottom, left: pLeft });
-                                  }
-                                }
-                              }
-                            }}
-                            style={{ width: '100%', padding: '0.3rem', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '4px', cursor: 'pointer' }}
-                          >
-                            {Array.from({ length: totalPages }).map((_, i) => (
-                              <option key={i} value={i}>
-                                Folha {i + 1} {i === activePageIndex ? '(Ativa)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Topo (mm)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="60"
-                            value={activePageMargins.top}
-                            onChange={(e) => handleUpdateMargin(Number(e.target.value), activePageMargins.right, activePageMargins.bottom, activePageMargins.left)}
-                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Baixo (mm)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="60"
-                            value={activePageMargins.bottom}
-                            onChange={(e) => handleUpdateMargin(activePageMargins.top, activePageMargins.right, Number(e.target.value), activePageMargins.left)}
-                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Esquerda (mm)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="60"
-                            value={activePageMargins.left}
-                            onChange={(e) => handleUpdateMargin(activePageMargins.top, activePageMargins.right, activePageMargins.bottom, Number(e.target.value))}
-                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'block', marginBottom: '0.2rem' }}>Direita (mm)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="60"
-                            value={activePageMargins.right}
-                            onChange={(e) => handleUpdateMargin(activePageMargins.top, Number(e.target.value), activePageMargins.bottom, activePageMargins.left)}
-                            style={{ width: '100%', padding: '0.35rem', borderRadius: '4px', border: '1px solid #475569', backgroundColor: 'white', color: '#0f172a', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.2rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateMargin(5, 10, 5, 10)}
-                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fcd34d', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          5mm (Mínima)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateMargin(15, 15, 15, 15)}
-                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          15mm (Normal)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateMargin(0, 5, 0, 5)}
-                          style={{ flex: 1, padding: '0.3rem 0.2rem', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          0mm (Sem limite)
-                        </button>
-                      </div>
-                    </div>
                   </>
                 )}
 
@@ -2747,15 +2963,101 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   <option value="CONFIG">⚙️ Personalizar Estilos...</option>
                 </select>
                 
-                <select onChange={(e) => handleFormat('fontSize', e.target.value)} className="editor-select" defaultValue="3">
-                  <option value="1">Tam. 1</option>
-                  <option value="2">Tam. 2</option>
-                  <option value="3">Tam. 3 (Normal)</option>
-                  <option value="4">Tam. 4</option>
-                  <option value="5">Tam. 5</option>
-                  <option value="6">Tam. 6</option>
-                  <option value="7">Tam. 7</option>
-                </select>
+                {/* Controle de Tamanho de Fonte Sem Perda de Seleção do Mouse */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0.1rem 0.2rem' }}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleApplyFontSize(selectedFontSizeNum - 1)}
+                    className="editor-btn"
+                    title="Diminuir Tamanho da Fonte (Manter Seleção do Mouse)"
+                    style={{ padding: '0.2rem', height: '24px', width: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Minus size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowFontSizePopover(!showFontSizePopover)}
+                    className="editor-btn"
+                    title="Escolher Tamanho da Fonte (Manter Seleção do Mouse)"
+                    style={{ padding: '0.2rem 0.4rem', height: '24px', fontSize: '0.78rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#0f172a' }}
+                  >
+                    <span>{fontSizeLabels[selectedFontSizeNum] || `${selectedFontSizeNum}`}</span>
+                    <ChevronDown size={12} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleApplyFontSize(selectedFontSizeNum + 1)}
+                    className="editor-btn"
+                    title="Aumentar Tamanho da Fonte (Manter Seleção do Mouse)"
+                    style={{ padding: '0.2rem', height: '24px', width: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Plus size={14} />
+                  </button>
+
+                  {showFontSizePopover && (
+                    <div
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '4px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                        zIndex: 100,
+                        padding: '0.3rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.2rem',
+                        minWidth: '135px'
+                      }}
+                    >
+                      {[
+                        { size: 1, label: 'Tam 1 (10pt)' },
+                        { size: 2, label: 'Tam 2 (12pt)' },
+                        { size: 3, label: 'Tam 3 (14pt - Normal)' },
+                        { size: 4, label: 'Tam 4 (18pt)' },
+                        { size: 5, label: 'Tam 5 (24pt)' },
+                        { size: 6, label: 'Tam 6 (32pt)' },
+                        { size: 7, label: 'Tam 7 (48pt)' },
+                      ].map((item) => (
+                        <button
+                          key={item.size}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            handleApplyFontSize(item.size);
+                            setShowFontSizePopover(false);
+                          }}
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            fontSize: '0.78rem',
+                            fontWeight: selectedFontSizeNum === item.size ? 'bold' : 'normal',
+                            backgroundColor: selectedFontSizeNum === item.size ? '#eff6ff' : 'transparent',
+                            color: selectedFontSizeNum === item.size ? '#2563eb' : '#334155',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span>{item.label}</span>
+                          {selectedFontSizeNum === item.size && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
 
@@ -2972,11 +3274,68 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                 <button onClick={handleInsertImage} className="editor-btn" title="Inserir Imagem"><ImageIcon size={18} /></button>
                 <button onClick={handleCropSelectedImage} className="editor-btn" title="Recortar & Redimensionar Imagem Visualmente (Arrastar Cantos)" style={{ color: '#8b5cf6' }}><Crop size={18} /></button>
                 <button onClick={handleInsertTable} className="editor-btn" title="Inserir Tabela Personalizada na Carta" style={{ color: '#6366f1' }}><Table size={18} /></button>
-                <button onClick={() => handleFormat('pageBreak')} className="editor-btn" title="Inserir Quebra de Página (Forçar Próxima Folha)" style={{ color: '#ef4444' }}><Scissors size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>+Quebra</span></button>
-                <button onClick={handleRemovePageBreak} className="editor-btn" title="Remover Quebra de Página Inserida (Remover Folha Extra)" style={{ color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fee2e2' }}><FileX size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>-Quebra</span></button>
                 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
-                <button onClick={handleRemoveSelectedBlock} className="editor-btn" title="Excluir Caixa / Bloco Selecionado (Remover Card do Ranking ou Caixa Vazia)" style={{ color: '#dc2626', backgroundColor: '#fff1f2', border: '1px solid #fecdd3' }}><Trash2 size={18} /><span style={{ fontSize: '0.72rem', fontWeight: 'bold', marginLeft: '3px' }}>Excluir Bloco</span></button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const nextState = !isRemoveElementMode;
+                    setIsRemoveElementMode(nextState);
+                    if (nextState) {
+                      Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'warning',
+                        title: 'Modo Remover Elementos Ativo!',
+                        text: 'Clique em qualquer bloco, linha, card ou imagem para excluir imediatamente.',
+                        showConfirmButton: false,
+                        timer: 3000
+                      });
+                    }
+                  }}
+                  className="editor-btn"
+                  title={isRemoveElementMode ? "Modo Remover Elementos ATIVO (Clique em qualquer linha, bloco ou imagem para excluir)" : "Ativar Modo Remover Elementos (Clique em qualquer linha, bloco, card ou imagem para excluir instantaneamente)"}
+                  style={{
+                    color: isRemoveElementMode ? '#ffffff' : '#dc2626',
+                    backgroundColor: isRemoveElementMode ? '#dc2626' : '#fff1f2',
+                    border: isRemoveElementMode ? '1px solid #b91c1c' : '1px solid #fecdd3',
+                    borderRadius: '6px',
+                    padding: '0.3rem 0.6rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    boxShadow: isRemoveElementMode ? '0 0 12px rgba(220, 38, 38, 0.5)' : 'none',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Trash2 size={16} />
+                  <span>{isRemoveElementMode ? 'Remover Elementos: ON' : 'Remover Elementos'}</span>
+                </button>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
+                <button
+                  onClick={() => setShowMargins(prev => !prev)}
+                  className="editor-btn"
+                  title={showMargins ? "Ocultar Linhas Guia de Margem da Folha" : "Exibir Linhas Guia de Margem da Folha"}
+                  style={{
+                    color: showMargins ? '#2563eb' : '#64748b',
+                    backgroundColor: showMargins ? '#eff6ff' : 'transparent',
+                    border: showMargins ? '1px solid #bfdbfe' : '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '0.2rem 0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  <BoxSelect size={18} />
+                  <span>{showMargins ? 'Margens: ON' : 'Ver Margens'}</span>
+                </button>
 
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)', margin: '0 0.2rem' }}></div>
 
@@ -3141,26 +3500,10 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                     }
                   }
 
-                  .editor-content hr.page-break,
-                  .editor-content hr[title="Quebra de Página"] {
-                    display: none !important;
-                    page-break-after: always !important;
-                    break-after: page !important;
-                    height: 36px !important;
-                    margin: 28px -20mm !important;
-                    background: #cbd5e1 !important;
-                    border: none !important;
-                    border-top: 1px solid #94a3b8 !important;
-                    border-bottom: 1px solid #94a3b8 !important;
-                    position: relative !important;
-                    clear: both !important;
-                    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05) !important;
-                  }
-
                   .editor-content {
                     display: flex;
                     flex-direction: column;
-                    gap: 10mm;
+                    gap: 12mm;
                     width: 210mm;
                     outline: none;
                   }
@@ -3189,24 +3532,24 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   .editor-content .a4-page-content > :first-child { margin-top: 0 !important; }
                   .editor-content .a4-page-content > :last-child { margin-bottom: 0 !important; }
 
-                  .editor-content .a4-page:not(:last-child)::after {
-                    content: '─── QUEBRA DE PÁGINA A4 (PRÓXIMA FOLHA) ───';
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    z-index: 2;
-                    width: 100%;
-                    height: 10mm;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-sizing: border-box;
-                    background: #e2e8f0;
-                    color: #94a3b8;
-                    font-size: 8pt;
-                    font-weight: 800;
-                    letter-spacing: 1px;
-                    pointer-events: none;
+                  .editor-content img {
+                    cursor: grab !important;
+                    user-select: none !important;
+                    -webkit-user-drag: element !important;
+                  }
+
+                  .editor-content img:active {
+                    cursor: grabbing !important;
+                  }
+
+                  .editor-content hr {
+                    cursor: pointer !important;
+                    transition: all 0.2s !important;
+                  }
+                  .editor-content hr:hover {
+                    border-top-color: #ef4444 !important;
+                    outline: 2px dashed #ef4444 !important;
+                    outline-offset: 2px !important;
                   }
 
                   .editor-content table,
@@ -3216,13 +3559,44 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                     break-inside: avoid !important;
                     page-break-inside: avoid !important;
                   }
+
+                  .editor-content.remove-mode-active .a4-page-content * {
+                    cursor: pointer !important;
+                  }
+
+                  .editor-content.remove-mode-active .a4-page-content *:hover {
+                    outline: 2px dashed #ef4444 !important;
+                    outline-offset: 2px !important;
+                    background-color: rgba(239, 68, 68, 0.08) !important;
+                  }
+
+                  .editor-content.show-margins .a4-page {
+                    background-color: #dbeafe !important; /* Azul claro homogêneo para a área das margens da folha */
+                  }
+
+                  .editor-content.show-margins .a4-page-content {
+                    background-color: #ffffff !important;
+                    background-clip: content-box !important; /* Restringe o fundo branco apenas à área interna de texto */
+                    box-shadow: inset 0 0 0 1px #93c5fd !important; /* Apenas a linha limite interna */
+                  }
+
+                  @media print {
+                    .editor-content.show-margins .a4-page {
+                      background-color: #ffffff !important;
+                    }
+                    .editor-content.show-margins .a4-page-content {
+                      background-clip: border-box !important;
+                      box-shadow: none !important;
+                    }
+                  }
                 `}</style>
 
                 <div
                   ref={editorRef}
-                  className="editor-content"
+                  className={`editor-content ${showMargins ? 'show-margins' : ''} ${isRemoveElementMode ? 'remove-mode-active' : ''}`}
                   contentEditable
                   suppressContentEditableWarning
+                  onClick={handleEditorClick}
                   onKeyDown={handleEditorKeyDown}
                   onInput={handleEditorInput}
                   onBlur={() => {
@@ -3239,7 +3613,6 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
                   onPaste={handlePaste}
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  onClick={handleEditorClick}
                   style={{
                     display: viewHtml ? 'none' : 'flex',
                     fontFamily: 'Arial, sans-serif',
@@ -3382,6 +3755,14 @@ Use <h1> para título, <h2> para seções, <h3> para sub-seções, <p> para text
         editorContainer={document.getElementById('editor-scroll-container')}
         onUpdate={() => handleEditorInput()}
         onDeselect={() => setSelectedEditorImage(null)}
+      />
+
+      <InteractiveMarginResizer
+        showMargins={showMargins}
+        editorRef={editorRef}
+        onUpdate={() => handleEditorInput()}
+        onUpdateMargin={(t, r, b, l) => handleUpdateMargin(t, r, b, l, false)}
+        balancePagesFrom={balancePagesFrom}
       />
 
       <VariableMappingModal

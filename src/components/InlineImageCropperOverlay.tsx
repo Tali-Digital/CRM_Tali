@@ -17,6 +17,7 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
 }) => {
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const isDraggingHandle = useRef<string | null>(null);
+
   const startDragPos = useRef<{
     x: number;
     y: number;
