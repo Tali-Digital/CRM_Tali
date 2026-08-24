@@ -39,7 +39,18 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
     return { top, bottom, left, right };
   };
 
-  const applyCrop = (img: HTMLImageElement, top: number, bottom: number, left: number, right: number) => {
+  const getInitialRadius = (img: HTMLImageElement | null): number => {
+    if (!img) return 0;
+    const styleRad = img.style.borderRadius || img.dataset.borderRadius || '';
+    if (!styleRad) return 0;
+    if (styleRad.includes('%') || styleRad === '9999px' || styleRad === '50%') {
+      return 99;
+    }
+    const parsed = parseInt(styleRad, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const applyCrop = (img: HTMLImageElement, top: number, bottom: number, left: number, right: number, radOverride?: number) => {
     const cTop = Math.max(0, top);
     const cBottom = Math.max(0, bottom);
     const cLeft = Math.max(0, left);
@@ -50,12 +61,15 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
     img.dataset.cropLeft = cLeft.toString();
     img.dataset.cropRight = cRight.toString();
 
+    const currentRad = radOverride !== undefined ? radOverride : getInitialRadius(img);
+    const radPx = currentRad === 99 ? 9999 : currentRad;
+
     if (cTop === 0 && cBottom === 0 && cLeft === 0 && cRight === 0) {
       img.style.clipPath = 'none';
       img.style.marginTop = '';
       img.style.marginBottom = '';
     } else {
-      img.style.clipPath = `inset(${cTop}px ${cRight}px ${cBottom}px ${cLeft}px)`;
+      img.style.clipPath = `inset(${cTop}px ${cRight}px ${cBottom}px ${cLeft}px${radPx > 0 ? ` round ${radPx}px` : ''})`;
       img.style.marginTop = cTop > 0 ? `-${cTop}px` : '';
       img.style.marginBottom = cBottom > 0 ? `-${cBottom}px` : '';
     }
@@ -83,6 +97,14 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
       height: visibleHeight
     });
   };
+
+  const [radius, setRadius] = useState<number>(0);
+
+  useEffect(() => {
+    if (targetImage) {
+      setRadius(getInitialRadius(targetImage));
+    }
+  }, [targetImage]);
 
   useEffect(() => {
     updateRect();
@@ -124,9 +146,31 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
     onUpdate();
   };
 
+  // ── Radius (Arredondamento das 4 bordas) ──
+  const handleRadiusChange = (newRadius: number) => {
+    if (!targetImage) return;
+    const clamped = Math.max(0, Math.min(99, newRadius));
+    setRadius(clamped);
+
+    const radiusVal = clamped === 99 ? '9999px' : `${clamped}px`;
+    targetImage.style.borderRadius = radiusVal;
+    targetImage.dataset.borderRadius = radiusVal;
+
+    const { top, bottom, left, right } = getCropValues(targetImage);
+    applyCrop(targetImage, top, bottom, left, right, clamped);
+
+    updateRect();
+    onUpdate();
+  };
+
   // ── Resetar Recortes e Tamanhos ──
   const resetImage = () => {
-    applyCrop(targetImage, 0, 0, 0, 0);
+    if (targetImage) {
+      targetImage.style.borderRadius = '0px';
+      delete targetImage.dataset.borderRadius;
+    }
+    setRadius(0);
+    applyCrop(targetImage, 0, 0, 0, 0, 0);
     targetImage.style.width = '100%';
     targetImage.style.maxWidth = '100%';
     targetImage.style.height = 'auto';
@@ -272,6 +316,63 @@ export const InlineImageCropperOverlay: React.FC<InlineImageCropperOverlayProps>
         >
           <AlignRight size={18} />
         </button>
+
+        <div className="w-[1px] h-5 bg-gray-700 mx-1" />
+
+        {/* Radius / Arredondamento das 4 Bordas */}
+        <div className="flex items-center gap-1 bg-gray-900/90 px-2.5 py-1 rounded-xl border border-gray-700/70 shadow-inner select-none" title="Arredondamento das 4 bordas (Radius)">
+          <div className="flex items-center gap-1.5 text-[11px] text-indigo-300 font-semibold shrink-0">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
+              <rect x="3" y="3" width="18" height="18" rx="5" ry="5" />
+              <path d="M8 16h3a3 3 0 0 0 3-3V10" />
+            </svg>
+            <span className="hidden sm:inline">Radius:</span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => handleRadiusChange(Math.max(0, radius - 4))}
+              className="w-5 h-5 flex items-center justify-center hover:bg-gray-700 rounded text-gray-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+              title="Diminuir radius (-4px)"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min="0"
+              max="99"
+              value={radius}
+              onChange={(e) => handleRadiusChange(parseInt(e.target.value, 10) || 0)}
+              className="w-9 bg-gray-950 text-center text-xs font-bold text-white border border-gray-700 rounded py-0.5 focus:outline-none focus:border-indigo-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-[10px] text-gray-400 font-medium mr-1">px</span>
+            <button
+              type="button"
+              onClick={() => handleRadiusChange(radius + 4)}
+              className="w-5 h-5 flex items-center justify-center hover:bg-gray-700 rounded text-gray-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+              title="Aumentar radius (+4px)"
+            >
+              +
+            </button>
+          </div>
+          <div className="flex items-center gap-0.5 ml-1 border-l border-gray-700/60 pl-1">
+            {[0, 8, 16, 24, 99].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => handleRadiusChange(preset)}
+                className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-all cursor-pointer ${
+                  radius === preset
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+                title={preset === 99 ? 'Borda 100% Redonda (Círculo/Pílula)' : `Borda ${preset}px`}
+              >
+                {preset === 99 ? '100%' : preset}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="w-[1px] h-5 bg-gray-700 mx-1" />
 

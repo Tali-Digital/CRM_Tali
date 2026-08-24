@@ -239,6 +239,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   // Diagnostic Form state
   const [showDiagnosticForm, setShowDiagnosticForm] = useState(false);
+  const [showFalconRescanModal, setShowFalconRescanModal] = useState(false);
+  const [falconRescanData, setFalconRescanData] = useState({
+    companyName: '',
+    keyword: '',
+    gridSize: '5x5' as '3x3' | '5x5' | '7x7',
+    radius: 5 as number | string,
+    stateUf: 'Distrito Federal (DF)',
+    cityName: 'Brasília',
+    neighborhoodName: ''
+  });
   const [formData, setFormData] = useState({
     companyName: '',
     keyword: '',
@@ -520,21 +530,52 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const handleRerunSingleModule = async (moduleName: 'gmn' | 'site' | 'instagram' | 'ads') => {
     if (!selectedProspect) return;
     if (moduleName === 'gmn') {
-      const confirmation = await Swal.fire({
-        icon: 'warning',
-        title: '⚠️ Executar NOVO Scan Pago?',
-        html: `Esta ação irá disparar uma nova varredura paga no Local Falcon para <b>${selectedProspect.clinicName}</b> e consumirá <b>25 créditos</b> da sua conta.<br/><br/><i>Por padrão, a busca no histórico consome 0 créditos. Tem certeza que deseja rodar um novo scan pago?</i>`,
-        showCancelButton: true,
-        confirmButtonText: 'Sim, Executar Scan Pago (25 Créditos)',
-        cancelButtonText: 'Cancelar (0 Créditos)',
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#64748b'
+      const prospectBairro = (selectedProspect as any).bairro || selectedProspect.neighborhoodName || formData.neighborhoodName || '';
+      const locParts = (selectedProspect.location || '').split('-').map(s => s.trim());
+      const extractedCity = (selectedProspect as any).cityName || locParts[0] || formData.cityName || 'Brasília';
+      const extractedState = (selectedProspect as any).stateUf || (locParts[1] ? (locParts[1].length === 2 ? `Distrito Federal (${locParts[1]})` : locParts[1]) : formData.stateUf || 'Distrito Federal (DF)');
+
+      setFalconRescanData({
+        companyName: selectedProspect.clinicName || formData.companyName || '',
+        keyword: (selectedProspect as any).keyword || formData.keyword || 'Dentista',
+        gridSize: (selectedProspect as any).gridSize || formData.gridSize || '5x5',
+        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? formData.radius ?? 5,
+        stateUf: extractedState,
+        cityName: extractedCity,
+        neighborhoodName: prospectBairro
       });
-      if (!confirmation.isConfirmed) return;
-      enqueueDiagnostic(selectedProspect, 'force_new_gmn', moduleName);
+      setShowFalconRescanModal(true);
     } else {
       enqueueDiagnostic(selectedProspect, 'rerun_module', moduleName);
     }
+  };
+
+  const handleConfirmFalconRescan = async () => {
+    if (!selectedProspect) return;
+    if (!falconRescanData.companyName.trim()) {
+      Swal.fire('Atenção', 'Informe o Nome da Empresa.', 'warning');
+      return;
+    }
+    if (!falconRescanData.keyword.trim()) {
+      Swal.fire('Atenção', 'A Palavra-chave é OBRIGATÓRIA para o Local Falcon.', 'warning');
+      return;
+    }
+
+    const updatedForm = {
+      ...formData,
+      companyName: falconRescanData.companyName.trim(),
+      keyword: falconRescanData.keyword.trim(),
+      gridSize: falconRescanData.gridSize,
+      radius: falconRescanData.radius,
+      stateUf: falconRescanData.stateUf,
+      cityName: falconRescanData.cityName,
+      neighborhoodName: falconRescanData.neighborhoodName
+    };
+
+    setFormData(updatedForm);
+    setShowFalconRescanModal(false);
+
+    enqueueDiagnostic(selectedProspect, 'force_new_gmn', 'gmn', updatedForm);
   };
 
   const [isRefetchingCnpj, setIsRefetchingCnpj] = useState(false);
@@ -880,8 +921,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const enqueueDiagnostic = useCallback((
     prospect: Prospect,
     actionType: 'full' | 'rerun_module' | 'fetch_existing_gmn' | 'force_new_gmn' = 'full',
-    targetModule?: 'gmn' | 'site' | 'instagram' | 'ads'
+    targetModule?: 'gmn' | 'site' | 'instagram' | 'ads',
+    customFormSnapshot?: typeof formData
   ) => {
+    const formToUse = customFormSnapshot || formData;
+
     // Don't add if already in queue (waiting or running)
     const alreadyQueued = queueRef.current.some(
       q => q.prospectId === prospect.id && (q.status === 'waiting' || q.status === 'running')
@@ -891,12 +935,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       return;
     }
 
-    if (!formData.companyName.trim()) {
+    if (!formToUse.companyName.trim()) {
       Swal.fire('Atenção', 'Informe o Nome da Empresa.', 'warning');
       return;
     }
     if (actionType !== 'rerun_module' || targetModule === 'gmn') {
-      if (!formData.keyword.trim()) {
+      if (!formToUse.keyword.trim()) {
         Swal.fire('Atenção', 'A Palavra-chave é OBRIGATÓRIA para o Local Falcon.', 'warning');
         return;
       }
@@ -905,7 +949,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     const actionLabel = actionType === 'fetch_existing_gmn'
       ? '📥 Puxar Análise Existente (0 Créditos)'
       : actionType === 'force_new_gmn'
-        ? '⚡ NOVO Scan Pago (25 Créditos)'
+        ? `⚡ NOVO Scan Pago (${formToUse.gridSize === '3x3' ? '9' : formToUse.gridSize === '7x7' ? '49' : '25'} Créditos)`
         : actionType === 'rerun_module'
           ? `🔄 Refazer Módulo (${targetModule?.toUpperCase()})`
           : '⚡ Diagnóstico Completo';
@@ -915,7 +959,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     const queueItem: DiagnosticQueueItem = {
       id: `diag-${prospect.id}-${Date.now()}`,
       prospectId: prospect.id,
-      clinicName: prospect.clinicName || 'Sem Nome',
+      clinicName: formToUse.companyName || prospect.clinicName || 'Sem Nome',
       location: prospect.location || '',
       requestedBy: requestedByUser,
       status: 'waiting',
@@ -923,14 +967,21 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       targetModule,
       addedAt: Date.now(),
       logs: [{ timestamp: Date.now(), step: `Solicitado por ${requestedByUser}: ${actionLabel}`, status: 'done' }],
-      formSnapshot: { ...formData },
-      modules: { ...formData.modules }
+      formSnapshot: { ...formToUse },
+      modules: { ...formToUse.modules }
     };
 
     setDiagnosticQueue(prev => [queueItem, ...prev.filter(q => q.id !== queueItem.id)]);
     saveDiagnosticQueueItem(queueItem);
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${prospect.clinicName}: adicionado à fila!`, showConfirmButton: false, timer: 2500 });
   }, [formData]);
+
+  const isItemCancelled = useCallback((queueId: string) => {
+    const item = queueRef.current.find(q => q.id === queueId);
+    if (!item) return true;
+    if (item.status === 'error' && (item.error?.includes('cancelado') || item.error?.includes('Cancelado'))) return true;
+    return false;
+  }, []);
 
   // Process queue one by one in background
   const processQueue = useCallback(async () => {
@@ -952,6 +1003,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         continue;
       }
 
+      if (isItemCancelled(queueId)) continue;
+
       const startTime = Date.now();
       updateQueueItem(queueId, { status: 'running', startedAt: startTime });
       addQueueLog(queueId, 'Iniciando geração do diagnóstico...', 'running');
@@ -959,6 +1012,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       const existingDiag = prospect.marketingDiagnostic || {};
 
       if (nextItem.actionType === 'fetch_existing_gmn') {
+        if (isItemCancelled(queueId)) continue;
         const historyStart = Date.now();
         addQueueLog(queueId, `Consultando histórico de relatórios no Local Falcon para "${form.keyword}" (0 Créditos)...`, 'running');
         try {
@@ -970,14 +1024,21 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           // Se não encontrou de primeira (pode estar "Scan In Progress" no Local Falcon), faz pequenas checagens a 0 créditos
           if (!historyResult.success) {
             for (let retry = 1; retry <= 4; retry++) {
+              if (isItemCancelled(queueId)) break;
               addQueueLog(queueId, `⏳ Aguardando conclusão do scan no Local Falcon (0 Créditos - Tentativa ${retry}/4)...`, 'running');
               await new Promise(r => setTimeout(r, 10000));
+              if (isItemCancelled(queueId)) break;
               historyResult = await fetchLocalFalconReportHistory({
                 locationName: form.companyName,
                 keyword: form.keyword
               });
               if (historyResult.success && (historyResult.gridPoints?.length || 0) > 0) break;
             }
+          }
+
+          if (isItemCancelled(queueId)) {
+            addQueueLog(queueId, '🛑 Busca de histórico cancelada pelo usuário.', 'error');
+            continue;
           }
 
           const historyDur = Date.now() - historyStart;
@@ -999,12 +1060,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 keyword: form.keyword
               }
             };
-            await saveProspectDoc(prospect.id, { marketingDiagnostic: emptyGmnDiag });
-            if (selectedProspect?.id === prospect.id) {
-              setDiagnosticData(emptyGmnDiag);
+            if (!isItemCancelled(queueId)) {
+              await saveProspectDoc(prospect.id, { marketingDiagnostic: emptyGmnDiag });
+              if (selectedProspect?.id === prospect.id) {
+                setDiagnosticData(emptyGmnDiag);
+              }
             }
             continue;
           }
+
+          if (isItemCancelled(queueId)) continue;
 
           addQueueLog(queueId, `✅ Relatório gravado localizado! SoLV: ${historyResult.solv}%, Posição: #${historyResult.clientRank ?? 'sem dados'} (0 Créditos consumidos)`, 'done', historyDur);
 
@@ -1036,6 +1101,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             }
           };
 
+          if (isItemCancelled(queueId)) continue;
+
           addQueueLog(queueId, 'Salvando dados no Firestore...', 'running');
           const saveStart = Date.now();
           await saveProspectDoc(prospect.id, {
@@ -1045,17 +1112,19 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           });
           addQueueLog(queueId, '✅ Diagnóstico atualizado com sucesso!', 'done', Date.now() - saveStart);
 
+          if (isItemCancelled(queueId)) continue;
+
           const totalDuration = Date.now() - startTime;
           updateQueueItem(queueId, { status: 'done', finishedAt: Date.now(), duration: totalDuration });
           addQueueLog(queueId, `🏁 Concluído em ${(totalDuration / 1000).toFixed(1)}s`, 'done', totalDuration);
 
-          if (selectedProspect?.id === prospect.id) {
+          if (selectedProspect?.id === prospect.id && !isItemCancelled(queueId)) {
             setDiagnosticData(updatedDiag);
             setShowDiagnosticForm(false);
           }
 
           const userId = auth.currentUser?.uid;
-          if (userId) {
+          if (userId && !isItemCancelled(queueId)) {
             await createNotification({
               userId,
               title: `Análise Local Falcon Recuperada`,
@@ -1067,6 +1136,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
           continue;
         } catch (hErr: any) {
+          if (isItemCancelled(queueId)) continue;
           const totalDuration = Date.now() - startTime;
           addQueueLog(queueId, `❌ Erro ao buscar histórico: ${hErr.message}`, 'error', totalDuration);
           updateQueueItem(queueId, { status: 'error', error: hErr.message, finishedAt: Date.now(), duration: totalDuration });
@@ -1079,9 +1149,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         : form.modules;
 
       try {
+        if (isItemCancelled(queueId)) continue;
+
         // ── 1. Local Falcon ──
         let localFalconResult: any = null;
         if (runModules.gmn) {
+          if (isItemCancelled(queueId)) continue;
           const lfStart = Date.now();
           addQueueLog(queueId, `Consultando Local Falcon: "${form.keyword}" em ${form.cityName}`, 'running');
           try {
@@ -1106,9 +1179,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           addQueueLog(queueId, 'Local Falcon: mantendo dados anteriores', 'done');
         }
 
+        if (isItemCancelled(queueId)) continue;
+
         // ── 2. PageSpeed ──
         let pageSpeedResult: any = null;
         if (runModules.site) {
+          if (isItemCancelled(queueId)) continue;
           if (!form.siteUrl) {
             addQueueLog(queueId, '⚠️ PageSpeed ignorado: URL do site não preenchida', 'error');
           } else {
@@ -1130,9 +1206,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           addQueueLog(queueId, 'PageSpeed: mantendo dados anteriores', 'done');
         }
 
+        if (isItemCancelled(queueId)) continue;
+
         // ── 3. Meta Ad Library (Facebook / Instagram) ──
         let metaAdsResult: any = null;
         if (runModules.ads) {
+          if (isItemCancelled(queueId)) continue;
           const metaStart = Date.now();
           addQueueLog(queueId, `Consultando Meta Ad Library (Facebook/Instagram) para "${form.companyName}"...`, 'running');
           try {
@@ -1150,6 +1229,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         } else {
           addQueueLog(queueId, 'Meta Ads: mantendo dados anteriores', 'done');
         }
+
+        if (isItemCancelled(queueId)) continue;
 
         // ── 4. Build diagnostic data ──
         addQueueLog(queueId, 'Compilando relatório de marketing...', 'running');
@@ -1220,6 +1301,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           } : (existingDiag.anuncios || {})
         };
 
+        if (isItemCancelled(queueId)) continue;
+
         // ── 4. Save to Firestore ──
         addQueueLog(queueId, 'Salvando diagnóstico no Firestore...', 'running');
         const saveStart = Date.now();
@@ -1239,29 +1322,33 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         });
         addQueueLog(queueId, '✅ Diagnóstico salvo com sucesso!', 'done', Date.now() - saveStart);
 
+        if (isItemCancelled(queueId)) continue;
+
         const totalDuration = Date.now() - startTime;
         updateQueueItem(queueId, { status: 'done', finishedAt: Date.now(), duration: totalDuration });
         addQueueLog(queueId, `🏁 Concluído em ${(totalDuration / 1000).toFixed(1)}s`, 'done', totalDuration);
 
         // If this prospect is currently selected, update view
-        if (selectedProspect?.id === prospect.id) {
+        if (selectedProspect?.id === prospect.id && !isItemCancelled(queueId)) {
           setDiagnosticData(newDiagData);
           setShowDiagnosticForm(false);
         }
 
         // Badge flash
-        setRecentlyFinishedIds(prev => new Set(prev).add(prospect.id));
-        setTimeout(() => {
-          setRecentlyFinishedIds(prev => {
-            const next = new Set(prev);
-            next.delete(prospect.id);
-            return next;
-          });
-        }, 15000);
+        if (!isItemCancelled(queueId)) {
+          setRecentlyFinishedIds(prev => new Set(prev).add(prospect.id));
+          setTimeout(() => {
+            setRecentlyFinishedIds(prev => {
+              const next = new Set(prev);
+              next.delete(prospect.id);
+              return next;
+            });
+          }, 15000);
+        }
 
         // ── 5. Notify via bell ──
         const userId = auth.currentUser?.uid;
-        if (userId) {
+        if (userId && !isItemCancelled(queueId)) {
           await createNotification({
             userId,
             title: `Diagnóstico Concluído`,
@@ -1274,12 +1361,13 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         addQueueLog(queueId, 'Compilação finalizada e relatório salvo', 'done', Date.now() - compileStart);
 
       } catch (e: any) {
+        if (isItemCancelled(queueId)) continue;
         const totalDuration = Date.now() - startTime;
         updateQueueItem(queueId, { status: 'error', error: e.message || 'Erro desconhecido', finishedAt: Date.now(), duration: totalDuration });
         addQueueLog(queueId, `❌ Falha: ${e.message || 'Erro desconhecido'}`, 'error', totalDuration);
 
         const userId = auth.currentUser?.uid;
-        if (userId) {
+        if (userId && !isItemCancelled(queueId)) {
           await createNotification({
             userId,
             title: `Diagnóstico Falhou`,
@@ -1292,7 +1380,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     }
 
     isProcessingRef.current = false;
-  }, [prospects, selectedProspect, addQueueLog, updateQueueItem]);
+  }, [prospects, saveProspectDoc, selectedProspect?.id, addQueueLog, updateQueueItem, isItemCancelled]);
 
   // Trigger processor whenever queue changes
   useEffect(() => {
@@ -3304,27 +3392,64 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const handleCancelOrRemoveQueueItem = (id: string) => {
     const target = diagnosticQueue.find(item => item.id === id);
-    if (target && target.status === 'running') {
-      const cancelledItem = {
+    if (!target) return;
+
+    if (target.status === 'running') {
+      const falconStarted = target.logs?.some(
+        l => l.step.includes('Local Falcon') || l.step.includes('Consultando Local Falcon') || l.step.includes('Local Falcon OK')
+      );
+
+      const cancelledItem: DiagnosticQueueItem = {
         ...target,
         status: 'error' as const,
-        error: 'Diagnóstico cancelado manualmente pelo usuário.',
+        error: falconStarted
+          ? 'Diagnóstico cancelado pelo usuário (Requisição ao Local Falcon já havia sido enviada ao servidor).'
+          : 'Diagnóstico cancelado pelo usuário.',
         finishedAt: Date.now(),
         duration: target.startedAt ? Date.now() - target.startedAt : 0,
         logs: [
           ...(target.logs || []),
           {
             timestamp: Date.now(),
-            step: '🛑 Diagnóstico cancelado pelo usuário.',
+            step: falconStarted
+              ? '🛑 Cancelado pelo usuário. ⚠️ O Local Falcon já havia iniciado a requisição no servidor remoto (créditos consumidos), mas a compilação local e notificações foram abortadas.'
+              : '🛑 Diagnóstico cancelado com sucesso pelo usuário.',
             status: 'error' as const
           }
         ]
       };
+
       setDiagnosticQueue(prev => prev.map(item => item.id === id ? cancelledItem : item));
       saveDiagnosticQueueItem(cancelledItem);
+
+      if (falconStarted) {
+        Swal.fire({
+          icon: 'warning',
+          title: '🛑 Compilação Cancelada',
+          html: `A compilação e salvamento do diagnóstico de <b>${target.clinicName}</b> foram cancelados e <b>nenhuma notificação será enviada</b>.<br/><br/>⚠️ <b>Nota sobre o Local Falcon:</b> A requisição ao servidor remoto do Local Falcon já havia sido enviada antes do cancelamento (créditos foram consumidos na API do Local Falcon e não podem ser estornados).`,
+          confirmButtonColor: '#3b82f6'
+        });
+      } else {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: `Diagnóstico de ${target.clinicName} cancelado!`,
+          showConfirmButton: false,
+          timer: 3000
+        });
+      }
     } else {
       setDiagnosticQueue(prev => prev.filter(item => item.id !== id));
       deleteDiagnosticQueueItem(id);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: `Item removido da fila`,
+        showConfirmButton: false,
+        timer: 2000
+      });
     }
 
     isProcessingRef.current = false;
@@ -3753,6 +3878,186 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* MODAL CONFIGURAÇÃO DE PARÂMETROS PARA NOVA VARREDURA LOCAL FALCON */}
+      {showFalconRescanModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#141626] border-2 border-indigo-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 text-white my-8">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400">
+                  <RefreshCw size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">⚡ Nova Varredura Local Falcon</h3>
+                  <p className="text-xs text-gray-400">Ajuste as variáveis da empresa antes de disparar o scan pago</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFalconRescanModal(false)}
+                className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* 1. Nome da Empresa */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1">
+                  Nome da Empresa (Google Meu Negócio) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={falconRescanData.companyName}
+                  onChange={e => setFalconRescanData({ ...falconRescanData, companyName: e.target.value })}
+                  placeholder="Ex: Clinica Odontologica X"
+                  className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-medium"
+                />
+              </div>
+
+              {/* 2. Palavra-chave */}
+              <div className="bg-gradient-to-r from-amber-950/40 via-indigo-950/50 to-purple-950/40 border-2 border-amber-500/60 p-4 rounded-2xl space-y-2">
+                <label className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles size={14} className="text-amber-400 animate-pulse" />
+                  <span>Palavra-chave Principal *</span>
+                </label>
+                <p className="text-[11px] text-gray-300">
+                  Termo de busca pesquisado no mapa (ex: dentista em Asa Norte, clínica odontológica).
+                </p>
+                <input
+                  type="text"
+                  value={falconRescanData.keyword}
+                  onChange={e => setFalconRescanData({ ...falconRescanData, keyword: e.target.value })}
+                  placeholder="Ex: dentista em Asa Norte"
+                  className="w-full bg-[#0d0f19] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl p-3 text-sm font-bold text-white focus:outline-none"
+                />
+              </div>
+
+              {/* 3. Tamanho da Matriz */}
+              <div>
+                <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5">
+                  ⚡ Tamanho da Matriz do Local Falcon
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: '3x3', label: '3x3', desc: '9 Créditos' },
+                    { id: '5x5', label: '5x5', desc: '25 Créditos' },
+                    { id: '7x7', label: '7x7', desc: '49 Créditos' },
+                  ].map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setFalconRescanData({ ...falconRescanData, gridSize: g.id as any })}
+                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                        falconRescanData.gridSize === g.id
+                          ? 'bg-indigo-600/30 border-indigo-500 text-white font-bold shadow-lg'
+                          : 'bg-[#0d0f19] border-gray-800 text-gray-400 hover:border-gray-700'
+                      }`}
+                    >
+                      <div className="text-sm font-black">{g.label}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{g.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Raio de Busca (km) */}
+              <div>
+                <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>⚡ Raio de Busca (em km)</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold">
+                    {falconRescanData.radius || 5} km
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  min="0.5"
+                  max="100"
+                  step="0.5"
+                  value={falconRescanData.radius}
+                  onChange={e => setFalconRescanData({ ...falconRescanData, radius: e.target.value === '' ? '' : Math.max(0.1, parseFloat(e.target.value) || 1) })}
+                  placeholder="Ex: 5"
+                  className="w-full bg-[#0d0f19] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl p-3 text-sm font-bold text-white focus:outline-none"
+                />
+              </div>
+
+              {/* 5. Localização (Estado, Cidade, Bairro) */}
+              <div className="space-y-3 bg-[#0d0f19] p-4 rounded-xl border border-gray-800">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-300">
+                  <Map size={14} className="text-indigo-400" /> Localização do Scan
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 mb-1">Estado (UF)</label>
+                    <select
+                      value={falconRescanData.stateUf}
+                      onChange={e => setFalconRescanData({ ...falconRescanData, stateUf: e.target.value })}
+                      className="w-full bg-[#141626] border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="Distrito Federal (DF)">Distrito Federal (DF)</option>
+                      <option value="São Paulo (SP)">São Paulo (SP)</option>
+                      <option value="Rio de Janeiro (RJ)">Rio de Janeiro (RJ)</option>
+                      <option value="Minas Gerais (MG)">Minas Gerais (MG)</option>
+                      <option value="Goiás (GO)">Goiás (GO)</option>
+                      <option value="Outro">Outro Estado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 mb-1">Cidade *</label>
+                    <input
+                      type="text"
+                      value={falconRescanData.cityName}
+                      onChange={e => setFalconRescanData({ ...falconRescanData, cityName: e.target.value })}
+                      placeholder="Brasília"
+                      className="w-full bg-[#141626] border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 mb-1">Bairro (opcional)</label>
+                    <input
+                      type="text"
+                      value={falconRescanData.neighborhoodName}
+                      onChange={e => setFalconRescanData({ ...falconRescanData, neighborhoodName: e.target.value })}
+                      placeholder="Asa Norte"
+                      className="w-full bg-[#141626] border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Aviso de consumo de créditos */}
+              <div className="bg-amber-950/40 border border-amber-500/40 p-3.5 rounded-xl text-xs text-amber-200 flex items-start gap-2.5">
+                <span className="text-base">⚠️</span>
+                <div>
+                  <span className="font-bold block mb-0.5 text-amber-300">Consumo de Créditos PAGO</span>
+                  <span>Esta varredura será adicionada à fila em segundo plano e consumirá créditos da sua conta do Local Falcon conforme a matriz selecionada ({falconRescanData.gridSize === '3x3' ? '9' : falconRescanData.gridSize === '7x7' ? '49' : '25'} créditos).</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões do Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-gray-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowFalconRescanModal(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer"
+              >
+                Cancelar (0 Créditos)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmFalconRescan}
+                className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-lg transition-all cursor-pointer active:scale-95 flex items-center gap-2"
+              >
+                <RefreshCw size={14} />
+                <span>🚀 Executar Nova Varredura</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL MAPEAMENTO DE VARIÁVEIS & TAGS DAS CARTAS */}
