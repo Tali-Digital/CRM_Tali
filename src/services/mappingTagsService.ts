@@ -221,7 +221,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{REVIEWS_COUNT}}',
     category: 'Notas & Desempenho',
     description: 'Quantidade total de avaliações no Google Meu Negócio',
-    exampleValue: (p) => p?.gmnReviewsCount ? `${p.gmnReviewsCount} avaliações` : '552 avaliações'
+    exampleValue: (p) => (p?.gmnReviewsCount !== undefined && p?.gmnReviewsCount !== null && p?.gmnReviewsCount !== '') ? (String(p.gmnReviewsCount).replace(/\D/g, '') || '0') : '552'
   },
   {
     code: '{{SCORE_GOOGLE}}',

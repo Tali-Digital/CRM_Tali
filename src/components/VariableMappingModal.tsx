@@ -123,7 +123,7 @@ export const VariableMappingModal: React.FC<Props> = ({
       case 'posicaoForaTop20': return '20+';
       case 'notaGeral': return d?.notaGeral ? `${d.notaGeral}/100` : '65/100';
       case 'gmnRating': return p?.gmnRating ? String(p.gmnRating).replace('★', '').trim() : '4.8';
-      case 'gmnReviewsCount': return p?.gmnReviewsCount ? `${p.gmnReviewsCount} avaliações` : '150 avaliações';
+      case 'gmnReviewsCount': return (p?.gmnReviewsCount !== undefined && p?.gmnReviewsCount !== null && p?.gmnReviewsCount !== '') ? (String(p.gmnReviewsCount).replace(/\D/g, '') || '0') : '150';
       case 'scoreGoogle': return d?.placar?.google ? `${d.placar.google}/100` : '21/100';
       case 'scoreReputacao': return d?.placar?.reputacao ? `${d.placar.reputacao}/100` : '92/100';
       case 'scoreInstagram': return d?.placar?.instagram ? `${d.placar.instagram}/100` : '75/100';
