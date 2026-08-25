@@ -791,3 +791,101 @@ export const fetchLocalFalconReportHistory = async (params: {
     return { success: false, error: err.message || 'Erro de conexão ao buscar histórico' };
   }
 };
+
+export interface LocalFalconHistoryItem {
+  scanId: string;
+  mapImageUrl: string;
+  heatmapUrl?: string;
+  radius: number;
+  gridSize: string;
+  solv?: number;
+  keyword?: string;
+  createdAt?: string;
+  title?: string;
+}
+
+/**
+ * Busca TODOS os relatórios prévios gravados no histórico do Local Falcon para uma empresa/keyword
+ */
+export const fetchLocalFalconAllReportsHistoryList = async (params: {
+  locationName: string;
+  keyword?: string;
+}): Promise<LocalFalconHistoryItem[]> => {
+  const settings = await getGlobalSettings('gemini');
+  const key = settings?.localFalconKey || '';
+  if (!key || !params.locationName) return [];
+
+  try {
+    const norm = (s: string) => (s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    const targetNameNorm = norm(params.locationName);
+    const savedLoc = await findSavedLocation(key, params.locationName, true);
+    const placeId = savedLoc?.placeId || '';
+
+    const formBody: Record<string, string> = { api_key: key, limit: '50' };
+    if (placeId) formBody.place_id = placeId;
+
+    let res = await postForm('/api-proxy/localfalcon/v1/reports/', formBody, 30000);
+    if (!res.ok || placeId) {
+      const fallbackRes = await postForm('/api-proxy/localfalcon/v1/reports/', { api_key: key, limit: '50' }, 30000);
+      if (fallbackRes.ok) res = fallbackRes;
+    }
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const reports = data?.data?.reports || data?.reports || data?.data || [];
+    if (!Array.isArray(reports) || reports.length === 0) return [];
+
+    let matchedReports = reports.filter((report: any) => {
+      const reportPlaceId = report.place_id || report.location?.place_id || report.location?.placeId || '';
+      if (placeId && reportPlaceId === placeId) return true;
+      const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
+      return reportName.includes(targetNameNorm) || targetNameNorm.includes(reportName);
+    });
+
+    if (matchedReports.length === 0) {
+      const nameWords = targetNameNorm.split(' ').filter(w => w.length > 3);
+      matchedReports = reports.filter((report: any) => {
+        const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
+        return nameWords.some(w => reportName.includes(w));
+      });
+    }
+
+    if (params.keyword) {
+      const targetKw = norm(params.keyword);
+      const kwMatches = matchedReports.filter((r: any) => norm(r.keyword || '') === targetKw);
+      if (kwMatches.length > 0) {
+        matchedReports = kwMatches;
+      }
+    }
+
+    return matchedReports.map((report: any) => {
+      const rKey = report.report_key || report.scan_id || report.id;
+      const rawRad = parseFloat(report.radius || report.distance || report.grid_radius || '');
+      const rad = !isNaN(rawRad) && rawRad > 0 ? rawRad : 2;
+      const gSize = report.grid_size || report.gridSize || '5x5';
+      const solvVal = report.solv !== undefined ? parseFloat(report.solv) : undefined;
+      const dateStr = report.created_at || report.date || report.created || report.timestamp || '';
+      let formattedDate = '';
+      if (dateStr) {
+        try {
+          formattedDate = new Date(dateStr).toLocaleDateString('pt-BR');
+        } catch (_) {}
+      }
+
+      return {
+        scanId: rKey,
+        mapImageUrl: report.image || (rKey ? `https://lf-static-v2.localfalcon.com/image/${rKey}` : ''),
+        heatmapUrl: report.heatmap || (rKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${rKey}` : ''),
+        radius: rad,
+        gridSize: gSize,
+        solv: isNaN(solvVal as number) ? undefined : solvVal,
+        keyword: report.keyword || params.keyword || '',
+        createdAt: formattedDate,
+        title: report.name || report.title || ''
+      };
+    });
+  } catch (err) {
+    console.error('[LocalFalcon] Erro ao listar histórico completo:', err);
+    return [];
+  }
+};

@@ -6,7 +6,7 @@ import {
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic, generateOportunidadesPersonalizadasIA } from '../services/geminiService';
-import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory } from '../services/localFalconService';
+import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, LocalFalconHistoryItem } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
@@ -268,6 +268,76 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       ads: true
     }
   });
+
+  const [mapHistoryList, setMapHistoryList] = useState<LocalFalconHistoryItem[]>([]);
+  const [currentMapIndex, setCurrentMapIndex] = useState<number>(0);
+
+  // ── Compilação dos Mapas Disponíveis para Navegação (Sempre Priorizando o Mais Recente no Index 0) ──
+  const allAvailableMaps = React.useMemo(() => {
+    const maps: Array<{
+      scanId?: string;
+      mapImageUrl: string;
+      radius: number;
+      gridSize: string;
+      solv?: number | string;
+      createdAt?: string;
+      keyword?: string;
+    }> = [];
+
+    // 1. Mapa Principal do Diagnóstico Atual (se existir)
+    if (diagnosticData?.gmn?.mapaCalorImg || diagnosticData?.gmn?.scanId) {
+      const primaryUrl = diagnosticData.gmn.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}`;
+      maps.push({
+        scanId: diagnosticData.gmn.scanId || undefined,
+        mapImageUrl: primaryUrl,
+        radius: Number(diagnosticData.gmn.radius || formData.radius || 2),
+        gridSize: diagnosticData.gmn.gridSize || formData.gridSize || '5x5',
+        solv: diagnosticData.gmn.top3Percent,
+        keyword: diagnosticData.gmn.keyword || formData.keyword
+      });
+    }
+
+    // 2. Mapas Históricos do Local Falcon (evitando duplicar o mapa principal)
+    mapHistoryList.forEach(item => {
+      if (!maps.some(m => (m.scanId && m.scanId === item.scanId) || m.mapImageUrl === item.mapImageUrl)) {
+        maps.push({
+          scanId: item.scanId,
+          mapImageUrl: item.mapImageUrl,
+          radius: item.radius,
+          gridSize: item.gridSize,
+          solv: item.solv,
+          createdAt: item.createdAt,
+          keyword: item.keyword
+        });
+      }
+    });
+
+    return maps;
+  }, [diagnosticData?.gmn, mapHistoryList, formData.radius, formData.gridSize, formData.keyword]);
+
+  // Reseta para o mapa mais recente sempre que a prospect ou o diagnóstico mudar
+  useEffect(() => {
+    setCurrentMapIndex(0);
+  }, [selectedProspect?.id, diagnosticData?.gmn?.scanId, diagnosticData?.gmn?.mapaCalorImg]);
+
+  // Carrega lista completa de relatórios prévios do histórico do Local Falcon
+  useEffect(() => {
+    if (!selectedProspect) {
+      setMapHistoryList([]);
+      return;
+    }
+    const compName = selectedProspect.clinicName || formData.companyName || '';
+    if (!compName) return;
+
+    fetchLocalFalconAllReportsHistoryList({
+      locationName: compName,
+      keyword: diagnosticData?.gmn?.keyword || formData.keyword
+    }).then(list => {
+      if (list && list.length > 0) {
+        setMapHistoryList(list);
+      }
+    }).catch(console.error);
+  }, [selectedProspect?.id, diagnosticData?.gmn?.scanId]);
 
   useEffect(() => {
     checkLocalFalconStatus().then(setFalconInfo);
@@ -2381,29 +2451,116 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
             </div>
 
-            {/* Imagem completa do mapa Local Falcon */}
-            {diagnosticData.gmn?.mapaCalorImg || (diagnosticData.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}` : '') ? (
-              <div className="w-full max-w-xl bg-[#1a1d2d] p-3 rounded-2xl border border-gray-700/80 shadow-2xl overflow-hidden mb-4 flex flex-col items-center">
-                <img
-                  src={diagnosticData.gmn?.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn?.scanId}`}
-                  alt="Mapa de Calor Local Falcon Real"
-                  className="block w-full h-auto rounded-xl"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-                <div className="mt-2.5 flex items-center justify-center gap-2 flex-wrap text-xs">
-                  <span className="bg-indigo-950/90 text-indigo-200 px-3 py-1 rounded-full border border-indigo-700/60 font-semibold shadow-sm flex items-center gap-1.5">
-                    📍 Raio utilizado na busca: <strong className="text-white">{diagnosticData.gmn?.radius || formData.radius || (selectedProspect as any)?.radius || 5} km</strong>
-                  </span>
-                  {diagnosticData.gmn?.gridSize && (
-                    <span className="bg-gray-800/80 text-gray-300 px-2.5 py-1 rounded-full border border-gray-700 font-medium">
-                      Matriz: {diagnosticData.gmn.gridSize}
-                    </span>
+            {/* Imagem completa do mapa Local Falcon com navegação por setas */}
+            {allAvailableMaps.length > 0 ? (() => {
+              const activeMapIndex = Math.min(currentMapIndex, allAvailableMaps.length - 1);
+              const activeMap = allAvailableMaps[activeMapIndex] || allAvailableMaps[0];
+              const activeUrl = activeMap?.mapImageUrl;
+
+              return (
+                <div className="w-full max-w-xl bg-[#1a1d2d] p-3.5 rounded-2xl border border-gray-700/80 shadow-2xl overflow-hidden mb-4 flex flex-col items-center relative group">
+                  
+                  {/* Barra de controle de navegação entre mapas caso haja mais de 1 */}
+                  {allAvailableMaps.length > 1 && (
+                    <div className="w-full flex items-center justify-between bg-[#111322] px-3.5 py-2 rounded-xl border border-gray-800 mb-3 select-none">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentMapIndex(prev => Math.min(allAvailableMaps.length - 1, prev + 1))}
+                        disabled={activeMapIndex === allAvailableMaps.length - 1}
+                        className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
+                        title="Ver mapa anterior (mais antigo)"
+                      >
+                        <ChevronLeft size={16} />
+                        <span className="hidden sm:inline">Anterior</span>
+                      </button>
+
+                      <div className="text-center text-xs font-bold text-gray-200 flex items-center gap-2">
+                        <span className="text-indigo-400">Mapa {activeMapIndex + 1} de {allAvailableMaps.length}</span>
+                        {activeMapIndex === 0 ? (
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                            ⚡ Mais recente
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                            📜 Histórico
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setCurrentMapIndex(prev => Math.max(0, prev - 1))}
+                        disabled={activeMapIndex === 0}
+                        className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
+                        title="Ver mapa mais recente"
+                      >
+                        <span className="hidden sm:inline">Mais recente</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
                   )}
+
+                  {/* Container da Imagem com Setas Flutuantes */}
+                  <div className="relative w-full overflow-hidden rounded-xl bg-black/40">
+                    <img
+                      src={activeUrl}
+                      alt={`Mapa de Calor Local Falcon (${activeMapIndex + 1})`}
+                      className="block w-full h-auto rounded-xl transition-all duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+
+                    {/* Setas flutuantes sobre a imagem do mapa */}
+                    {allAvailableMaps.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentMapIndex(prev => Math.min(allAvailableMaps.length - 1, prev + 1))}
+                          disabled={activeMapIndex === allAvailableMaps.length - 1}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/75 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all shadow-2xl disabled:opacity-0 disabled:pointer-events-none cursor-pointer group-hover:scale-105"
+                          title="Ver mapa anterior (mais antigo)"
+                        >
+                          <ChevronLeft size={22} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setCurrentMapIndex(prev => Math.max(0, prev - 1))}
+                          disabled={activeMapIndex === 0}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/75 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all shadow-2xl disabled:opacity-0 disabled:pointer-events-none cursor-pointer group-hover:scale-105"
+                          title="Ver mapa mais recente"
+                        >
+                          <ChevronRight size={22} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Badges de Metadados do Mapa Selecionado */}
+                  <div className="mt-3 flex items-center justify-center gap-2 flex-wrap text-xs">
+                    <span className="bg-indigo-950/90 text-indigo-200 px-3 py-1 rounded-full border border-indigo-700/60 font-semibold shadow-sm flex items-center gap-1.5">
+                      📍 Raio utilizado na busca: <strong className="text-white">{activeMap.radius} km</strong>
+                    </span>
+                    {activeMap.gridSize && (
+                      <span className="bg-gray-800/80 text-gray-300 px-2.5 py-1 rounded-full border border-gray-700 font-medium">
+                        Matriz: {activeMap.gridSize}
+                      </span>
+                    )}
+                    {activeMap.solv !== undefined && (
+                      <span className="bg-emerald-950/90 text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-700/50 font-bold">
+                        SoLV: {activeMap.solv}%
+                      </span>
+                    )}
+                    {activeMap.createdAt && (
+                      <span className="bg-gray-800/80 text-gray-300 px-2.5 py-1 rounded-full border border-gray-700 font-mono text-[11px]">
+                        🗓️ {activeMap.createdAt}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <div className="w-full max-w-md bg-[#1a1d2d] p-6 rounded-2xl border border-amber-500/30 text-amber-300 text-center mb-4 text-xs font-semibold">
                 ⚠️ Nenhuma varredura real do Local Falcon executada ainda. Preencha a palavra-chave e clique em '⚡ Gerar Diagnóstico v2' para realizar a busca real no Local Falcon.
               </div>
