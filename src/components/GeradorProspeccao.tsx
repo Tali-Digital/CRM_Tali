@@ -1024,14 +1024,25 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       || ((prospeccaoParaEditar as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(prospeccaoParaEditar as any).scanId}` : '')
       || '';
 
+    const searchRadiusKm = gmn?.radius
+      || (diagnosticData as any)?.gmn?.radius
+      || (diagnosticData as any)?.radius
+      || (prospectData as any)?.radius
+      || (prospectData as any)?.marketingDiagnostic?.gmn?.radius
+      || 5;
+
     const mapaCalorHtml = mapImageUrl ? `
       <div style="margin: 24px 0; text-align: center;">
         <img src="${mapImageUrl}" alt="Mapa de calor real do Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" />
+        <div style="margin-top: 8px; font-size: 9.5pt; color: #475569; font-weight: 600; font-family: sans-serif;">
+          📍 Raio utilizado na busca: <span style="color: #0f172a; font-weight: 800;">${searchRadiusKm} km</span>
+        </div>
       </div>
     ` : `
       <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center; color: #64748b; font-family: sans-serif;">
         <div style="font-size: 14pt; font-weight: bold; color: #475569; margin-bottom: 6px;">🗺️ Mapa de Calor (Local Falcon)</div>
-        <div style="font-size: 9.5pt; color: #64748b;">Nenhuma varredura do Local Falcon encontrada para esta prospect. Realize a varredura no diagnóstico de marketing ou adicione a imagem do mapa.</div>
+        <div style="font-size: 9.5pt; color: #64748b; margin-bottom: 4px;">Nenhuma varredura do Local Falcon encontrada para esta prospect. Realize a varredura no diagnóstico de marketing ou adicione a imagem do mapa.</div>
+        <div style="font-size: 9pt; font-weight: 600; color: #475569;">📍 Raio configurado para busca: ${searchRadiusKm} km</div>
       </div>
     `;
     const fichaClinicaHtml = `
@@ -1154,6 +1165,9 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           <span style="background-color: #f8fafc; color: #0f172a; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
             📍 Google Maps
           </span>
+          <span style="background-color: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #c7d2fe; display: inline-flex; align-items: center; gap: 4px;">
+            📍 Raio: ${searchRadiusKm} km
+          </span>
           <span>for:</span>
         </div>
       </div>
@@ -1180,6 +1194,9 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
           <span>on</span>
           <span style="background-color: #f8fafc; color: #0f172a; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 4px;">
             📍 Google Maps
+          </span>
+          <span style="background-color: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 16px; font-weight: bold; border: 1px solid #c7d2fe; display: inline-flex; align-items: center; gap: 4px;">
+            📍 Raio: ${searchRadiusKm} km
           </span>
           <span>for:</span>
         </div>

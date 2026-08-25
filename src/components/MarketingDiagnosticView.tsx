@@ -2353,6 +2353,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   </svg>
                   <span><span className="text-blue-600">G</span>oogle Maps</span>
                 </span>
+                <span className="inline-flex items-center gap-1 bg-indigo-950/80 text-indigo-300 px-2.5 py-1 rounded-lg font-bold text-xs border border-indigo-700/50">
+                  📍 Raio: {diagnosticData.gmn?.radius || formData.radius || (selectedProspect as any)?.radius || 5} km
+                </span>
                 <span className="text-gray-400 font-medium">for:</span>
               </div>
 
@@ -2378,7 +2381,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
             {/* Imagem completa do mapa Local Falcon */}
             {diagnosticData.gmn?.mapaCalorImg || (diagnosticData.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn.scanId}` : '') ? (
-              <div className="w-full max-w-xl bg-[#1a1d2d] p-3 rounded-2xl border border-gray-700/80 shadow-2xl overflow-hidden mb-4">
+              <div className="w-full max-w-xl bg-[#1a1d2d] p-3 rounded-2xl border border-gray-700/80 shadow-2xl overflow-hidden mb-4 flex flex-col items-center">
                 <img
                   src={diagnosticData.gmn?.mapaCalorImg || `https://lf-static-v2.localfalcon.com/image/${diagnosticData.gmn?.scanId}`}
                   alt="Mapa de Calor Local Falcon Real"
@@ -2387,6 +2390,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
+                <div className="mt-2.5 flex items-center justify-center gap-2 flex-wrap text-xs">
+                  <span className="bg-indigo-950/90 text-indigo-200 px-3 py-1 rounded-full border border-indigo-700/60 font-semibold shadow-sm flex items-center gap-1.5">
+                    📍 Raio utilizado na busca: <strong className="text-white">{diagnosticData.gmn?.radius || formData.radius || (selectedProspect as any)?.radius || 5} km</strong>
+                  </span>
+                  {diagnosticData.gmn?.gridSize && (
+                    <span className="bg-gray-800/80 text-gray-300 px-2.5 py-1 rounded-full border border-gray-700 font-medium">
+                      Matriz: {diagnosticData.gmn.gridSize}
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="w-full max-w-md bg-[#1a1d2d] p-6 rounded-2xl border border-amber-500/30 text-amber-300 text-center mb-4 text-xs font-semibold">
@@ -4435,9 +4448,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Varredura Local Falcon</span>
-                          {diagnosticData.gmn?.scanId && <span className="text-xs bg-indigo-950 text-indigo-300 px-2.5 py-0.5 rounded font-mono border border-indigo-800/40">Scan ID: {diagnosticData.gmn.scanId}</span>}
+                        <div className="flex items-center gap-2 flex-wrap justify-center text-xs">
+                          <span className="text-gray-400 font-bold uppercase tracking-wider">Varredura Local Falcon</span>
+                          <span className="bg-indigo-950 text-indigo-300 px-2.5 py-0.5 rounded font-medium border border-indigo-800/40">
+                            📍 Raio: {diagnosticData.gmn?.radius || formData.radius || (selectedProspect as any)?.radius || 5} km
+                          </span>
+                          {diagnosticData.gmn?.scanId && <span className="bg-indigo-950 text-indigo-300 px-2.5 py-0.5 rounded font-mono border border-indigo-800/40">Scan ID: {diagnosticData.gmn.scanId}</span>}
                         </div>
                       </div>
                     ) : (
