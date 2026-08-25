@@ -31,6 +31,8 @@ export interface LocalFalconResult {
   heatmapUrl?: string;
   creditsUsed?: number;
   competitors?: LocalFalconCompetitor[]; // Concorrentes reais extraídos dos data_points
+  radius?: number;
+  gridSize?: string;
   error?: string;
 }
 
@@ -471,13 +473,21 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
     try {
       const historyCheck = await fetchLocalFalconReportHistory({
         locationName: params.locationName,
-        keyword: params.keyword
+        keyword: params.keyword,
+        radius: params.radius
       });
       if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
-        console.log('[LocalFalcon Proteção] ✅ Relatório existente encontrado no histórico! Reutilizando dados com 0 Créditos consumidos.');
-        return historyCheck;
+        const histRadius = historyCheck.radius !== undefined ? Number(historyCheck.radius) : null;
+        const reqRadius = params.radius !== undefined && params.radius !== null ? Number(params.radius) : null;
+
+        if (reqRadius === null || histRadius === null || Math.abs(histRadius - reqRadius) < 0.1) {
+          console.log('[LocalFalcon Proteção] ✅ Relatório existente com mesmo raio encontrado no histórico! Reutilizando dados com 0 Créditos consumidos.');
+          return historyCheck;
+        } else {
+          console.log(`[LocalFalcon Proteção] ⚠️ Relatório no histórico possui raio (${histRadius}km) diferente do raio solicitado (${reqRadius}km). Prosseguindo com nova varredura real...`);
+        }
       }
-      console.log('[LocalFalcon Proteção] ℹ️ Nenhum relatório prévio localizado para esta empresa. Prosseguindo com varredura inicial...');
+      console.log('[LocalFalcon Proteção] ℹ️ Nenhum relatório prévio compatível localizado para esta empresa. Prosseguindo com varredura inicial...');
     } catch (hErr: any) {
       console.warn('[LocalFalcon Proteção] Aviso ao consultar histórico:', hErr);
     }
@@ -623,6 +633,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
 export const fetchLocalFalconReportHistory = async (params: {
   locationName: string;
   keyword?: string;
+  radius?: number | string;
 }): Promise<LocalFalconResult> => {
   const settings = await getGlobalSettings('gemini');
   const key = settings?.localFalconKey || '';
@@ -691,9 +702,23 @@ export const fetchLocalFalconReportHistory = async (params: {
     }
 
     const targetKeyword = norm(params.keyword || '');
-    const matchedReport = targetKeyword
-      ? (matchedReports.find((report: any) => norm(report.keyword || '') === targetKeyword) || matchedReports[0])
-      : matchedReports[0];
+    const targetRadius = params.radius !== undefined && params.radius !== null && params.radius !== '' ? Number(params.radius) : null;
+
+    let matchedReport = matchedReports[0];
+    if (targetKeyword) {
+      const keywordMatches = matchedReports.filter((report: any) => norm(report.keyword || '') === targetKeyword);
+      if (keywordMatches.length > 0) {
+        if (targetRadius !== null) {
+          const radiusMatch = keywordMatches.find((report: any) => {
+            const r = parseFloat(report.radius || report.distance || report.grid_radius || '0');
+            return Math.abs(r - targetRadius) < 0.1;
+          });
+          matchedReport = radiusMatch || keywordMatches[0];
+        } else {
+          matchedReport = keywordMatches[0];
+        }
+      }
+    }
 
     const reportKey = matchedReport.report_key || matchedReport.scan_id || matchedReport.id;
     if (!reportKey) {
@@ -739,6 +764,9 @@ export const fetchLocalFalconReportHistory = async (params: {
     const avgRank = parseFloat(detailData.arp || detailData.atrp || matchedReport.arp || '0');
     const mapImageUrl = detailData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
     const heatmapUrl = detailData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
+    const rawRadius = parseFloat(detailData.radius || detailData.distance || detailData.grid_radius || matchedReport.radius || matchedReport.distance || matchedReport.grid_radius || '');
+    const extractedRadius = !isNaN(rawRadius) && rawRadius > 0 ? rawRadius : (params.radius ? Number(params.radius) : 2);
+    const extractedGridSize = detailData.grid_size || detailData.gridSize || matchedReport.grid_size || matchedReport.gridSize || '5x5';
 
     return {
       success: true,
@@ -754,7 +782,9 @@ export const fetchLocalFalconReportHistory = async (params: {
       mapImageUrl,
       heatmapUrl,
       creditsUsed: 0,
-      competitors
+      competitors,
+      radius: extractedRadius,
+      gridSize: extractedGridSize
     };
   } catch (err: any) {
     console.error('[LocalFalcon History] Erro ao consultar histórico:', err);

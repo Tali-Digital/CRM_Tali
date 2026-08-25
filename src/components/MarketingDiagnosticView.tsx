@@ -1096,7 +1096,9 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               scanId: historyResult.scanId || existingDiag.gmn?.scanId || null,
               mapaCalorImg: historyResult.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null,
               keyword: form.keyword,
-              oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}".`,
+              radius: historyResult.radius ?? Number(form.radius || 2),
+              gridSize: historyResult.gridSize || form.gridSize || '5x5',
+              oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}" (Raio: ${historyResult.radius ?? (form.radius || 2)}km).`,
               oportunidade2: `Relatório baixado da conta do Local Falcon (0 Créditos). Scan ID ${historyResult.scanId || 'ok'}.`
             }
           };
