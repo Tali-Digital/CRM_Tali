@@ -2500,7 +2500,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     </div>
                   )}
 
-                  {/* Container da Imagem com Setas Flutuantes */}
+                  {/* Container da Imagem */}
                   <div className="relative w-full overflow-hidden rounded-xl bg-black/40">
                     <img
                       src={activeUrl}
@@ -2510,31 +2510,6 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                         (e.target as HTMLElement).style.display = 'none';
                       }}
                     />
-
-                    {/* Setas flutuantes sobre a imagem do mapa */}
-                    {allAvailableMaps.length > 1 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentMapIndex(prev => Math.min(allAvailableMaps.length - 1, prev + 1))}
-                          disabled={activeMapIndex === allAvailableMaps.length - 1}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/75 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all shadow-2xl disabled:opacity-0 disabled:pointer-events-none cursor-pointer group-hover:scale-105"
-                          title="Ver mapa anterior (mais antigo)"
-                        >
-                          <ChevronLeft size={22} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setCurrentMapIndex(prev => Math.max(0, prev - 1))}
-                          disabled={activeMapIndex === 0}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/75 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all shadow-2xl disabled:opacity-0 disabled:pointer-events-none cursor-pointer group-hover:scale-105"
-                          title="Ver mapa mais recente"
-                        >
-                          <ChevronRight size={22} />
-                        </button>
-                      </>
-                    )}
                   </div>
 
                   {/* Badges de Metadados do Mapa Selecionado */}
