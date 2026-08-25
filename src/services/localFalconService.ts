@@ -531,7 +531,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
       lat: lat,
       lng: lng,
       grid_size: gridSize,
-      radius: String(params.radius || 5),
+      radius: String(params.radius || 2),
       measurement: 'km',
       platform: 'google'
     };

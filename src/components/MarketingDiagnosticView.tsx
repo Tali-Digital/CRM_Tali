@@ -244,7 +244,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     companyName: '',
     keyword: '',
     gridSize: '5x5' as '3x3' | '5x5' | '7x7',
-    radius: 5 as number | string,
+    radius: 2 as number | string,
     stateUf: 'Distrito Federal (DF)',
     cityName: 'Brasília',
     neighborhoodName: ''
@@ -253,7 +253,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     companyName: '',
     keyword: '',
     gridSize: '5x5' as '3x3' | '5x5' | '7x7',
-    radius: 5 as number | string,
+    radius: 2 as number | string,
     ticketMedio: '',
     stateUf: 'Distrito Federal (DF)',
     cityName: 'Brasília',
@@ -397,7 +397,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         companyName: selectedProspect.clinicName || '',
         keyword: (selectedProspect as any).keyword || 'Dentista',
         gridSize: (selectedProspect as any).gridSize || '5x5',
-        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? 5,
+        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? 2,
         ticketMedio: (selectedProspect as any).ticketMedio || '',
         stateUf: extractedState,
         cityName: extractedCity || 'Brasília',
@@ -539,7 +539,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         companyName: selectedProspect.clinicName || formData.companyName || '',
         keyword: (selectedProspect as any).keyword || formData.keyword || 'Dentista',
         gridSize: (selectedProspect as any).gridSize || formData.gridSize || '5x5',
-        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? formData.radius ?? 5,
+        radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? formData.radius ?? 2,
         stateUf: extractedState,
         cityName: extractedCity,
         neighborhoodName: prospectBairro
@@ -1163,7 +1163,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               locationName: form.companyName,
               cityName: form.cityName,
               gridSize: form.gridSize || '5x5',
-              radius: Number(form.radius || 5),
+              radius: Number(form.radius || 2),
               forceNewScan: (nextItem as any).actionType === 'force_new_gmn'
             });
             const lfDur = Date.now() - lfStart;
@@ -1253,7 +1253,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   }))
                 : (existingDiag.concorrentes || []),
               posicaoCliente: hasSolv ? (localFalconResult.clientRank ?? null) : (existingDiag.posicaoCliente ?? null),
-              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, radius: Number(form.radius || 5), gridSize: form.gridSize || '5x5', oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}" (Raio: ${form.radius || 5}km).`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
+              gmn: { top3Percent: hasSolv ? localFalconResult.solv : (existingDiag.gmn?.top3Percent ?? 'sem dados'), posicaoMedia: hasSolv ? (localFalconResult.clientRank ?? 'sem dados') : (existingDiag.gmn?.posicaoMedia ?? 'sem dados'), foraTop20Percent: hasSolv ? Math.max(0, 100 - localFalconResult.solv) : (existingDiag.gmn?.foraTop20Percent ?? 'sem dados'), scanId: localFalconResult?.scanId || existingDiag.gmn?.scanId || null, mapaCalorImg: localFalconResult?.mapImageUrl || existingDiag.gmn?.mapaCalorImg || null, locationName: form.companyName, keyword: form.keyword, radius: Number(form.radius || 2), gridSize: form.gridSize || '5x5', oportunidade1: `Palavra-chave rastreada no Local Falcon: "${form.keyword}" (Raio: ${form.radius || 2}km).`, oportunidade2: localFalconResult?.success ? `Local Falcon scan ID ${localFalconResult.scanId || 'ok'}.` : (existingDiag.gmn?.oportunidade2 || 'Sem dados de varredura.') }
             }
           : { resumo1: existingDiag.resumo1, resumo2: existingDiag.resumo2, concorrentes: existingDiag.concorrentes || [], posicaoCliente: existingDiag.posicaoCliente ?? null, gmn: existingDiag.gmn || {} };
 
@@ -1310,7 +1310,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           clinicName: form.companyName,
           keyword: form.keyword,
           gridSize: form.gridSize,
-          radius: Number(form.radius || 5),
+          radius: Number(form.radius || 2),
           ticketMedio: form.ticketMedio,
           stateUf: form.stateUf,
           cityName: form.cityName,
@@ -1551,7 +1551,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                   <span>⚡ Raio de Busca do Local Falcon (em km)</span>
                   <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-bold shadow-sm">
-                    {formData.radius || 5} km
+                    {formData.radius || 2} km
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-500 mb-2">
@@ -1565,7 +1565,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     step="0.5"
                     value={formData.radius}
                     onChange={e => setFormData({ ...formData, radius: e.target.value === '' ? '' : Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                    placeholder="ex: 5"
+                    placeholder="ex: 2"
                     className="w-full bg-[#0d0f19] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl p-3.5 text-base font-black text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 shadow-inner placeholder-gray-600 transition-all"
                   />
                 </div>
@@ -3982,7 +3982,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                   <span>⚡ Raio de Busca (em km)</span>
                   <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold">
-                    {falconRescanData.radius || 5} km
+                    {falconRescanData.radius || 2} km
                   </span>
                 </label>
                 <input
@@ -3992,7 +3992,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   step="0.5"
                   value={falconRescanData.radius}
                   onChange={e => setFalconRescanData({ ...falconRescanData, radius: e.target.value === '' ? '' : Math.max(0.1, parseFloat(e.target.value) || 1) })}
-                  placeholder="Ex: 5"
+                  placeholder="Ex: 2"
                   className="w-full bg-[#0d0f19] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl p-3 text-sm font-bold text-white focus:outline-none"
                 />
               </div>
