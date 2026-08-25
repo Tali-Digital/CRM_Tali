@@ -701,6 +701,17 @@ export const fetchLocalFalconReportHistory = async (params: {
       };
     }
 
+    // Sort matchedReports descending (newest first)
+    matchedReports = [...matchedReports].reverse();
+    matchedReports.sort((a: any, b: any) => {
+      const timeA = getReportTimestamp(a);
+      const timeB = getReportTimestamp(b);
+      if (timeA > 0 && timeB > 0 && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return 0;
+    });
+
     const targetKeyword = norm(params.keyword || '');
     const targetRadius = params.radius !== undefined && params.radius !== null && params.radius !== '' ? Number(params.radius) : null;
 
@@ -792,6 +803,21 @@ export const fetchLocalFalconReportHistory = async (params: {
   }
 };
 
+export const getReportTimestamp = (report: any): number => {
+  if (!report) return 0;
+  const d = report.created_at || report.date || report.created || report.timestamp;
+  if (d) {
+    const t = new Date(d).getTime();
+    if (!isNaN(t) && t > 0) return t;
+  }
+  const rawKey = report.scanId || report.scan_id || report.report_key || report.id;
+  if (rawKey) {
+    const num = Number(rawKey);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  return 0;
+};
+
 export interface LocalFalconHistoryItem {
   scanId: string;
   mapImageUrl: string;
@@ -801,6 +827,7 @@ export interface LocalFalconHistoryItem {
   solv?: number;
   keyword?: string;
   createdAt?: string;
+  rawCreatedAt?: number;
   title?: string;
 }
 
@@ -858,6 +885,17 @@ export const fetchLocalFalconAllReportsHistoryList = async (params: {
       }
     }
 
+    // Sort matchedReports descending (newest first)
+    matchedReports = [...matchedReports].reverse();
+    matchedReports.sort((a: any, b: any) => {
+      const timeA = getReportTimestamp(a);
+      const timeB = getReportTimestamp(b);
+      if (timeA > 0 && timeB > 0 && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return 0;
+    });
+
     return matchedReports.map((report: any) => {
       const rKey = report.report_key || report.scan_id || report.id;
       const rawRad = parseFloat(report.radius || report.distance || report.grid_radius || '');
@@ -866,6 +904,7 @@ export const fetchLocalFalconAllReportsHistoryList = async (params: {
       const solvVal = report.solv !== undefined ? parseFloat(report.solv) : undefined;
       const dateStr = report.created_at || report.date || report.created || report.timestamp || '';
       let formattedDate = '';
+      const rawCreatedAt = getReportTimestamp(report);
       if (dateStr) {
         try {
           formattedDate = new Date(dateStr).toLocaleDateString('pt-BR');
@@ -881,6 +920,7 @@ export const fetchLocalFalconAllReportsHistoryList = async (params: {
         solv: isNaN(solvVal as number) ? undefined : solvVal,
         keyword: report.keyword || params.keyword || '',
         createdAt: formattedDate,
+        rawCreatedAt: rawCreatedAt > 0 ? rawCreatedAt : undefined,
         title: report.name || report.title || ''
       };
     });

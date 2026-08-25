@@ -281,6 +281,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       gridSize: string;
       solv?: number | string;
       createdAt?: string;
+      rawCreatedAt?: number;
       keyword?: string;
     }> = [];
 
@@ -293,13 +294,21 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         radius: Number(diagnosticData.gmn.radius || formData.radius || 2),
         gridSize: diagnosticData.gmn.gridSize || formData.gridSize || '5x5',
         solv: diagnosticData.gmn.top3Percent,
-        keyword: diagnosticData.gmn.keyword || formData.keyword
+        keyword: diagnosticData.gmn.keyword || formData.keyword,
+        rawCreatedAt: Date.now() // O mapa ativo do diagnóstico atual é o mais recente realizado
       });
     }
 
     // 2. Mapas Históricos do Local Falcon (evitando duplicar o mapa principal)
     mapHistoryList.forEach(item => {
       if (!maps.some(m => (m.scanId && m.scanId === item.scanId) || m.mapImageUrl === item.mapImageUrl)) {
+        let ts = item.rawCreatedAt;
+        if (!ts && item.createdAt) {
+          const parts = item.createdAt.split('/');
+          if (parts.length === 3) {
+            ts = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+          }
+        }
         maps.push({
           scanId: item.scanId,
           mapImageUrl: item.mapImageUrl,
@@ -307,12 +316,14 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           gridSize: item.gridSize,
           solv: item.solv,
           createdAt: item.createdAt,
+          rawCreatedAt: ts || 0,
           keyword: item.keyword
         });
       }
     });
 
-    return maps;
+    // Ordena garantindo que o diagnóstico/mapa mais recente fique sempre no índice 0
+    return maps.sort((a, b) => (b.rawCreatedAt || 0) - (a.rawCreatedAt || 0));
   }, [diagnosticData?.gmn, mapHistoryList, formData.radius, formData.gridSize, formData.keyword]);
 
   // Reseta para o mapa mais recente sempre que a prospect ou o diagnóstico mudar
