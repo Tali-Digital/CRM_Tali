@@ -803,6 +803,91 @@ export const fetchLocalFalconReportHistory = async (params: {
   }
 };
 
+/**
+ * Busca detalhes completos e concorrentes de um relatório específico do Local Falcon pelo scanId
+ */
+export const fetchLocalFalconReportDetailsByScanId = async (
+  scanId: string,
+  locationName = ''
+): Promise<LocalFalconResult> => {
+  const settings = await getGlobalSettings('gemini');
+  const key = settings?.localFalconKey || '';
+
+  if (!key || !scanId) {
+    return { success: false, error: 'Chave API do Local Falcon ou Scan ID não informados.' };
+  }
+
+  try {
+    const detailRes = await postForm(`/api-proxy/localfalcon/v1/reports/${scanId}/`, { api_key: key }, 30000);
+    const competitorRes = await postForm(`/api-proxy/localfalcon/v1/competitor-reports/${scanId}`, { api_key: key }, 30000);
+
+    if (!detailRes.ok && !competitorRes.ok) {
+      return { success: false, error: `Falha ao consultar relatório ${scanId} no Local Falcon.` };
+    }
+
+    let detailData: any = {};
+    if (detailRes.ok) {
+      const dJson = await detailRes.json();
+      detailData = dJson?.data || dJson || {};
+    }
+
+    let competitorData: any = null;
+    if (competitorRes.ok) {
+      const cJson = await competitorRes.json();
+      competitorData = cJson?.data || cJson;
+    }
+
+    const dataPoints = extractDataPointsArray(detailData);
+    const placeId = detailData.place_id || detailData.location?.place_id || '';
+    const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId, locationName);
+
+    if (competitorData) {
+      const compList = competitorData.competitors || competitorData.data || [];
+      if (Array.isArray(compList) && compList.length > 0) {
+        compList.forEach((c: any) => {
+          const name = c.name || c.business_name;
+          const matchComp = competitors.find(cp => cp.nome.toLowerCase() === (name || '').toLowerCase());
+          if (matchComp) {
+            matchComp.nota = c.rating ? parseFloat(c.rating) : matchComp.nota;
+            matchComp.avaliacoes = c.reviews ? parseInt(c.reviews, 10) : matchComp.avaliacoes;
+            matchComp.endereco = c.address || matchComp.endereco;
+          }
+        });
+      }
+    }
+
+    const solv = parseFloat(detailData.solv || '0');
+    const avgRank = parseFloat(detailData.arp || detailData.atrp || '0');
+    const mapImageUrl = detailData.image || (scanId ? `https://lf-static-v2.localfalcon.com/image/${scanId}` : '');
+    const heatmapUrl = detailData.heatmap || (scanId ? `https://lf-static-v2.localfalcon.com/heatmap-img/${scanId}` : '');
+    const rawRadius = parseFloat(detailData.radius || detailData.distance || detailData.grid_radius || '');
+    const extractedRadius = !isNaN(rawRadius) && rawRadius > 0 ? rawRadius : 2;
+    const extractedGridSize = detailData.grid_size || detailData.gridSize || '5x5';
+
+    return {
+      success: true,
+      solv: isNaN(solv) ? 0 : solv,
+      avgRank: isNaN(avgRank) ? 0 : avgRank,
+      clientRank,
+      gridPoints: dataPoints.map((pt: any) => ({
+        lat: parseFloat(pt.lat),
+        lng: parseFloat(pt.lng),
+        rank: pt.rank
+      })),
+      scanId,
+      mapImageUrl,
+      heatmapUrl,
+      creditsUsed: 0,
+      competitors,
+      radius: extractedRadius,
+      gridSize: extractedGridSize
+    };
+  } catch (err: any) {
+    console.error('[LocalFalcon] Erro ao buscar relatório por scanId:', err);
+    return { success: false, error: err.message || 'Erro de conexão ao buscar relatório por scanId' };
+  }
+};
+
 export const getReportTimestamp = (report: any): number => {
   if (!report) return 0;
   const d = report.created_at || report.date || report.created || report.timestamp;

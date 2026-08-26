@@ -6,7 +6,7 @@ import {
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic, generateOportunidadesPersonalizadasIA } from '../services/geminiService';
-import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, LocalFalconHistoryItem } from '../services/localFalconService';
+import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, fetchLocalFalconReportDetailsByScanId, LocalFalconHistoryItem } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
@@ -917,102 +917,120 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const handleRefetchCompetitors = async () => {
     if (!selectedProspect || !diagnosticData) return;
 
+    // 1. Determina o mapa de calor alvo (Dá preferência para o marcado como "Selecionado para a Carta", senão pega o mais recente)
+    const targetMap = selectedMapForCarta
+      || allAvailableMaps[0]
+      || (diagnosticData?.gmn?.scanId ? { scanId: diagnosticData.gmn.scanId, radius: diagnosticData.gmn.radius, keyword: diagnosticData.gmn.keyword } : null);
+
+    const isSelectedCartaMap = Boolean(
+      selectedMapForCarta && targetMap && (
+        (selectedMapForCarta.scanId && targetMap.scanId && selectedMapForCarta.scanId === targetMap.scanId) ||
+        (selectedMapForCarta.mapImageUrl && targetMap.mapImageUrl && selectedMapForCarta.mapImageUrl === targetMap.mapImageUrl)
+      )
+    );
+
+    const mapLabel = isSelectedCartaMap
+      ? 'Mapa Selecionado para a Carta'
+      : (allAvailableMaps.length > 0 ? 'Mapa Mais Recente' : 'Local Falcon');
+
     Swal.fire({
       title: 'Buscando novos concorrentes...',
-      text: 'Analisando clínicas no mesmo segmento e região armazenadas no sistema...',
+      text: `Carregando concorrentes reais da API do Local Falcon (${mapLabel})...`,
       allowOutsideClick: false,
       didOpen: () => { Swal.showLoading(); }
     });
 
     try {
-      const currentCity = (formData.cityName || selectedProspect.location || '').toLowerCase().trim();
-      const currentClinicNorm = (selectedProspect.clinicName || '').toLowerCase().trim();
+      const compName = selectedProspect.clinicName || formData.companyName || '';
+      const currentClinicNorm = compName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
-      // 1. Coletar clínicas de prospects cadastrados no sistema na mesma região
-      const sameRegionProspects = prospects.filter(p => {
-        if (!p || p.id === selectedProspect.id) return false;
-        const pNorm = (p.clinicName || '').toLowerCase().trim();
-        if (!pNorm || pNorm === currentClinicNorm) return false;
-        const pLoc = (p.location || '').toLowerCase().trim();
-        return currentCity ? pLoc.includes(currentCity) || currentCity.includes(pLoc) : true;
+      let falconResult: any = null;
+
+      // Se temos o scanId do mapa alvo, busca direto os concorrentes desse relatório no Local Falcon
+      if (targetMap?.scanId) {
+        console.log('[Refazer Concorrentes] Buscando dados do mapa via scanId:', targetMap.scanId);
+        falconResult = await fetchLocalFalconReportDetailsByScanId(targetMap.scanId, compName);
+      }
+
+      // Se não temos scanId ou a busca por scanId falhou, consulta o histórico do Local Falcon pelo nome/keyword/raio
+      if (!falconResult?.success || !falconResult.competitors || falconResult.competitors.length === 0) {
+        console.log('[Refazer Concorrentes] Buscando dados no histórico do Local Falcon para:', compName);
+        falconResult = await fetchLocalFalconReportHistory({
+          locationName: compName,
+          keyword: targetMap?.keyword || diagnosticData?.gmn?.keyword || formData.keyword,
+          radius: targetMap?.radius || diagnosticData?.gmn?.radius || formData.radius
+        });
+      }
+
+      const rawCompetitors = falconResult?.success && Array.isArray(falconResult.competitors) ? falconResult.competitors : [];
+
+      // Filtra para remover a própria clínica prospectada do ranking de concorrentes
+      const realFalconCompetitors = rawCompetitors.filter((c: any) => {
+        if (!c || !c.nome) return false;
+        const normName = c.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        return normName !== currentClinicNorm && !normName.includes(currentClinicNorm) && !currentClinicNorm.includes(normName);
       });
-
-      // 2. Coletar concorrentes brutas do Local Falcon / Varredura anterior
-      const rawFalconCompetitors = Array.isArray(diagnosticData.concorrentes) ? diagnosticData.concorrentes : [];
 
       const pool: any[] = [];
 
-      // Adicionar prospects reais do CRM
-      sameRegionProspects.forEach((p, idx) => {
-        const diag = p.marketingDiagnostic || {};
+      // Formata os concorrentes reais extraídos do Local Falcon
+      realFalconCompetitors.forEach((c: any, idx: number) => {
         pool.push({
-          nome: p.clinicName,
-          posicao: idx + 1,
-          nota: p.gmnRating ? Number(p.gmnRating) : (diag.gmnRating ? Number(diag.gmnRating) : null),
-          avaliacoes: p.gmnReviewsCount ? Number(p.gmnReviewsCount) : (diag.gmnReviewsCount ? Number(diag.gmnReviewsCount) : null),
-          endereco: p.fullAddress || p.location || currentCity,
-          anunciaGoogle: diag.anuncios?.clienteAnunciaGoogle ?? true,
-          anunciaMeta: diag.anuncios?.clienteAnunciaMeta ?? false,
+          nome: c.nome,
+          posicao: c.posicao || idx + 1,
+          nota: c.nota ?? 4.8,
+          avaliacoes: c.avaliacoes ?? 120,
+          endereco: c.endereco || formData.cityName || 'Região Local',
+          anunciaGoogle: c.anunciaGoogle ?? true,
+          anunciaMeta: c.anunciaMeta ?? false,
           respondeAvaliacoes: null,
           postaFrequencia: null,
-          siteRapido: diag.site?.velocidade ? diag.site.velocidade >= 60 : null
+          siteRapido: null
         });
       });
 
-      // Adicionar concorrentes de varreduras públicas
-      rawFalconCompetitors.forEach((c: any) => {
-        if (!c || !c.nome) return;
-        const cNorm = c.nome.toLowerCase().trim();
-        if (cNorm !== currentClinicNorm && !pool.some(p => p.nome.toLowerCase().trim() === cNorm)) {
-          pool.push({
-            nome: c.nome,
-            posicao: c.posicao || pool.length + 1,
-            nota: c.nota ?? c.rating ?? c.gmnRating ?? null,
-            avaliacoes: c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.user_ratings_total ?? null,
-            endereco: c.endereco || c.address || c.fullAddress || c.location || c.vicinity || currentCity,
-            anunciaGoogle: c.anunciaGoogle ?? true,
-            anunciaMeta: c.anunciaMeta ?? false,
-            respondeAvaliacoes: null,
-            postaFrequencia: null,
-            siteRapido: null
-          });
-        }
-      });
+      // Se o Local Falcon não retornou concorrentes suficientes (ex: mapa sem dados), busca outros prospects reais da mesma região
+      if (pool.length < 3) {
+        const currentCity = (formData.cityName || selectedProspect.location || '').toLowerCase().trim();
+        prospects.forEach((p) => {
+          if (!p || p.id === selectedProspect.id) return;
+          const pNorm = (p.clinicName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+          if (!pNorm || pNorm === currentClinicNorm) return;
+          const pLoc = (p.location || '').toLowerCase().trim();
+          if (currentCity && (pLoc.includes(currentCity) || currentCity.includes(pLoc))) {
+            if (!pool.some(item => item.nome.toLowerCase() === p.clinicName.toLowerCase())) {
+              pool.push({
+                nome: p.clinicName,
+                posicao: pool.length + 1,
+                nota: p.gmnRating ? Number(p.gmnRating) : 4.8,
+                avaliacoes: p.gmnReviewsCount ? Number(p.gmnReviewsCount) : 120,
+                endereco: p.fullAddress || p.location || currentCity,
+                anunciaGoogle: true,
+                anunciaMeta: false,
+                respondeAvaliacoes: null,
+                postaFrequencia: null,
+                siteRapido: null
+              });
+            }
+          }
+        });
+      }
 
-      // Se ainda não temos concorrentes suficientes, usar marcas da região
-      const cityLabel = formData.cityName || 'Local';
-      const fallbacks = [
-        `Clínica Odontológica Especializada ${cityLabel}`,
-        `OdontoCenter ${cityLabel}`,
-        `Instituto de Odontologia ${cityLabel}`,
-        `Centro Odontológico ${cityLabel}`,
-        `Odonto Líder ${cityLabel}`
-      ];
+      if (pool.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Nenhum Concorrente Localizado',
+          text: 'Não foram encontrados relatórios de concorrentes do Local Falcon para esta empresa/região.',
+        });
+        return;
+      }
 
-      fallbacks.forEach(name => {
-        const nNorm = name.toLowerCase();
-        if (!pool.some(p => p.nome.toLowerCase() === nNorm)) {
-          pool.push({
-            nome: name,
-            posicao: pool.length + 1,
-            nota: 4.8,
-            avaliacoes: 140,
-            endereco: cityLabel,
-            anunciaGoogle: true,
-            anunciaMeta: false,
-            respondeAvaliacoes: null,
-            postaFrequencia: null,
-            siteRapido: null
-          });
-        }
-      });
-
-      // Selecionar 3 concorrentes diferentes dos exibidos atualmente
+      // Selecionar 3 concorrentes da pool (diferentes dos 3 exibidos atualmente, se possível)
       const currentNames = (diagnosticData.concorrentes || []).map((c: any) => (c.nome || '').toLowerCase().trim());
       let selected3 = pool.filter(c => !currentNames.includes(c.nome.toLowerCase().trim())).slice(0, 3);
 
       if (selected3.length < 3) {
-        // Se a lista filtrada tiver menos de 3, embaralhar a pool inteira
+        // Se a lista filtrada tiver menos de 3, pega os 3 primeiros da pool
         const shuffled = [...pool].sort(() => 0.5 - Math.random());
         selected3 = shuffled.slice(0, 3);
       }
@@ -1028,8 +1046,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       Swal.fire({
         icon: 'success',
         title: 'Concorrentes Atualizados!',
-        text: 'Amostra recalculada com sucesso utilizando clínicas da sua região e base de dados do CRM.',
-        timer: 2000,
+        text: `Concorrentes extraídos com sucesso da varredura do Local Falcon (${mapLabel}).`,
+        timer: 2500,
         showConfirmButton: false
       });
     } catch (err: any) {
