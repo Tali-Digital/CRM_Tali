@@ -1011,7 +1011,17 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       </div>
     ` : '';
 
-    const mapImageUrl = gmn?.mapaCalorImg
+    const selectedMap = (gmn as any)?.selectedMapForCarta
+      || (diagnosticData as any)?.selectedMapForCarta
+      || (diagnosticData as any)?.gmn?.selectedMapForCarta
+      || (prospectData as any)?.selectedMapForCarta
+      || (prospectData as any)?.marketingDiagnostic?.selectedMapForCarta
+      || (prospectData as any)?.marketingDiagnostic?.gmn?.selectedMapForCarta
+      || (prospeccaoParaEditar as any)?.selectedMapForCarta;
+
+    const mapImageUrl = selectedMap?.mapImageUrl
+      || (selectedMap?.scanId ? `https://lf-static-v2.localfalcon.com/image/${selectedMap.scanId}` : '')
+      || gmn?.mapaCalorImg
       || (gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${gmn.scanId}` : '')
       || (diagnosticData as any)?.mapaCalorImg
       || ((diagnosticData as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(diagnosticData as any).scanId}` : '')
@@ -1024,7 +1034,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       || ((prospeccaoParaEditar as any)?.scanId ? `https://lf-static-v2.localfalcon.com/image/${(prospeccaoParaEditar as any).scanId}` : '')
       || '';
 
-    const searchRadiusKm = gmn?.radius
+    const searchRadiusKm = selectedMap?.radius
+      || gmn?.radius
       || (diagnosticData as any)?.gmn?.radius
       || (diagnosticData as any)?.radius
       || (prospectData as any)?.radius

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target
+  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target, BookmarkPlus, Check
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
@@ -271,6 +271,86 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
 
   const [mapHistoryList, setMapHistoryList] = useState<LocalFalconHistoryItem[]>([]);
   const [currentMapIndex, setCurrentMapIndex] = useState<number>(0);
+  const [selectedMapForCarta, setSelectedMapForCarta] = useState<any>(null);
+
+  // Sincroniza o mapa selecionado para a carta a partir da prospect selecionada ou do diagnóstico
+  useEffect(() => {
+    if (selectedProspect) {
+      const savedMap = (selectedProspect as any)?.selectedMapForCarta
+        || selectedProspect?.marketingDiagnostic?.selectedMapForCarta
+        || selectedProspect?.marketingDiagnostic?.gmn?.selectedMapForCarta
+        || null;
+      setSelectedMapForCarta(savedMap);
+    } else {
+      setSelectedMapForCarta(null);
+    }
+  }, [selectedProspect?.id]);
+
+  // Alterna/seleciona o mapa ativo para ser usado na carta ao aplicar tags
+  const handleToggleMapForCarta = async (mapItem: any) => {
+    const isSame = Boolean(
+      selectedMapForCarta && (
+        (selectedMapForCarta.scanId && mapItem.scanId && selectedMapForCarta.scanId === mapItem.scanId) ||
+        (selectedMapForCarta.mapImageUrl && selectedMapForCarta.mapImageUrl === mapItem.mapImageUrl)
+      )
+    );
+
+    let nextSelected: any = null;
+    if (!isSame) {
+      nextSelected = {
+        scanId: mapItem.scanId || null,
+        mapImageUrl: mapItem.mapImageUrl,
+        radius: mapItem.radius,
+        gridSize: mapItem.gridSize,
+        solv: mapItem.solv,
+        createdAt: mapItem.createdAt,
+        keyword: mapItem.keyword
+      };
+    }
+
+    setSelectedMapForCarta(nextSelected);
+
+    const updatedDiag = {
+      ...diagnosticData,
+      selectedMapForCarta: nextSelected,
+      gmn: {
+        ...diagnosticData?.gmn,
+        selectedMapForCarta: nextSelected
+      }
+    };
+    setDiagnosticData(updatedDiag);
+
+    if (selectedProspect?.id) {
+      const updatedProspect = {
+        ...selectedProspect,
+        selectedMapForCarta: nextSelected,
+        marketingDiagnostic: updatedDiag
+      };
+      setSelectedProspect(updatedProspect);
+      await saveProspectDoc(selectedProspect.id, {
+        selectedMapForCarta: nextSelected,
+        marketingDiagnostic: updatedDiag
+      }).catch(console.error);
+    }
+
+    if (nextSelected) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Mapa Selecionado para a Carta!',
+        text: 'Ao aplicar as tags, as informações e o mapa escolhido serão inseridos.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } else {
+      Swal.fire({
+        icon: 'info',
+        title: 'Seleção Removida',
+        text: 'Ao aplicar as tags, o sistema voltará a puxar o mapa mais recente.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+  };
 
   // ── Compilação dos Mapas Disponíveis para Navegação (Sempre Priorizando o Mais Recente no Index 0) ──
   const allAvailableMaps = React.useMemo(() => {
@@ -2544,6 +2624,43 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                       </span>
                     )}
                   </div>
+
+                  {/* Botão para selecionar/desmarcar o mapa para a carta */}
+                  {(() => {
+                    const isSelectedForCarta = Boolean(
+                      selectedMapForCarta && (
+                        (selectedMapForCarta.scanId && activeMap.scanId && selectedMapForCarta.scanId === activeMap.scanId) ||
+                        (selectedMapForCarta.mapImageUrl && selectedMapForCarta.mapImageUrl === activeMap.mapImageUrl)
+                      )
+                    );
+
+                    return (
+                      <div className="mt-3.5 w-full flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleMapForCarta(activeMap)}
+                          className={`w-full max-w-xs py-2 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 ${
+                            isSelectedForCarta
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50 shadow-emerald-950/50'
+                              : 'bg-indigo-600/90 hover:bg-indigo-500 text-white border border-indigo-400/40 hover:shadow-indigo-900/50'
+                          }`}
+                          title={isSelectedForCarta ? 'Este mapa está selecionado para a carta (clique para remover seleção)' : 'Usar esse mapa ao aplicar as tags na carta'}
+                        >
+                          {isSelectedForCarta ? (
+                            <>
+                              <Check size={16} className="text-white" />
+                              <span>✓ Selecionado para a Carta</span>
+                            </>
+                          ) : (
+                            <>
+                              <BookmarkPlus size={16} className="text-indigo-200" />
+                              <span>usar esse na carta</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })() : (

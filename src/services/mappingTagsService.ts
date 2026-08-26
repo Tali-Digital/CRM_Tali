@@ -265,19 +265,31 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{PERCENT_TOP3}}',
     category: 'SEO & Google Maps',
     description: 'Porcentagem dos pontos da região onde a clínica está no Top 3',
-    exampleValue: (p) => '0%'
+    exampleValue: (p, d) => {
+      const selMap = p?.selectedMapForCarta || d?.selectedMapForCarta || d?.gmn?.selectedMapForCarta;
+      if (selMap && selMap.solv !== undefined) return `${selMap.solv}%`;
+      return d?.gmn?.top3Percent !== undefined && d?.gmn?.top3Percent !== 'sem dados' ? `${d.gmn.top3Percent}%` : '0%';
+    }
   },
   {
     code: '{{PERCENT_FORA_TOP20}}',
     category: 'SEO & Google Maps',
     description: 'Porcentagem de áreas da região onde a clínica fica invisível (Fora do Top 20)',
-    exampleValue: (p) => '56%'
+    exampleValue: (p, d) => {
+      const selMap = p?.selectedMapForCarta || d?.selectedMapForCarta || d?.gmn?.selectedMapForCarta;
+      if (selMap && selMap.solv !== undefined && typeof selMap.solv === 'number') return `${Math.max(0, 100 - selMap.solv)}%`;
+      return d?.gmn?.foraTop20Percent !== undefined && d?.gmn?.foraTop20Percent !== 'sem dados' ? `${d.gmn.foraTop20Percent}%` : '56%';
+    }
   },
   {
     code: '{{SOLV_PERCENT}}',
     category: 'SEO & Google Maps',
     description: 'Share of Local Voice (SoLV) - Participação de mercado local',
-    exampleValue: (p) => '38.78%'
+    exampleValue: (p, d) => {
+      const selMap = p?.selectedMapForCarta || d?.selectedMapForCarta || d?.gmn?.selectedMapForCarta;
+      if (selMap && selMap.solv !== undefined) return `${selMap.solv}%`;
+      return d?.gmn?.top3Percent !== undefined && d?.gmn?.top3Percent !== 'sem dados' ? `${d.gmn.top3Percent}%` : '38.78%';
+    }
   },
   {
     code: '{{TERMO_PESQUISADO}}',
@@ -375,7 +387,15 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{IA_MAPA_CALOR}}',
     category: 'SEO & Google Maps',
     description: 'Insere a imagem real do mapa da varredura do Local Falcon',
-    exampleValue: () => '[Imagem real do mapa Local Falcon]'
+    exampleValue: (p, d) => {
+      const selMap = p?.selectedMapForCarta || d?.selectedMapForCarta || d?.gmn?.selectedMapForCarta;
+      const mapUrl = selMap?.mapImageUrl || (selMap?.scanId ? `https://lf-static-v2.localfalcon.com/image/${selMap.scanId}` : '') || d?.gmn?.mapaCalorImg || (d?.gmn?.scanId ? `https://lf-static-v2.localfalcon.com/image/${d.gmn.scanId}` : '');
+      const rad = selMap?.radius || d?.gmn?.radius || 2;
+      if (mapUrl) {
+        return `<div style="margin: 24px 0; text-align: center;"><img src="${mapUrl}" alt="Mapa de Calor Local Falcon" style="display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; border-radius: 12px; border: 1px solid #cbd5e1;" /><div style="margin-top: 8px; font-size: 9.5pt; color: #475569; font-weight: 600; font-family: sans-serif;">📍 Raio utilizado na busca: <span style="color: #0f172a; font-weight: 800;">${rad} km</span></div></div>`;
+      }
+      return '[Imagem real do mapa Local Falcon]';
+    }
   },
   {
     code: '{{IA_FICHA_CLINICA}}',

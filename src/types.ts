@@ -340,6 +340,7 @@ export interface Prospect {
   isEntregue?: boolean;
   isArchived?: boolean;
   owners?: { name: string; instagram: string; role?: string }[];
+  selectedMapForCarta?: any;
 }
 
 export interface EditorProspeccaoDoc {
