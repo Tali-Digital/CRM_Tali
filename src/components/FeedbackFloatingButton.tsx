@@ -64,41 +64,46 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
   }, [user, companyId]);
 
   const captureScreen = async () => {
+    if (isCapturing) return;
     setIsCapturing(true);
     try {
-      // Temporariamente esconde o botão de feedback para não sair na imagem
-      if (buttonRef.current) buttonRef.current.style.display = 'none';
-      if (popupRef.current) popupRef.current.style.display = 'none';
+      await new Promise((res) => setTimeout(res, 120));
 
-      await new Promise((res) => setTimeout(res, 150));
-
-      const canvas = await html2canvas(document.body, {
+      const canvas = await html2canvas(document.documentElement, {
         useCORS: true,
         allowTaint: true,
         logging: false,
-        scale: window.devicePixelRatio > 1 ? 1.2 : 1,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        x: window.scrollX,
+        y: window.scrollY,
         ignoreElements: (element) => {
-          return element.classList?.contains('feedback-ignore');
+          return (
+            element.classList?.contains('feedback-ignore') ||
+            (element.closest && element.closest('.feedback-ignore') !== null)
+          );
         }
       });
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      setScreenshotUrl(dataUrl);
+      if (dataUrl && dataUrl.length > 100) {
+        setScreenshotUrl(dataUrl);
+      }
     } catch (err) {
       console.error('Erro ao capturar screenshot:', err);
     } finally {
-      if (buttonRef.current) buttonRef.current.style.display = 'flex';
-      if (popupRef.current) popupRef.current.style.display = 'flex';
       setIsCapturing(false);
     }
   };
 
-  const handleOpenPopup = async () => {
+  const handleOpenPopup = () => {
     if (!isOpen) {
       setIsOpen(true);
       setActiveTab('create');
-      if (!screenshotUrl) {
-        await captureScreen();
+      if (!screenshotUrl && !isCapturing) {
+        captureScreen();
       }
     } else {
       setIsOpen(false);
@@ -260,10 +265,10 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
     });
   };
 
-  const handleTabChange = async (tab: 'create' | 'history') => {
+  const handleTabChange = (tab: 'create' | 'history') => {
     setActiveTab(tab);
     if (tab === 'create' && !screenshotUrl && !isCapturing) {
-      await captureScreen();
+      captureScreen();
     }
   };
 
@@ -282,7 +287,9 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="mb-4 w-[420px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col text-stone-900 font-nunito shrink-0"
+              className={`mb-4 w-[420px] max-w-[calc(100vw-2rem)] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col text-stone-900 font-nunito shrink-0 transition-all duration-200 ${
+                activeTab === 'history' ? 'h-[580px]' : 'h-auto'
+              }`}
             >
               {/* Header do Pop-up */}
               <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
@@ -435,37 +442,38 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                         </div>
 
                         {isCapturing ? (
-                          <div className="h-24 bg-stone-50 border border-dashed border-stone-200 rounded-2xl flex flex-col items-center justify-center gap-1 text-stone-400">
-                            <Loader2 size={16} className="animate-spin text-stone-600" />
-                            <span className="text-[10px] font-bold">Capturando tela atual...</span>
+                          <div className="h-32 bg-stone-50 border border-dashed border-amber-300 rounded-2xl flex flex-col items-center justify-center gap-2 text-stone-500">
+                            <Loader2 size={20} className="animate-spin text-amber-600" />
+                            <span className="text-xs font-bold text-stone-700">Tirando print automático da tela...</span>
                           </div>
                         ) : screenshotUrl ? (
-                          <div className="relative group rounded-2xl overflow-hidden border border-stone-200 bg-stone-900 h-28">
+                          <div className="relative group rounded-2xl overflow-hidden border border-stone-300 bg-stone-900 h-36 w-full shadow-sm">
                             <img
                               src={screenshotUrl}
                               alt="Screenshot da Tela"
-                              className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                              className="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition-all cursor-pointer"
+                              onClick={() => setSelectedScreenshotModal(screenshotUrl)}
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-2">
-                              <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                                Contexto Visual Salvo
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-2.5">
+                              <span className="text-[10px] font-black text-white bg-black/60 px-2.5 py-1 rounded-lg backdrop-blur-xs flex items-center gap-1">
+                                <CheckCircle2 size={12} className="text-emerald-400" /> Print Automático Capturado
                               </span>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedScreenshotModal(screenshotUrl)}
-                                  className="p-1 bg-white/20 hover:bg-white/40 text-white rounded-lg backdrop-blur-xs transition-colors"
-                                  title="Expandir"
+                                  className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
+                                  title="Expandir em Tela Cheia"
                                 >
-                                  <Maximize2 size={12} />
+                                  <Maximize2 size={13} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setScreenshotUrl(null)}
-                                  className="p-1 bg-rose-500/80 hover:bg-rose-600 text-white rounded-lg backdrop-blur-xs transition-colors"
+                                  className="p-1.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
                                   title="Remover print"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             </div>
@@ -474,9 +482,9 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                           <button
                             type="button"
                             onClick={captureScreen}
-                            className="w-full py-3 bg-stone-50 border border-dashed border-stone-200 rounded-2xl flex items-center justify-center gap-2 text-stone-500 hover:bg-stone-100 transition-colors text-xs font-bold"
+                            className="w-full py-3.5 bg-stone-50 border border-dashed border-stone-300 rounded-2xl flex items-center justify-center gap-2 text-stone-600 hover:bg-stone-100 transition-colors text-xs font-bold cursor-pointer"
                           >
-                            <Camera size={14} /> Anexar Captura de Tela
+                            <Camera size={14} /> Capturar Print da Tela
                           </button>
                         )}
                       </div>
