@@ -21,7 +21,6 @@ import {
   Loader2,
   Maximize2
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { User } from 'firebase/auth';
 import { CompanyType, FeedbackAttachment, FeedbackItem, FeedbackStatus, FeedbackType, UserProfile } from '../types';
 import { addFeedback, subscribeToFeedbacks, updateFeedbackStatus, deleteFeedback } from '../services/firestoreService';
@@ -29,7 +28,7 @@ import { addFeedback, subscribeToFeedbacks, updateFeedbackStatus, deleteFeedback
 interface Props {
   user: User | null;
   userProfile?: UserProfile | null;
-  companyId: CompanyType;
+  companyId?: CompanyType | null;
 }
 
 export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, companyId }) => {
@@ -39,8 +38,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
   // Feedback Form State
   const [type, setType] = useState<FeedbackType>('sugestao');
   const [description, setDescription] = useState('');
-  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
   const [attachments, setAttachments] = useState<FeedbackAttachment[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
@@ -50,7 +47,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
   const [selectedScreenshotModal, setSelectedScreenshotModal] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,50 +59,10 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
     }
   }, [user, companyId]);
 
-  const captureScreen = async () => {
-    if (isCapturing) return;
-    setIsCapturing(true);
-    try {
-      await new Promise((res) => setTimeout(res, 120));
-
-      const canvas = await html2canvas(document.documentElement, {
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
-        x: window.scrollX,
-        y: window.scrollY,
-        ignoreElements: (element) => {
-          return (
-            element.classList?.contains('feedback-ignore') ||
-            (element.closest && element.closest('.feedback-ignore') !== null)
-          );
-        }
-      });
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      if (dataUrl && dataUrl.length > 100) {
-        setScreenshotUrl(dataUrl);
-      }
-    } catch (err) {
-      console.error('Erro ao capturar screenshot:', err);
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
   const handleOpenPopup = () => {
+    setIsOpen(!isOpen);
     if (!isOpen) {
-      setIsOpen(true);
       setActiveTab('create');
-      if (!screenshotUrl && !isCapturing) {
-        captureScreen();
-      }
-    } else {
-      setIsOpen(false);
     }
   };
 
@@ -166,7 +122,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
         userEmail: user.email || '',
         type,
         description,
-        screenshotUrl: screenshotUrl || undefined,
         attachments,
         companyId,
         pageUrl: window.location.href
@@ -174,7 +129,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
 
       setSuccessMessage(true);
       setDescription('');
-      setScreenshotUrl(null);
       setAttachments([]);
 
       setTimeout(() => {
@@ -267,9 +221,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
 
   const handleTabChange = (tab: 'create' | 'history') => {
     setActiveTab(tab);
-    if (tab === 'create' && !screenshotUrl && !isCapturing) {
-      captureScreen();
-    }
   };
 
   if (!user) return null;
@@ -422,71 +373,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                           }
                           className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900/10 transition-all text-stone-800 placeholder-stone-400 font-medium resize-none"
                         />
-                      </div>
-
-                      {/* Print de Tela Capturado Automático */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1">
-                            <Camera size={12} /> Print Automático da Tela
-                          </label>
-                          <button
-                            type="button"
-                            onClick={captureScreen}
-                            disabled={isCapturing}
-                            className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1"
-                          >
-                            {isCapturing ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
-                            Recapturar
-                          </button>
-                        </div>
-
-                        {isCapturing ? (
-                          <div className="h-32 bg-stone-50 border border-dashed border-amber-300 rounded-2xl flex flex-col items-center justify-center gap-2 text-stone-500">
-                            <Loader2 size={20} className="animate-spin text-amber-600" />
-                            <span className="text-xs font-bold text-stone-700">Tirando print automático da tela...</span>
-                          </div>
-                        ) : screenshotUrl ? (
-                          <div className="relative group rounded-2xl overflow-hidden border border-stone-300 bg-stone-900 h-36 w-full shadow-sm">
-                            <img
-                              src={screenshotUrl}
-                              alt="Screenshot da Tela"
-                              className="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition-all cursor-pointer"
-                              onClick={() => setSelectedScreenshotModal(screenshotUrl)}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-2.5">
-                              <span className="text-[10px] font-black text-white bg-black/60 px-2.5 py-1 rounded-lg backdrop-blur-xs flex items-center gap-1">
-                                <CheckCircle2 size={12} className="text-emerald-400" /> Print Automático Capturado
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedScreenshotModal(screenshotUrl)}
-                                  className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
-                                  title="Expandir em Tela Cheia"
-                                >
-                                  <Maximize2 size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setScreenshotUrl(null)}
-                                  className="p-1.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
-                                  title="Remover print"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={captureScreen}
-                            className="w-full py-3.5 bg-stone-50 border border-dashed border-stone-300 rounded-2xl flex items-center justify-center gap-2 text-stone-600 hover:bg-stone-100 transition-colors text-xs font-bold cursor-pointer"
-                          >
-                            <Camera size={14} /> Capturar Print da Tela
-                          </button>
-                        )}
                       </div>
 
                       {/* Anexos de Arquivos (Imagens, PDFs, Vídeos) */}
