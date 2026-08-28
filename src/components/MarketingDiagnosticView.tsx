@@ -1111,12 +1111,29 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   ) => {
     const formToUse = customFormSnapshot || formData;
 
-    // Don't add if already in queue (waiting or running)
-    const alreadyQueued = queueRef.current.some(
-      q => q.prospectId === prospect.id && (q.status === 'waiting' || q.status === 'running')
-    );
+    const normName = (formToUse.companyName || prospect.clinicName || '').toLowerCase().trim();
+    const normPid = (formToUse.placeId || '').trim();
+
+    // Don't add if already in queue (waiting or running) by prospectId, companyName or placeId
+    const alreadyQueued = queueRef.current.some(q => {
+      if (q.status !== 'waiting' && q.status !== 'running') return false;
+      if (q.prospectId === prospect.id) return true;
+      const qName = (q.formSnapshot?.companyName || q.clinicName || '').toLowerCase().trim();
+      if (normName && qName === normName) return true;
+      const qPid = (q.formSnapshot?.placeId || '').trim();
+      if (normPid && qPid && qPid === normPid) return true;
+      return false;
+    });
+
     if (alreadyQueued) {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `${prospect.clinicName} já está na fila!`, showConfirmButton: false, timer: 2500 });
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'warning',
+        title: `🛑 Solicitação duplicada bloqueada: Já existe uma análise em andamento ou na fila para ${prospect.clinicName}!`,
+        showConfirmButton: false,
+        timer: 3500
+      });
       return;
     }
 

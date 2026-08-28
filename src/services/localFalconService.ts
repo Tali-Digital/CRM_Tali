@@ -523,6 +523,19 @@ const addLocationByPlaceId = async (
   return await findSavedLocationByPlaceId(key, placeId);
 };
 
+// 🔒 REGRA ANTI-DUPLICAÇÃO E BLOQUEIO DE EXECUÇÕES CONSECUTIVAS:
+// Impede que 2 solicitações do mesmo local/empresa sejam disparadas para a API do Local Falcon
+const activeLocalFalconScans = new Map<string, Promise<LocalFalconResult>>();
+const recentLocalFalconScans = new Map<string, { timestamp: number; result: LocalFalconResult }>();
+
+const getLocalFalconLockKey = (locationName: string, placeId?: string, keyword?: string): string => {
+  const norm = (s: string) => (s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+  const pid = (placeId || '').trim();
+  const loc = norm(locationName);
+  const kw = norm(keyword || '');
+  return pid ? `pid::${pid}::kw::${kw}` : `loc::${loc}::kw::${kw}`;
+};
+
 /**
  * Executa uma varredura real no Local Falcon usando POST /v2/run-scan/
  * 100% AUTOMÁTICO: se a empresa não estiver salva, ela é pesquisada e adicionada automaticamente pela API!
@@ -535,39 +548,61 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
     return { success: false, error: 'Chave API do Local Falcon não configurada no menu Admin.' };
   }
 
-  // 🛡️ PROTEÇÃO INTELIGENTE ANTI-GASTO REPETIDO DE CRÉDITOS:
-  // Se não for um forceNewScan explícito, tenta PRIMEIRO reutilizar relatórios já gravados no histórico (0 Créditos).
-  // Se já existir relatório para a empresa, consome 0 créditos. Se for a primeira varredura da empresa, executa o scan inicial.
-  if (!params.forceNewScan) {
-    console.log('[LocalFalcon Proteção] Verificando se já existe relatório gravado no histórico (0 Créditos)...');
-    try {
-      const historyCheck = await fetchLocalFalconReportHistory({
-        locationName: params.locationName,
-        keyword: params.keyword,
-        radius: params.radius
-      });
-      if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
-        const histRadius = historyCheck.radius !== undefined ? Number(historyCheck.radius) : null;
-        const reqRadius = params.radius !== undefined && params.radius !== null ? Number(params.radius) : null;
+  const lockKey = getLocalFalconLockKey(params.locationName, params.placeId, params.keyword);
 
-        if (reqRadius === null || histRadius === null || Math.abs(histRadius - reqRadius) < 0.1) {
-          console.log('[LocalFalcon Proteção] ✅ Relatório existente com mesmo raio encontrado no histórico! Reutilizando dados com 0 Créditos consumidos.');
-          return historyCheck;
-        } else {
-          console.log(`[LocalFalcon Proteção] ⚠️ Relatório no histórico possui raio (${histRadius}km) diferente do raio solicitado (${reqRadius}km). Prosseguindo com nova varredura real...`);
-        }
-      }
-      console.log('[LocalFalcon Proteção] ℹ️ Nenhum relatório prévio compatível localizado para esta empresa. Prosseguindo com varredura inicial...');
-    } catch (hErr: any) {
-      console.warn('[LocalFalcon Proteção] Aviso ao consultar histórico:', hErr);
+  // 1. BLOQUEIO DE VARREDURA EM ANDAMENTO: Se já existe um scan disparado para esta empresa/palavra-chave, reaproveita a Promise em execução
+  if (activeLocalFalconScans.has(lockKey)) {
+    console.warn(`[LocalFalcon Trava] 🛑 Solicitação duplicada em andamento bloqueada para "${params.locationName}" (${lockKey}). Reutilizando scan ativo...`);
+    try {
+      return await activeLocalFalconScans.get(lockKey)!;
+    } catch {
+      return { success: false, error: 'Uma varredura idêntica já está sendo executada no Local Falcon.' };
     }
   }
 
-  // Converte "3x3" → "3", "5x5" → "5", "7x7" → "7"
-  const rawGrid = String(params.gridSize || settings?.localFalconGridSize || '5x5');
-  const gridSize = rawGrid.includes('5') ? '5' : rawGrid.includes('7') ? '7' : '3';
-  const creditsMap: Record<string, number> = { '3': 9, '5': 25, '7': 49 };
-  const creditsUsed = creditsMap[gridSize] || 9;
+  // 2. BLOQUEIO DE VARREDURAS CONSECUTIVAS RECENTES (cooldown de 3 minutos / 180 segundos):
+  // Se uma varredura para o mesmo local/empresa e palavra-chave foi concluída há menos de 3 minutos, reaproveita o resultado sem gastar créditos
+  const recent = recentLocalFalconScans.get(lockKey);
+  if (recent && (Date.now() - recent.timestamp < 180000)) {
+    const elapsedSec = Math.round((Date.now() - recent.timestamp) / 1000);
+    console.log(`[LocalFalcon Trava] 🔒 Nova solicitação bloqueada: varredura para "${params.locationName}" foi concluída há ${elapsedSec}s. Reutilizando resultado.`);
+    return recent.result;
+  }
+
+  const executeScan = async (): Promise<LocalFalconResult> => {
+    // 🛡️ PROTEÇÃO INTELIGENTE ANTI-GASTO REPETIDO DE CRÉDITOS:
+    // Se não for um forceNewScan explícito, tenta PRIMEIRO reutilizar relatórios já gravados no histórico (0 Créditos).
+    // Se já existir relatório para a empresa, consome 0 créditos. Se for a primeira varredura da empresa, executa o scan inicial.
+    if (!params.forceNewScan) {
+      console.log('[LocalFalcon Proteção] Verificando se já existe relatório gravado no histórico (0 Créditos)...');
+      try {
+        const historyCheck = await fetchLocalFalconReportHistory({
+          locationName: params.locationName,
+          keyword: params.keyword,
+          radius: params.radius
+        });
+        if (historyCheck.success && (historyCheck.gridPoints?.length || 0) > 0) {
+          const histRadius = historyCheck.radius !== undefined ? Number(historyCheck.radius) : null;
+          const reqRadius = params.radius !== undefined && params.radius !== null ? Number(params.radius) : null;
+
+          if (reqRadius === null || histRadius === null || Math.abs(histRadius - reqRadius) < 0.1) {
+            console.log('[LocalFalcon Proteção] ✅ Relatório existente com mesmo raio encontrado no histórico! Reutilizando dados com 0 Créditos consumidos.');
+            return historyCheck;
+          } else {
+            console.log(`[LocalFalcon Proteção] ⚠️ Relatório no histórico possui raio (${histRadius}km) diferente do raio solicitado (${reqRadius}km). Prosseguindo com nova varredura real...`);
+          }
+        }
+        console.log('[LocalFalcon Proteção] ℹ️ Nenhum relatório prévio compatível localizado para esta empresa. Prosseguindo com varredura inicial...');
+      } catch (hErr: any) {
+        console.warn('[LocalFalcon Proteção] Aviso ao consultar histórico:', hErr);
+      }
+    }
+
+    // Converte "3x3" → "3", "5x5" → "5", "7x7" → "7"
+    const rawGrid = String(params.gridSize || settings?.localFalconGridSize || '5x5');
+    const gridSize = rawGrid.includes('5') ? '5' : rawGrid.includes('7') ? '7' : '3';
+    const creditsMap: Record<string, number> = { '3': 9, '5': 25, '7': 49 };
+    const creditsUsed = creditsMap[gridSize] || 9;
 
   try {
     let placeId = params.placeId ? params.placeId.trim() : '';
@@ -754,6 +789,20 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
   } catch (err: any) {
     console.error('[LocalFalcon] Erro geral no scan:', err);
     return { success: false, error: err.message || 'Erro de conexão com o Local Falcon' };
+  }
+  };
+
+  const scanPromise = executeScan();
+  activeLocalFalconScans.set(lockKey, scanPromise);
+
+  try {
+    const res = await scanPromise;
+    if (res.success) {
+      recentLocalFalconScans.set(lockKey, { timestamp: Date.now(), result: res });
+    }
+    return res;
+  } finally {
+    activeLocalFalconScans.delete(lockKey);
   }
 };
 
