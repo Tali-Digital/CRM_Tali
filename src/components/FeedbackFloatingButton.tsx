@@ -642,7 +642,6 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
 
         {/* Botão Flutuante Principal */}
         <motion.button
-          ref={buttonRef}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleOpenPopup}
