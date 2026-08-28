@@ -808,22 +808,13 @@ export const fetchLocalFalconReportHistory = async (params: {
       };
     }
 
-    // 3. Filtrar relatórios: por placeId ou por proximidade do nome da empresa
+    // 3. Filtrar relatórios: por placeId ou por similaridade real do nome da empresa
     let matchedReports = reports.filter((report: any) => {
       const reportPlaceId = report.place_id || report.location?.place_id || report.location?.placeId || '';
       if (placeId && reportPlaceId === placeId) return true;
-      const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
-      return reportName.includes(targetNameNorm) || targetNameNorm.includes(reportName);
+      const rawReportName = report.name || report.location_name || report.location?.name || report.title || '';
+      return isSimilarName(rawReportName, params.locationName);
     });
-
-    if (matchedReports.length === 0) {
-      // Tenta busca mais flexível por palavras do nome
-      const nameWords = targetNameNorm.split(' ').filter(w => w.length > 3);
-      matchedReports = reports.filter((report: any) => {
-        const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
-        return nameWords.some(w => reportName.includes(w));
-      });
-    }
 
     if (matchedReports.length === 0) {
       return {
@@ -860,6 +851,15 @@ export const fetchLocalFalconReportHistory = async (params: {
           matchedReport = keywordMatches[0];
         }
       }
+    }
+
+    const foundReportName = matchedReport.name || matchedReport.location_name || matchedReport.location?.name || matchedReport.title || '';
+    if (!placeId && foundReportName && !isSimilarName(foundReportName, params.locationName)) {
+      console.warn(`[LocalFalcon History] ⚠️ Relatório selecionado ("${foundReportName}") difere da clínica solicitada ("${params.locationName}"). Rejeitando histórico.`);
+      return {
+        success: false,
+        error: `Nenhum relatório anterior compatível foi encontrado no histórico para "${params.locationName}".`
+      };
     }
 
     const reportKey = matchedReport.report_key || matchedReport.scan_id || matchedReport.id;
@@ -1081,17 +1081,11 @@ export const fetchLocalFalconAllReportsHistoryList = async (params: {
     let matchedReports = reports.filter((report: any) => {
       const reportPlaceId = report.place_id || report.location?.place_id || report.location?.placeId || '';
       if (placeId && reportPlaceId === placeId) return true;
-      const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
-      return reportName.includes(targetNameNorm) || targetNameNorm.includes(reportName);
+      const rawReportName = report.name || report.location_name || report.location?.name || report.title || '';
+      return isSimilarName(rawReportName, params.locationName);
     });
 
-    if (matchedReports.length === 0) {
-      const nameWords = targetNameNorm.split(' ').filter(w => w.length > 3);
-      matchedReports = reports.filter((report: any) => {
-        const reportName = norm(report.name || report.location_name || report.location?.name || report.title || '');
-        return nameWords.some(w => reportName.includes(w));
-      });
-    }
+    if (matchedReports.length === 0) return [];
 
     if (params.keyword) {
       const targetKw = norm(params.keyword);
