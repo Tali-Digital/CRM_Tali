@@ -260,6 +260,13 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
     });
   };
 
+  const handleTabChange = async (tab: 'create' | 'history') => {
+    setActiveTab(tab);
+    if (tab === 'create' && !screenshotUrl && !isCapturing) {
+      await captureScreen();
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -275,7 +282,7 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="mb-4 w-[420px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[82vh] text-stone-900 font-nunito"
+              className="mb-4 w-[420px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col text-stone-900 font-nunito shrink-0"
             >
               {/* Header do Pop-up */}
               <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
@@ -290,7 +297,7 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-full text-stone-400 hover:text-white transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-full text-stone-400 hover:text-white transition-colors cursor-pointer"
                   title="Fechar"
                 >
                   <X size={18} />
@@ -300,8 +307,8 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
               {/* Navegação por Abas (Novo Registro vs Histórico) */}
               <div className="flex border-b border-stone-100 bg-stone-50 p-1 gap-1">
                 <button
-                  onClick={() => setActiveTab('create')}
-                  className={`flex-1 py-2 px-3 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 transition-all ${
+                  onClick={() => handleTabChange('create')}
+                  className={`flex-1 py-2 px-3 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'create'
                       ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
                       : 'text-stone-500 hover:text-stone-900'
@@ -311,8 +318,8 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                   Novo Registro
                 </button>
                 <button
-                  onClick={() => setActiveTab('history')}
-                  className={`flex-1 py-2 px-3 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 transition-all ${
+                  onClick={() => handleTabChange('history')}
+                  className={`flex-1 py-2 px-3 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'history'
                       ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
                       : 'text-stone-500 hover:text-stone-900'
@@ -498,27 +505,47 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                         </div>
 
                         {attachments.length > 0 && (
-                          <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                             {attachments.map((file, idx) => (
                               <div
                                 key={idx}
-                                className="flex items-center justify-between p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs"
+                                className="p-2 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5"
                               >
-                                <div className="flex items-center gap-2 truncate">
-                                  {file.type === 'image' && <ImageIcon size={14} className="text-blue-500 shrink-0" />}
-                                  {file.type === 'pdf' && <FileText size={14} className="text-rose-500 shrink-0" />}
-                                  {file.type === 'video' && <Video size={14} className="text-purple-500 shrink-0" />}
-                                  {file.type === 'other' && <Paperclip size={14} className="text-stone-500 shrink-0" />}
-                                  <span className="font-bold text-stone-700 truncate max-w-[200px]">{file.name}</span>
-                                  <span className="text-[10px] text-stone-400 shrink-0">{formatFileSize(file.size)}</span>
+                                <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2 truncate">
+                                    {file.type === 'image' && <ImageIcon size={14} className="text-blue-500 shrink-0" />}
+                                    {file.type === 'pdf' && <FileText size={14} className="text-rose-500 shrink-0" />}
+                                    {file.type === 'video' && <Video size={14} className="text-purple-500 shrink-0" />}
+                                    {file.type === 'other' && <Paperclip size={14} className="text-stone-500 shrink-0" />}
+                                    <span className="font-bold text-stone-700 truncate max-w-[180px]">{file.name}</span>
+                                    <span className="text-[10px] text-stone-400 shrink-0">{formatFileSize(file.size)}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeAttachment(idx)}
+                                    className="p-1 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                    title="Remover anexo"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeAttachment(idx)}
-                                  className="p-1 text-stone-400 hover:text-rose-600 transition-colors"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+
+                                {/* Miniatura/Preview Visual Instantâneo */}
+                                {file.type === 'image' && (
+                                  <div
+                                    onClick={() => setSelectedScreenshotModal(file.dataUrl)}
+                                    className="relative group w-full h-28 rounded-lg overflow-hidden border border-stone-200 cursor-pointer bg-stone-900"
+                                  >
+                                    <img src={file.dataUrl} alt={file.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Maximize2 size={14} />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {file.type === 'video' && (
+                                  <video src={file.dataUrl} controls className="w-full max-h-36 rounded-lg bg-black object-contain" />
+                                )}
                               </div>
                             ))}
                           </div>
@@ -568,76 +595,108 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                     </div>
 
                     {filteredFeedbacks.length === 0 ? (
-                      <div className="py-10 text-center space-y-2">
-                        <History size={24} className="mx-auto text-stone-300" />
+                      <div className="py-16 text-center space-y-2 flex flex-col items-center justify-center min-h-[250px]">
+                        <History size={28} className="mx-auto text-stone-300" />
                         <p className="text-xs text-stone-500 font-bold">Nenhum registro encontrado.</p>
                       </div>
                     ) : (
                       filteredFeedbacks.map((item) => (
                         <div
                           key={item.id}
-                          className="p-3 bg-stone-50 border border-stone-200 rounded-2xl space-y-2 hover:bg-stone-100/50 transition-colors"
+                          className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-2 hover:bg-stone-100/50 transition-colors w-full min-w-0 overflow-hidden break-words"
                         >
                           {/* Cabeçalho do Card */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {getTypeBadge(item.type)}
                               {getStatusBadge(item.status)}
                             </div>
-                            <span className="text-[10px] text-stone-400 font-medium">{formatDate(item.createdAt)}</span>
+                            <span className="text-[10px] text-stone-400 font-medium shrink-0">{formatDate(item.createdAt)}</span>
                           </div>
 
                           {/* Usuário e Autor */}
-                          <div className="text-[10px] text-stone-500 font-semibold">
-                            Enviado por: <span className="text-stone-800">{item.userName}</span>
+                          <div className="text-[10px] text-stone-500 font-semibold truncate w-full">
+                            Enviado por: <span className="text-stone-800 font-bold">{item.userName}</span>
                           </div>
 
-                          {/* Descrição */}
-                          <p className="text-xs text-stone-800 font-medium whitespace-pre-line leading-relaxed">
+                          {/* Descrição com Quebra Automática de Linhas */}
+                          <p className="text-xs text-stone-800 font-medium whitespace-pre-wrap break-words leading-relaxed overflow-hidden w-full">
                             {item.description}
                           </p>
 
-                          {/* Screenshot miniatura */}
+                          {/* Pré-visualização Automática da Captura de Tela */}
                           {item.screenshotUrl && (
-                            <div className="mt-2">
-                              <span className="text-[10px] font-bold uppercase text-stone-400 block mb-1">
-                                Captura de Tela:
+                            <div className="mt-2.5 w-full min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1 flex items-center gap-1">
+                                <Camera size={11} className="text-amber-500" /> Print da Tela (Pré-visualização):
                               </span>
                               <div
                                 onClick={() => setSelectedScreenshotModal(item.screenshotUrl!)}
-                                className="relative group w-28 h-16 rounded-xl overflow-hidden border border-stone-300 cursor-pointer bg-stone-900"
+                                className="relative group w-full h-36 rounded-xl overflow-hidden border border-stone-200 cursor-pointer bg-stone-900 shadow-xs"
                               >
                                 <img
                                   src={item.screenshotUrl}
-                                  alt="Print"
+                                  alt="Print da tela"
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                 />
-                                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Eye size={14} />
+                                <div className="absolute inset-0 bg-black/40 hover:bg-black/20 flex items-end justify-between p-2">
+                                  <span className="text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded backdrop-blur-xs">
+                                    Clique para expandir
+                                  </span>
+                                  <div className="p-1 bg-white/20 text-white rounded backdrop-blur-xs">
+                                    <Maximize2 size={12} />
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Anexos */}
+                          {/* Pré-visualização Automática de Arquivos Anexados */}
                           {item.attachments && item.attachments.length > 0 && (
-                            <div className="mt-2">
-                              <span className="text-[10px] font-bold uppercase text-stone-400 block mb-1">
-                                Anexos ({item.attachments.length}):
+                            <div className="mt-2.5 w-full min-w-0 space-y-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1 flex items-center gap-1">
+                                <Paperclip size={11} className="text-indigo-500" /> Anexos ({item.attachments.length}):
                               </span>
-                              <div className="flex flex-wrap gap-1.5">
+                              <div className="grid grid-cols-1 gap-2 w-full min-w-0">
                                 {item.attachments.map((att, i) => (
-                                  <a
-                                    key={i}
-                                    href={att.dataUrl}
-                                    download={att.name}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-1 px-2 py-1 bg-white border border-stone-200 rounded-lg text-[10px] font-bold text-stone-700 hover:bg-stone-100 transition-colors max-w-[180px] truncate"
-                                  >
-                                    <Paperclip size={10} className="shrink-0" />
-                                    <span className="truncate">{att.name}</span>
-                                  </a>
+                                  <div key={i} className="w-full min-w-0">
+                                    {att.type === 'image' ? (
+                                      <div
+                                        onClick={() => setSelectedScreenshotModal(att.dataUrl)}
+                                        className="relative group w-full h-36 rounded-xl overflow-hidden border border-stone-200 cursor-pointer bg-stone-900 shadow-xs"
+                                      >
+                                        <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-2">
+                                          <span className="text-[10px] font-bold text-white truncate max-w-[220px]">{att.name}</span>
+                                          <span className="text-[9px] font-bold text-white/90 bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-xs flex items-center gap-1">
+                                            <Eye size={10} /> Ampliar Imagem
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : att.type === 'video' ? (
+                                      <div className="w-full rounded-xl overflow-hidden border border-stone-300 bg-black">
+                                        <video src={att.dataUrl} controls className="w-full max-h-44 object-contain bg-black" />
+                                        <div className="p-1.5 px-2.5 text-[10px] text-stone-300 font-bold flex items-center justify-between bg-stone-900">
+                                          <span className="truncate max-w-[200px]">{att.name}</span>
+                                          <span className="text-stone-400">{formatFileSize(att.size)}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <a
+                                        href={att.dataUrl}
+                                        download={att.name}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-center justify-between p-2.5 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors w-full min-w-0"
+                                      >
+                                        <div className="flex items-center gap-2 truncate">
+                                          <FileText size={16} className="text-rose-500 shrink-0" />
+                                          <span className="truncate">{att.name}</span>
+                                        </div>
+                                        <span className="text-[10px] text-stone-400 shrink-0 ml-2">{formatFileSize(att.size)}</span>
+                                      </a>
+                                    )}
+                                  </div>
                                 ))}
                               </div>
                             </div>
@@ -645,16 +704,16 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
 
                           {/* Alteração de Status para Admins */}
                           {userProfile?.role === 'admin' && (
-                            <div className="pt-2 border-t border-stone-200/60 flex items-center justify-between">
-                              <div className="flex items-center gap-1 text-[10px] text-stone-400 font-bold">
+                            <div className="pt-2 border-t border-stone-200/60 flex flex-wrap items-center justify-between gap-1.5 w-full min-w-0">
+                              <div className="flex items-center gap-1 text-[10px] text-stone-400 font-bold shrink-0">
                                 Status Admin:
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
                                 {(['pendente', 'em_analise', 'concluido', 'rejeitado'] as FeedbackStatus[]).map((st) => (
                                   <button
                                     key={st}
                                     onClick={() => updateFeedbackStatus(item.id, st)}
-                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold capitalize ${
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold capitalize cursor-pointer ${
                                       item.status === st
                                         ? 'bg-stone-900 text-white'
                                         : 'bg-stone-200 text-stone-600 hover:bg-stone-300'
@@ -669,7 +728,7 @@ export const FeedbackFloatingButton: React.FC<Props> = ({ user, userProfile, com
                                       deleteFeedback(item.id);
                                     }
                                   }}
-                                  className="p-1 text-stone-400 hover:text-rose-600 ml-1"
+                                  className="p-1 text-stone-400 hover:text-rose-600 ml-1 cursor-pointer"
                                   title="Excluir"
                                 >
                                   <Trash2 size={12} />
