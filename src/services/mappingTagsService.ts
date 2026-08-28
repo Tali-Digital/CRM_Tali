@@ -11,8 +11,11 @@ export interface VariableTag {
 export const formatTitleCase = (str?: string | null): string => {
   if (!str) return '';
   return str
+    .normalize('NFC')
     .toLowerCase()
-    .replace(/(^|[\s/()'-])([a-zà-úâ-ûã-õç])/gi, (m, p1, p2) => p1 + p2.toUpperCase());
+    .split(/([\s/()'-]+)/)
+    .map((part) => part.replace(/(\p{L})/u, (m) => m.toLocaleUpperCase('pt-BR')))
+    .join('');
 };
 
 export const extractOnlyYearsFromAge = (ageStr?: string): string => {
