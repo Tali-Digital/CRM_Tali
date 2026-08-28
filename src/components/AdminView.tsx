@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Key, AlertTriangle, Save, Database, Users, Trash2, Activity, CheckCircle2, XCircle, Loader2, Wifi } from 'lucide-react';
 import { UserProfile } from '../types';
 import { getGlobalSettings, updateGlobalSettings } from '../services/firestoreService';
-import { checkLocalFalconStatus } from '../services/localFalconService';
+import Swal from 'sweetalert2';
+import { checkLocalFalconStatus, runLocalFalconScan } from '../services/localFalconService';
 
 export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile }) => {
   const [geminiKey, setGeminiKey] = useState('');
@@ -16,6 +17,12 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   const [falconTesting, setFalconTesting] = useState(false);
   const [falconTestResult, setFalconTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const [testClinicName, setTestClinicName] = useState('');
+  const [testKeyword, setTestKeyword] = useState('');
+  const [testCity, setTestCity] = useState('');
+  const [runningDiagTest, setRunningDiagTest] = useState(false);
+  const [diagTestResult, setDiagTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   const [outscraperTesting, setOutscraperTesting] = useState(false);
   const [outscraperTestResult, setOutscraperTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -24,6 +31,55 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
 
   const [metaAdsTesting, setMetaAdsTesting] = useState(false);
   const [metaAdsTestResult, setMetaAdsTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleTestDiagnosticScan = async () => {
+    if (!testClinicName.trim() || !testKeyword.trim()) {
+      setDiagTestResult({ ok: false, message: 'Informe o nome da clínica e a palavra-chave para testar.' });
+      return;
+    }
+    setRunningDiagTest(true);
+    setDiagTestResult(null);
+    try {
+      const res = await runLocalFalconScan({
+        locationName: testClinicName.trim(),
+        keyword: testKeyword.trim(),
+        cityName: testCity.trim() || undefined,
+        forceNewScan: true,
+        onConfirmNameMismatch: async (foundName, requestedName) => {
+          const result = await Swal.fire({
+            icon: 'warning',
+            title: '⚠️ Empresa Divergente Detectada',
+            html: `A empresa encontrada no Local Falcon foi <b>"${foundName}"</b>, que é diferente da clínica solicitada <b>"${requestedName}"</b>.<br/><br/>Deseja realmente prosseguir e aprovar a realização desta varredura?`,
+            showCancelButton: true,
+            confirmButtonText: 'Sim, aprovar e realizar scan',
+            cancelButtonText: 'Não, cancelar scan',
+            confirmButtonColor: '#0f172a',
+            cancelButtonColor: '#e11d48'
+          });
+          return result.isConfirmed;
+        }
+      });
+
+      if (res.success) {
+        setDiagTestResult({
+          ok: true,
+          message: `✅ Diagnóstico concluído com sucesso! SoLV: ${res.solv}%, Posição: #${res.clientRank ?? 'N/A'}`
+        });
+      } else {
+        setDiagTestResult({
+          ok: false,
+          message: `❌ ${res.error || 'Falha na execução do diagnóstico.'}`
+        });
+      }
+    } catch (e: any) {
+      setDiagTestResult({
+        ok: false,
+        message: `❌ Erro de execução: ${e.message}`
+      });
+    } finally {
+      setRunningDiagTest(false);
+    }
+  };
 
   const handleTestLocalFalcon = async () => {
     if (!localFalconKey.trim()) {
@@ -493,7 +549,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
                   : <><Wifi className="w-4 h-4" /> Testar Conexão</>}
               </button>
 
-              {/* Resultado do Teste */}
+              {/* Resultado do Teste de Conexão */}
               {falconTestResult && (
                 <div className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
                   falconTestResult.ok
@@ -506,6 +562,62 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
                   <span>{falconTestResult.message}</span>
                 </div>
               )}
+
+              {/* Painel de Validação e Teste de Diagnóstico */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5" /> Testar Diagnóstico & Validação de Empresa Divergente
+                </label>
+                <p className="text-[11px] text-white/50">
+                  Compara o nome solicitado com a empresa retornada pelo Local Falcon e solicita sua aprovação se forem diferentes.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={testClinicName}
+                    onChange={(e) => setTestClinicName(e.target.value)}
+                    placeholder="Nome da Clínica (ex: Odontomax)"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
+                  />
+                  <input
+                    type="text"
+                    value={testKeyword}
+                    onChange={(e) => setTestKeyword(e.target.value)}
+                    placeholder="Palavra-chave (ex: dentista)"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={testCity}
+                  onChange={(e) => setTestCity(e.target.value)}
+                  placeholder="Cidade/Estado (opcional, ex: Brasília, DF)"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleTestDiagnosticScan}
+                  disabled={runningDiagTest}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-lg shadow-amber-500/10"
+                >
+                  {runningDiagTest ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Verificando e Executando Diagnóstico...</>
+                  ) : (
+                    <><Activity className="w-4 h-4" /> Executar Diagnóstico de Teste</>
+                  )}
+                </button>
+
+                {diagTestResult && (
+                  <div className={`p-2.5 rounded-xl text-xs font-medium ${
+                    diagTestResult.ok
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+                  }`}>
+                    {diagTestResult.message}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

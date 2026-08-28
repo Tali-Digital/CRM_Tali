@@ -1,3 +1,4 @@
+import Swal from 'sweetalert2';
 import { getGlobalSettings } from './firestoreService';
 
 export interface LocalFalconScanParams {
@@ -545,7 +546,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
       }
     }
 
-    // 🛡️ VALIDAÇÃO DE REGRA: Se a empresa encontrada no Local Falcon for muito diferente da solicitada, exige confirmação
+    // 🛡️ VALIDAÇÃO DE REGRA: Se a empresa encontrada no Local Falcon for muito diferente da solicitada, exige confirmação do usuário
     if (foundName && !isSimilarName(foundName, params.locationName)) {
       console.warn(`[LocalFalcon] ⚠️ Nome divergente! Solicitado: "${params.locationName}" | Encontrado: "${foundName}"`);
       if (params.onConfirmNameMismatch) {
@@ -553,14 +554,27 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         if (!confirmed) {
           return {
             success: false,
-            error: `Varredura cancelada pelo usuário. A empresa encontrada ("${foundName}") difere da solicitada ("${params.locationName}").`
+            error: `Varredura cancelada pelo usuário. A empresa localizada ("${foundName}") difere da clínica solicitada ("${params.locationName}").`
           };
         }
       } else {
-        return {
-          success: false,
-          error: `A empresa localizada no Local Falcon ("${foundName}") é muito diferente da solicitada ("${params.locationName}"). Varredura cancelada por segurança.`
-        };
+        const res = await Swal.fire({
+          icon: 'warning',
+          title: '⚠️ Confirmar Varredura Local Falcon',
+          html: `A empresa encontrada no Local Falcon foi <b>"${foundName}"</b>, que é diferente da clínica solicitada <b>"${params.locationName}"</b>.<br/><br/>Deseja realmente prosseguir e aprovar a realização desta varredura no Local Falcon?`,
+          showCancelButton: true,
+          confirmButtonText: 'Sim, realizar scan assim mesmo',
+          cancelButtonText: 'Não, cancelar scan',
+          confirmButtonColor: '#0f172a',
+          cancelButtonColor: '#e11d48'
+        });
+
+        if (!res.isConfirmed) {
+          return {
+            success: false,
+            error: `Varredura cancelada pelo usuário. A empresa localizada ("${foundName}") difere da clínica solicitada ("${params.locationName}").`
+          };
+        }
       }
     }
 
