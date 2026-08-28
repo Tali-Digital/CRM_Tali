@@ -8,6 +8,13 @@ export interface VariableTag {
   exampleValue: (prospect?: Prospect | null, diagnosticData?: any) => string;
 }
 
+export const formatTitleCase = (str?: string | null): string => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .replace(/(^|[\s/()'-])([a-zà-úâ-ûã-õç])/gi, (m, p1, p2) => p1 + p2.toUpperCase());
+};
+
 export const extractOnlyYearsFromAge = (ageStr?: string): string => {
   if (!ageStr) return 'Não Informado';
   if (ageStr.includes(' e ')) {
@@ -30,6 +37,14 @@ export const extractOnlyYearsFromAge = (ageStr?: string): string => {
   return ageStr;
 };
 
+export const getOnlyKeywordTerm = (p?: Prospect | null, d?: any): string => {
+  const rawKw = (p as any)?.keyword || d?.termoPesquisado || d?.gmn?.keyword || (p as any)?.termoPesquisado || '';
+  if (!rawKw) return 'dentista';
+  const cleanKw = rawKw.trim();
+  const keywordOnly = cleanKw.split(/\s+em\s+/i)[0].trim();
+  return keywordOnly || cleanKw || 'dentista';
+};
+
 export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
   const kw = (p as any)?.keyword || d?.termoPesquisado || d?.gmn?.keyword || '';
   if (kw && kw.trim().length > 6 && kw.toLowerCase().includes(' em ')) {
@@ -45,7 +60,7 @@ export const getFullKeywordTerm = (p?: Prospect | null, d?: any): string => {
 
 export const computeOportunidadesDetectadas = (diagnosticData?: any, formData?: any, prospect?: Prospect | null): string[] => {
   const list: string[] = [];
-  const clinic = formData?.clinicName || prospect?.clinicName || (diagnosticData as any)?.nomeClinica || 'clínica';
+  const clinic = formatTitleCase(formData?.clinicName || prospect?.clinicName || (diagnosticData as any)?.nomeClinica || 'clínica');
   const kw = getFullKeywordTerm(prospect, diagnosticData);
   const city = formData?.cityName || prospect?.location?.split('-')[0]?.trim() || 'região';
 
@@ -154,7 +169,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{NOME_CLINICA}}',
     category: 'Geral & Empresa',
     description: 'Nome completo da clínica ou empresa prospectada',
-    exampleValue: (p) => p?.clinicName || 'Clínica Odontológica Exemplo'
+    exampleValue: (p) => formatTitleCase(p?.clinicName || 'Clínica Odontológica Exemplo')
   },
   {
     code: '{{NOME_DONO}}',
@@ -294,14 +309,14 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
   {
     code: '{{TERMO_PESQUISADO}}',
     category: 'SEO & Google Maps',
-    description: 'Palavra-chave ou termo pesquisado na região (ex: "dentista em Valparaíso")',
-    exampleValue: (p, d) => getFullKeywordTerm(p, d)
+    description: 'Palavra-chave ou termo pesquisado (ex: "dentista")',
+    exampleValue: (p, d) => getOnlyKeywordTerm(p, d)
   },
   {
     code: '{{TERMO_BUSCA}}',
     category: 'SEO & Google Maps',
-    description: 'Palavra-chave analisada na região (ex: "Dentista em Valparaíso")',
-    exampleValue: (p, d) => getFullKeywordTerm(p, d)
+    description: 'Palavra-chave analisada (ex: "dentista")',
+    exampleValue: (p, d) => getOnlyKeywordTerm(p, d)
   },
   {
     code: '{{NOMES_CONCORRENTES}}',
@@ -351,7 +366,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{TEXTO_CONCORRENTES}}',
     category: 'SEO & Google Maps',
     description: 'Texto dinâmico sobre presença de concorrentes diretos',
-    exampleValue: (p) => `Concorrentes diretos aparecendo à frente da ${p?.clinicName || 'clínica'} em regiões estratégicas`
+    exampleValue: (p) => `Concorrentes diretos aparecendo à frente da ${formatTitleCase(p?.clinicName || 'clínica')} em regiões estratégicas`
   },
   {
     code: '{{TEXTO_AVALIACOES}}',
@@ -363,7 +378,7 @@ export const DEFAULT_VARIABLE_TAGS: VariableTag[] = [
     code: '{{TEXTO_OPORTUNIDADE_GMN}}',
     category: 'SEO & Google Maps',
     description: 'Texto dinâmico de oportunidade de fortalecimento do perfil no Google',
-    exampleValue: (p) => `Oportunidade de fortalecer o perfil da ${p?.clinicName || 'clínica'} no Google Meu Negócio para melhorar o ranqueamento local`
+    exampleValue: (p) => `Oportunidade de fortalecer o perfil da ${formatTitleCase(p?.clinicName || 'clínica')} no Google Meu Negócio para melhorar o ranqueamento local`
   },
   {
     code: '{{TEXTO_CAPTACAO_PACIENTES}}',

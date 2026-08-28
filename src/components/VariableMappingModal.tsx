@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Search, Sparkles, Plus, Code, Layers, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
 import { Prospect } from '../types';
-import { DEFAULT_VARIABLE_TAGS, VariableTag, extractOnlyYearsFromAge } from '../services/mappingTagsService';
+import { DEFAULT_VARIABLE_TAGS, VariableTag, extractOnlyYearsFromAge, formatTitleCase, getOnlyKeywordTerm } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
 
 interface Props {
@@ -103,7 +103,7 @@ export const VariableMappingModal: React.FC<Props> = ({
   const resolveSourceValue = (sourceId: string, p?: Prospect | null, d?: any, fixedVal?: string) => {
     if (!p && !d) return fixedVal || '[Exemplo de Valor]';
     switch (sourceId) {
-      case 'clinicName': return (p?.clinicName && !p.clinicName.includes('???')) ? p.clinicName : 'Sua Clínica';
+      case 'clinicName': return (p?.clinicName && !p.clinicName.includes('???')) ? formatTitleCase(p.clinicName) : 'Sua Clínica';
       case 'ownerName': return (p?.ownerName && !p.ownerName.includes('???')) ? p.ownerName : 'Proprietário';
       case 'cnpj': return p?.cnpj || '00.000.000/0001-00';
       case 'ageOnlyYears': {
@@ -115,7 +115,7 @@ export const VariableMappingModal: React.FC<Props> = ({
       case 'fullAddress': return p?.fullAddress || p?.location || 'Endereço da Clínica';
       case 'clinicInstagram': return p?.clinicInstagram || '@instagram';
       case 'site': return p?.site || 'https://site.com.br';
-      case 'termoPesquisado': return (p as any)?.keyword || d?.termoPesquisado || 'dentista';
+      case 'termoPesquisado': return getOnlyKeywordTerm(p, d);
       case 'nomesConcorrentes': return d?.concorrentes && d.concorrentes.length > 0 ? d.concorrentes.map((c: any) => c.nome).join(', ') : 'Odonto Premier - Dentista Lago Sul, Blanc Odontologia e Conic Odontologia';
       case 'posicaoGeral': return d?.posicaoGeral ? `${d.posicaoGeral}ª posição` : '7ª posição';
       case 'pontosPresenca': return d?.pontosPresenca ? `${d.pontosPresenca} pontos do mapa` : '19 pontos do mapa';

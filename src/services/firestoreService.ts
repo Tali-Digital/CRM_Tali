@@ -17,7 +17,8 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
-import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification, QuickLink, Prospect } from '../types';
+import { CompanyType, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag, Notification, QuickLink, Prospect, FeedbackItem, FeedbackStatus } from '../types';
+
 
 export enum OperationType {
   CREATE = 'create',
@@ -1481,4 +1482,51 @@ export const clearFinishedDiagnosticQueue = async () => {
     console.error("Erro ao limpar fila de diagnósticos no Firestore:", err);
   }
 };
+
+// --- FEEDBACK & IDEIAS (GLOBAL) ---
+export const addFeedback = async (feedbackData: Omit<FeedbackItem, 'id' | 'createdAt' | 'status'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'feedbacks'), sanitizeData({
+      ...feedbackData,
+      status: 'pendente',
+      createdAt: Timestamp.now()
+    }));
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'feedbacks');
+  }
+};
+
+export const subscribeToFeedbacks = (companyId: CompanyType, callback: (feedbacks: FeedbackItem[]) => void) => {
+  const q = query(collection(db, 'feedbacks'), where('companyId', '==', companyId));
+  return onSnapshot(q, (snapshot) => {
+    const feedbacks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackItem));
+    callback(feedbacks.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (new Date(a.createdAt).getTime() || 0);
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (new Date(b.createdAt).getTime() || 0);
+      return timeB - timeA;
+    }));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'feedbacks');
+  });
+};
+
+export const updateFeedbackStatus = async (feedbackId: string, status: FeedbackStatus) => {
+  try {
+    const docRef = doc(db, 'feedbacks', feedbackId);
+    await updateDoc(docRef, { status });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `feedbacks/${feedbackId}`);
+  }
+};
+
+export const deleteFeedback = async (feedbackId: string) => {
+  try {
+    const docRef = doc(db, 'feedbacks', feedbackId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `feedbacks/${feedbackId}`);
+  }
+};
+
 

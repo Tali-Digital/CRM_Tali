@@ -372,3 +372,29 @@ export interface ModeloProspeccao {
   [key: string]: any;
 }
 
+export type FeedbackType = 'bug' | 'sugestao' | 'melhoria';
+export type FeedbackStatus = 'pendente' | 'em_analise' | 'concluido' | 'rejeitado';
+
+export interface FeedbackAttachment {
+  name: string;
+  type: 'image' | 'pdf' | 'video' | 'other';
+  dataUrl: string;
+  size?: number;
+}
+
+export interface FeedbackItem {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  type: FeedbackType;
+  description: string;
+  screenshotUrl?: string;
+  attachments: FeedbackAttachment[];
+  status: FeedbackStatus;
+  createdAt: any;
+  companyId: string;
+  pageUrl?: string;
+}
+
+

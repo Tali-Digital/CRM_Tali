@@ -26,6 +26,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { UnifiedSectorView } from './components/UnifiedSectorView';
 import { Modal } from './components/Modal';
 import { TeamView } from './components/TeamView';
+import { FeedbackFloatingButton } from './components/FeedbackFloatingButton';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1644,6 +1645,8 @@ export function App() {
           )}
         </div>
       </Modal>
+
+      <FeedbackFloatingButton user={user} userProfile={userProfile} companyId={selectedCompanyId} />
     </>
     </DndContext>
   );
