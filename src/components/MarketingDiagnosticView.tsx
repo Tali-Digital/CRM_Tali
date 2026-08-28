@@ -72,6 +72,7 @@ interface DiagnosticQueueItem {
   finishedAt?: number;
   duration?: number; // ms total
   error?: string;
+  alerted8Min?: boolean;
   logs: QueueLogEntry[];
   formSnapshot: any; // snapshot of formData at time of enqueue
   modules: { gmn: boolean; instagram: boolean; site: boolean; ads: boolean };
@@ -1188,10 +1189,74 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       updateQueueItem(queueId, { status: 'running', startedAt: startTime });
       addQueueLog(queueId, 'Iniciando geração do diagnóstico...', 'running');
 
+      const checkTimeout = (stepLabel: string): boolean => {
+        const elapsed = Date.now() - startTime;
+
+        if (elapsed >= 15 * 60 * 1000) {
+          const errMsg = `Cancelado automaticamente: o tempo limite de 15 minutos foi excedido no passo "${stepLabel}".`;
+          addQueueLog(queueId, `🛑 CANCELADO AUTOMATICAMENTE: Tempo limite de 15 minutos excedido.`, 'error', elapsed);
+          updateQueueItem(queueId, {
+            status: 'error',
+            error: errMsg,
+            finishedAt: Date.now(),
+            duration: elapsed
+          });
+
+          const userId = auth.currentUser?.uid;
+          if (userId) {
+            createNotification({
+              userId,
+              title: `🛑 Diagnóstico Cancelado (15 min)`,
+              message: `O diagnóstico de "${prospect.clinicName}" foi cancelado automaticamente por ultrapassar 15 minutos de execução.`,
+              read: false,
+              type: 'system'
+            });
+          }
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: `🛑 Diagnóstico de "${prospect.clinicName}" cancelado após 15min.`,
+            showConfirmButton: false,
+            timer: 6000
+          });
+          return true;
+        }
+
+        if (elapsed >= 8 * 60 * 1000 && !nextItem.alerted8Min) {
+          nextItem.alerted8Min = true;
+          updateQueueItem(queueId, { alerted8Min: true });
+          addQueueLog(queueId, `⚠️ ALERTA DE TEMPO: O diagnóstico está em execução há mais de 8 minutos.`, 'running', elapsed);
+
+          const userId = auth.currentUser?.uid;
+          if (userId) {
+            createNotification({
+              userId,
+              title: `⚠️ Alerta de Diagnóstico Demorado`,
+              message: `O diagnóstico de "${prospect.clinicName}" está em execução há mais de 8 minutos.`,
+              read: false,
+              type: 'system'
+            });
+          }
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: `⚠️ Diagnóstico de "${prospect.clinicName}" em execução há mais de 8 min.`,
+            showConfirmButton: false,
+            timer: 5000
+          });
+        }
+
+        return false;
+      };
+
       const existingDiag = prospect.marketingDiagnostic || {};
 
       if (nextItem.actionType === 'fetch_existing_gmn') {
-        if (isItemCancelled(queueId)) continue;
+        if (isItemCancelled(queueId) || checkTimeout('Busca Histórico')) continue;
         const historyStart = Date.now();
         addQueueLog(queueId, `Consultando histórico de relatórios no Local Falcon para "${form.keyword}" (0 Créditos)...`, 'running');
         try {
@@ -1203,10 +1268,10 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           // Se não encontrou de primeira (pode estar "Scan In Progress" no Local Falcon), faz pequenas checagens a 0 créditos
           if (!historyResult.success) {
             for (let retry = 1; retry <= 4; retry++) {
-              if (isItemCancelled(queueId)) break;
+              if (isItemCancelled(queueId) || checkTimeout('Retry Histórico')) break;
               addQueueLog(queueId, `⏳ Aguardando conclusão do scan no Local Falcon (0 Créditos - Tentativa ${retry}/4)...`, 'running');
               await new Promise(r => setTimeout(r, 10000));
-              if (isItemCancelled(queueId)) break;
+              if (isItemCancelled(queueId) || checkTimeout('Retry Histórico')) break;
               historyResult = await fetchLocalFalconReportHistory({
                 locationName: form.companyName,
                 keyword: form.keyword
@@ -1215,8 +1280,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             }
           }
 
-          if (isItemCancelled(queueId)) {
-            addQueueLog(queueId, '🛑 Busca de histórico cancelada pelo usuário.', 'error');
+          if (isItemCancelled(queueId) || checkTimeout('Resultado Histórico')) {
+            addQueueLog(queueId, '🛑 Busca de histórico cancelada.', 'error');
             continue;
           }
 
@@ -1248,7 +1313,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             continue;
           }
 
-          if (isItemCancelled(queueId)) continue;
+          if (isItemCancelled(queueId) || checkTimeout('Processamento Histórico')) continue;
 
           addQueueLog(queueId, `✅ Relatório gravado localizado! SoLV: ${historyResult.solv}%, Posição: #${historyResult.clientRank ?? 'sem dados'} (0 Créditos consumidos)`, 'done', historyDur);
 
@@ -1282,7 +1347,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             }
           };
 
-          if (isItemCancelled(queueId)) continue;
+          if (isItemCancelled(queueId) || checkTimeout('Salvar Histórico')) continue;
 
           addQueueLog(queueId, 'Salvando dados no Firestore...', 'running');
           const saveStart = Date.now();
@@ -1330,12 +1395,12 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         : form.modules;
 
       try {
-        if (isItemCancelled(queueId)) continue;
+        if (isItemCancelled(queueId) || checkTimeout('Execução Módulos')) continue;
 
         // ── 1. Local Falcon ──
         let localFalconResult: any = null;
         if (runModules.gmn) {
-          if (isItemCancelled(queueId)) continue;
+          if (isItemCancelled(queueId) || checkTimeout('Local Falcon Start')) continue;
           const lfStart = Date.now();
           addQueueLog(queueId, `Consultando Local Falcon: "${form.keyword}" em ${form.cityName}`, 'running');
           try {
@@ -1345,7 +1410,20 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               cityName: form.cityName,
               gridSize: form.gridSize || '5x5',
               radius: Number(form.radius || 2),
-              forceNewScan: (nextItem as any).actionType === 'force_new_gmn'
+              forceNewScan: (nextItem as any).actionType === 'force_new_gmn',
+              onConfirmNameMismatch: async (foundName, requestedName) => {
+                const res = await Swal.fire({
+                  icon: 'warning',
+                  title: '⚠️ Empresa Divergente no Local Falcon',
+                  html: `A empresa encontrada no Local Falcon foi <b>"${foundName}"</b>, que é diferente da clínica solicitada <b>"${requestedName}"</b>.<br/><br/>Deseja realmente realizar a varredura no Local Falcon para esta empresa?`,
+                  showCancelButton: true,
+                  confirmButtonText: 'Sim, realizar scan assim mesmo',
+                  cancelButtonText: 'Não, cancelar scan',
+                  confirmButtonColor: '#0f172a',
+                  cancelButtonColor: '#e11d48'
+                });
+                return res.isConfirmed;
+              }
             });
             const lfDur = Date.now() - lfStart;
             if (localFalconResult?.success) {
@@ -1570,6 +1648,78 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       processQueue();
     }
   }, [diagnosticQueue, processQueue]);
+
+  // Monitoramento contínuo de tempo limite (Alerta aos 8 min, Cancelamento automático aos 15 min)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const runningItems = queueRef.current.filter(q => q.status === 'running');
+      if (runningItems.length === 0) return;
+
+      const now = Date.now();
+      const userId = auth.currentUser?.uid;
+
+      runningItems.forEach(item => {
+        const start = item.startedAt || item.addedAt;
+        const elapsed = now - start;
+
+        // Regra 15 minutos - Cancelamento automático
+        if (elapsed >= 15 * 60 * 1000) {
+          addQueueLog(item.id, '🛑 CANCELADO AUTOMATICAMENTE: O diagnóstico excedeu o tempo limite máximo de 15 minutos.', 'error', elapsed);
+          updateQueueItem(item.id, {
+            status: 'error',
+            error: 'Cancelado automaticamente por ultrapassar o tempo limite de 15 minutos.',
+            finishedAt: now,
+            duration: elapsed
+          });
+
+          if (userId) {
+            createNotification({
+              userId,
+              title: '🛑 Diagnóstico Cancelado (15 min)',
+              message: `O diagnóstico da clínica "${item.clinicName}" foi cancelado automaticamente por exceder 15 minutos de execução.`,
+              read: false,
+              type: 'system'
+            });
+          }
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: `🛑 Diagnóstico de "${item.clinicName}" cancelado após 15 minutos.`,
+            showConfirmButton: false,
+            timer: 6000
+          });
+        }
+        // Regra 8 minutos - Alerta de Notificação
+        else if (elapsed >= 8 * 60 * 1000 && !item.alerted8Min) {
+          updateQueueItem(item.id, { alerted8Min: true });
+          addQueueLog(item.id, '⚠️ ALERTA DE TEMPO: Diagnóstico em execução há mais de 8 minutos.', 'running', elapsed);
+
+          if (userId) {
+            createNotification({
+              userId,
+              title: '⚠️ Diagnóstico Demorado (8+ min)',
+              message: `O diagnóstico da clínica "${item.clinicName}" está em execução há mais de 8 minutos.`,
+              read: false,
+              type: 'system'
+            });
+          }
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: `⚠️ Diagnóstico de "${item.clinicName}" está em execução há mais de 8 min.`,
+            showConfirmButton: false,
+            timer: 5000
+          });
+        }
+      });
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [addQueueLog, updateQueueItem]);
 
   const queueCounts = {
     waiting: diagnosticQueue.filter(q => q.status === 'waiting').length,

@@ -8,6 +8,7 @@ export interface LocalFalconScanParams {
   gridSize?: '3' | '5' | '7' | '3x3' | '5x5' | '7x7'; // Tamanho da grade
   radius?: number;            // Raio em km
   forceNewScan?: boolean;     // Se false/omitido, reutiliza relatório existente de 0 créditos se disponível
+  onConfirmNameMismatch?: (foundName: string, requestedName: string) => Promise<boolean>;
 }
 
 export interface LocalFalconCompetitor {
@@ -260,19 +261,23 @@ const stripBusinessSuffixes = (name: string) => normStr(name)
   .trim();
 
 /**
- * Verifica se dois nomes de empresa são similares usando múltiplas estratégias:
- * - Match exato
- * - Um contém o outro
- * - Primeiros N chars idênticos
- * - Todas as palavras-chave do target aparecem no candidato
- */
-const isSimilarName = (candidate: string, target: string): boolean => {
+export const isSimilarName = (candidate: string, target: string): boolean => {
+  if (!candidate || !target) return false;
   const c = normStr(candidate);
   const t = normStr(target);
   if (c === t) return true;
   if (c.includes(t) || t.includes(c)) return true;
   // Primeiros 10 chars
   if (c.length >= 6 && t.length >= 6 && c.slice(0, 10) === t.slice(0, 10)) return true;
+  // Nome base sem sufixos
+  const stripSuffixes = (s: string) => normStr(s)
+    .replace(/\b(odontologia|odonto|clinica|cl[ií]nica|dental|estetica|est[eé]tica|saude|sa[uú]de|consultorio|consult[oó]rio|centro|instituto|unidade)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const cBase = stripSuffixes(candidate);
+  const tBase = stripSuffixes(target);
+  if (cBase && tBase && (cBase === tBase || cBase.includes(tBase) || tBase.includes(cBase))) return true;
+
   // Todas as palavras significativas do target aparecem no candidato
   const stopWords = new Set(['de', 'da', 'do', 'dos', 'das', 'e', 'em', 'a', 'o', 'as', 'os']);
   const targetWords = t.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
@@ -399,7 +404,11 @@ const autoAddLocationToLocalFalcon = async (
 
         // Candidatos com nome similar
         const nameMatches = results.filter(r => isSimilarName(r.name || '', locationName));
-        const pool = nameMatches.length > 0 ? nameMatches : results;
+        if (nameMatches.length === 0) {
+          console.warn('[LocalFalcon AUTO] Nenhum resultado da busca tem nome semelhante a "' + locationName + '". Ignorando fallback para evitar empresa errada (ex: SouClinic).');
+          continue;
+        }
+        const pool = nameMatches;
 
         // Se a proximidade usada for ampla ("Brasil"), EXIGE que o endereço contenha a cidade
         // para não pegar empresa homônima em outra cidade
@@ -503,6 +512,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
     let placeId = params.placeId || '';
     let lat = '';
     let lng = '';
+    let foundName = '';
 
     // 1. Tentar encontrar entre as localizações já salvas na conta
     if (!placeId) {
@@ -513,6 +523,7 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         placeId = savedLoc.placeId;
         lat = savedLoc.lat;
         lng = savedLoc.lng;
+        foundName = savedLoc.name;
         console.log('[LocalFalcon] Empresa já salva encontrada:', savedLoc.name, placeId);
       } else {
         // 2. Se NÃO estiver salva, faz o CADASTRO AUTOMÁTICO via API!
@@ -529,7 +540,27 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         placeId = autoLoc.placeId;
         lat = autoLoc.lat;
         lng = autoLoc.lng;
+        foundName = autoLoc.name;
         console.log('[LocalFalcon] Cadastro automático efetuado com sucesso:', autoLoc.name, placeId);
+      }
+    }
+
+    // 🛡️ VALIDAÇÃO DE REGRA: Se a empresa encontrada no Local Falcon for muito diferente da solicitada, exige confirmação
+    if (foundName && !isSimilarName(foundName, params.locationName)) {
+      console.warn(`[LocalFalcon] ⚠️ Nome divergente! Solicitado: "${params.locationName}" | Encontrado: "${foundName}"`);
+      if (params.onConfirmNameMismatch) {
+        const confirmed = await params.onConfirmNameMismatch(foundName, params.locationName);
+        if (!confirmed) {
+          return {
+            success: false,
+            error: `Varredura cancelada pelo usuário. A empresa encontrada ("${foundName}") difere da solicitada ("${params.locationName}").`
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: `A empresa localizada no Local Falcon ("${foundName}") é muito diferente da solicitada ("${params.locationName}"). Varredura cancelada por segurança.`
+        };
       }
     }
 
