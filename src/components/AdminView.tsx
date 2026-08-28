@@ -20,6 +20,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
   const [testClinicName, setTestClinicName] = useState('');
   const [testKeyword, setTestKeyword] = useState('');
   const [testCity, setTestCity] = useState('');
+  const [testPlaceId, setTestPlaceId] = useState('');
   const [runningDiagTest, setRunningDiagTest] = useState(false);
   const [diagTestResult, setDiagTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -44,6 +45,7 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
         locationName: testClinicName.trim(),
         keyword: testKeyword.trim(),
         cityName: testCity.trim() || undefined,
+        placeId: testPlaceId.trim() || undefined,
         forceNewScan: true,
         onConfirmNameMismatch: async (foundName, requestedName) => {
           const result = await Swal.fire({
@@ -587,13 +589,22 @@ export const AdminView: React.FC<{ userProfile?: UserProfile }> = ({ userProfile
                     className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
                   />
                 </div>
-                <input
-                  type="text"
-                  value={testCity}
-                  onChange={(e) => setTestCity(e.target.value)}
-                  placeholder="Cidade/Estado (opcional, ex: Brasília, DF)"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={testCity}
+                    onChange={(e) => setTestCity(e.target.value)}
+                    placeholder="Cidade/Estado (opcional, ex: Brasília, DF)"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
+                  />
+                  <input
+                    type="text"
+                    value={testPlaceId}
+                    onChange={(e) => setTestPlaceId(e.target.value)}
+                    placeholder="Google Place ID (opcional, ex: ChIJ...)"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
 
                 <button
                   type="button"

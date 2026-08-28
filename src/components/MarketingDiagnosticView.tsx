@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, Brain, Map, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target, BookmarkPlus, Check
+  Search, Brain, Map, MapPin, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target, BookmarkPlus, Check
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
@@ -244,6 +244,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [falconRescanData, setFalconRescanData] = useState({
     companyName: '',
     keyword: '',
+    placeId: '',
     gridSize: '5x5' as '3x3' | '5x5' | '7x7',
     radius: 2 as number | string,
     stateUf: 'Distrito Federal (DF)',
@@ -253,6 +254,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   const [formData, setFormData] = useState({
     companyName: '',
     keyword: '',
+    placeId: '',
     gridSize: '5x5' as '3x3' | '5x5' | '7x7',
     radius: 2 as number | string,
     ticketMedio: '',
@@ -558,6 +560,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       setFormData({
         companyName: selectedProspect.clinicName || '',
         keyword: (selectedProspect as any).keyword || 'Dentista',
+        placeId: (selectedProspect as any).placeId || (selectedProspect as any).marketingDiagnostic?.gmn?.placeId || '',
         gridSize: (selectedProspect as any).gridSize || '5x5',
         radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? 2,
         ticketMedio: (selectedProspect as any).ticketMedio || '',
@@ -700,6 +703,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       setFalconRescanData({
         companyName: selectedProspect.clinicName || formData.companyName || '',
         keyword: (selectedProspect as any).keyword || formData.keyword || 'Dentista',
+        placeId: (selectedProspect as any).placeId || formData.placeId || '',
         gridSize: (selectedProspect as any).gridSize || formData.gridSize || '5x5',
         radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? formData.radius ?? 2,
         stateUf: extractedState,
@@ -727,6 +731,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       ...formData,
       companyName: falconRescanData.companyName.trim(),
       keyword: falconRescanData.keyword.trim(),
+      placeId: falconRescanData.placeId ? falconRescanData.placeId.trim() : '',
       gridSize: falconRescanData.gridSize,
       radius: falconRescanData.radius,
       stateUf: falconRescanData.stateUf,
@@ -1815,6 +1820,28 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   placeholder="ex: Orthos Odontologia"
                   className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-medium"
                 />
+              </div>
+
+              {/* Google Place ID (Opcional) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+                    <MapPin size={14} /> Google Place ID (Opcional)
+                  </span>
+                  <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold">
+                    Opcional
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.placeId || ''}
+                  onChange={e => setFormData({ ...formData, placeId: e.target.value })}
+                  placeholder="Ex: ChIJ... (deixe em branco para buscar pelo nome)"
+                  className="w-full bg-[#0d0f19] border border-gray-800 focus:border-[#5271FF] rounded-xl p-3 text-xs font-mono text-white placeholder-gray-600 focus:outline-none"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Se informado, o Local Falcon utilizará este ID exato no Google Maps em vez de buscar pelo nome da clínica.
+                </p>
               </div>
 
               {/* Box de Destaque para Palavra-chave */}
@@ -4359,6 +4386,28 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   placeholder="Ex: Clinica Odontologica X"
                   className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-medium"
                 />
+              </div>
+
+              {/* 1.5. Google Place ID (Opcional) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+                    <MapPin size={14} /> Google Place ID (Opcional)
+                  </span>
+                  <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold">
+                    Opcional
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={falconRescanData.placeId || ''}
+                  onChange={e => setFalconRescanData({ ...falconRescanData, placeId: e.target.value })}
+                  placeholder="Ex: ChIJ... (deixe em branco para buscar pelo nome)"
+                  className="w-full bg-[#0d0f19] border border-gray-800 focus:border-[#5271FF] rounded-xl p-3 text-xs font-mono text-white placeholder-gray-600 focus:outline-none"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Se informado, o Local Falcon utilizará este ID exato em vez de pesquisar pelo nome.
+                </p>
               </div>
 
               {/* 2. Palavra-chave */}

@@ -464,6 +464,66 @@ const autoAddLocationToLocalFalcon = async (
 };
 
 /**
+ * Busca uma empresa salva no Local Falcon especificamente pelo Place ID (Google Place ID)
+ */
+const findSavedLocationByPlaceId = async (
+  key: string,
+  placeId: string
+): Promise<{ placeId: string; lat: string; lng: string; name: string } | null> => {
+  try {
+    const res = await postForm('/api-proxy/localfalcon/v1/locations/', {
+      api_key: key,
+      limit: '100'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const locations: any[] = data?.data?.locations || data?.locations || [];
+      const match = locations.find((loc: any) => (loc.place_id || loc.id) === placeId);
+      if (match) {
+        console.log('[LocalFalcon] Match por Place ID nas Saved Locations:', match.name, placeId);
+        return {
+          placeId: match.place_id || match.id,
+          lat: String(match.lat),
+          lng: String(match.lng),
+          name: match.name || ''
+        };
+      }
+    }
+  } catch (e) {
+    console.error('[LocalFalcon] Erro ao buscar por Place ID nas salvas:', e);
+  }
+  return null;
+};
+
+/**
+ * Adiciona uma empresa ao Local Falcon via Place ID direto
+ */
+const addLocationByPlaceId = async (
+  key: string,
+  placeId: string
+): Promise<{ placeId: string; lat: string; lng: string; name: string } | null> => {
+  try {
+    const addRes = await postForm('/api-proxy/localfalcon/v2/locations/add', {
+      api_key: key,
+      platform: 'google',
+      place_id: placeId
+    });
+    if (addRes.ok) {
+      const addData = await addRes.json();
+      const locData = addData?.data || addData?.location || {};
+      const lat = String(locData.lat || '');
+      const lng = String(locData.lng || '');
+      const name = locData.name || locData.location_name || '';
+      console.log('[LocalFalcon] Localização cadastrada via Place ID:', name, placeId);
+      return { placeId, lat, lng, name };
+    }
+  } catch (e) {
+    console.error('[LocalFalcon] Erro ao adicionar por Place ID:', e);
+  }
+  return await findSavedLocationByPlaceId(key, placeId);
+};
+
+/**
  * Executa uma varredura real no Local Falcon usando POST /v2/run-scan/
  * 100% AUTOMÁTICO: se a empresa não estiver salva, ela é pesquisada e adicionada automaticamente pela API!
  */
@@ -510,14 +570,40 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
   const creditsUsed = creditsMap[gridSize] || 9;
 
   try {
-    let placeId = params.placeId || '';
+    let placeId = params.placeId ? params.placeId.trim() : '';
     let lat = '';
     let lng = '';
     let foundName = '';
 
-    // 1. Tentar encontrar entre as localizações já salvas na conta
-    if (!placeId) {
-      console.log('[LocalFalcon] Verificando se empresa já está salva:', params.locationName);
+    // 1. Se um Place ID foi informado manualmente pelo usuário, usa EXCLUSIVAMENTE esse Place ID
+    if (placeId) {
+      console.log('[LocalFalcon] Place ID fornecido manualmente pelo usuário:', placeId);
+      const savedByPid = await findSavedLocationByPlaceId(key, placeId);
+      if (savedByPid) {
+        placeId = savedByPid.placeId;
+        lat = savedByPid.lat;
+        lng = savedByPid.lng;
+        foundName = savedByPid.name;
+        console.log('[LocalFalcon] Localização encontrada nas salvas pelo Place ID:', foundName, placeId);
+      } else {
+        console.log('[LocalFalcon] Adicionando Place ID às Saved Locations via API:', placeId);
+        const addedByPid = await addLocationByPlaceId(key, placeId);
+        if (addedByPid) {
+          placeId = addedByPid.placeId;
+          lat = addedByPid.lat;
+          lng = addedByPid.lng;
+          foundName = addedByPid.name;
+          console.log('[LocalFalcon] Localização adicionada com sucesso pelo Place ID:', foundName, placeId);
+        } else {
+          return {
+            success: false,
+            error: `Não foi possível localizar ou cadastrar o Place ID "${placeId}" no Local Falcon API. Verifique se o código informado é válido.`
+          };
+        }
+      }
+    } else {
+      // 2. Se o Place ID NÃO foi informado, segue a busca padrão por nome da empresa
+      console.log('[LocalFalcon] Verificando se empresa já está salva pelo nome:', params.locationName);
       const savedLoc = await findSavedLocation(key, params.locationName);
 
       if (savedLoc && savedLoc.placeId) {
@@ -525,16 +611,16 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         lat = savedLoc.lat;
         lng = savedLoc.lng;
         foundName = savedLoc.name;
-        console.log('[LocalFalcon] Empresa já salva encontrada:', savedLoc.name, placeId);
+        console.log('[LocalFalcon] Empresa já salva encontrada pelo nome:', savedLoc.name, placeId);
       } else {
-        // 2. Se NÃO estiver salva, faz o CADASTRO AUTOMÁTICO via API!
-        console.log('[LocalFalcon] Empresa não encontrada nas salvas. Fazendo busca e cadastro AUTOMÁTICO via API...');
+        // Se NÃO estiver salva, faz o CADASTRO AUTOMÁTICO via API!
+        console.log('[LocalFalcon] Empresa não encontrada nas salvas. Fazendo busca e cadastro AUTOMÁTICO por nome via API...');
         const autoLoc = await autoAddLocationToLocalFalcon(key, params.locationName, params.cityName);
 
         if (!autoLoc || !autoLoc.placeId) {
           return {
             success: false,
-            error: `Não foi possível localizar a empresa "${params.locationName}" no Google Maps via Local Falcon API. Verifique se o nome está correto.`
+            error: `Não foi possível localizar a empresa "${params.locationName}" no Google Maps via Local Falcon API. Verifique se o nome está correto ou informe manualmente o Place ID.`
           };
         }
 
@@ -542,12 +628,12 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         lat = autoLoc.lat;
         lng = autoLoc.lng;
         foundName = autoLoc.name;
-        console.log('[LocalFalcon] Cadastro automático efetuado com sucesso:', autoLoc.name, placeId);
+        console.log('[LocalFalcon] Cadastro automático por nome efetuado com sucesso:', autoLoc.name, placeId);
       }
     }
 
-    // 🛡️ VALIDAÇÃO DE REGRA: Se a empresa encontrada no Local Falcon for muito diferente da solicitada, exige confirmação do usuário
-    if (foundName && !isSimilarName(foundName, params.locationName)) {
+    // 🛡️ VALIDAÇÃO DE REGRA: Se a busca foi por NOME (sem Place ID manual) e o nome for muito diferente, exige confirmação
+    if (!params.placeId && foundName && !isSimilarName(foundName, params.locationName)) {
       console.warn(`[LocalFalcon] ⚠️ Nome divergente! Solicitado: "${params.locationName}" | Encontrado: "${foundName}"`);
       if (params.onConfirmNameMismatch) {
         const confirmed = await params.onConfirmNameMismatch(foundName, params.locationName);
