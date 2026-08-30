@@ -261,28 +261,50 @@ const stripBusinessSuffixes = (name: string) => normStr(name)
   .replace(/\s+/g, ' ')
   .trim();
 
+export const cleanPlaceId = (pid?: string): string => {
+  if (!pid) return '';
+  const trimmed = String(pid).trim();
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null' || trimmed === 'none' || trimmed.length < 5) {
+    return '';
+  }
+  return trimmed;
+};
+
 /**
+ * Verifica se o nome da empresa candidata retornada é similar ao nome da empresa buscada
+ */
 export const isSimilarName = (candidate: string, target: string): boolean => {
   if (!candidate || !target) return false;
   const c = normStr(candidate);
   const t = normStr(target);
   if (c === t) return true;
   if (c.includes(t) || t.includes(c)) return true;
-  // Primeiros 10 chars
-  if (c.length >= 6 && t.length >= 6 && c.slice(0, 10) === t.slice(0, 10)) return true;
-  // Nome base sem sufixos
-  const stripSuffixes = (s: string) => normStr(s)
-    .replace(/\b(odontologia|odonto|clinica|cl[ií]nica|dental|estetica|est[eé]tica|saude|sa[uú]de|consultorio|consult[oó]rio|centro|instituto|unidade)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const cBase = stripSuffixes(candidate);
-  const tBase = stripSuffixes(target);
+
+  const stopWords = new Set([
+    'de', 'da', 'do', 'dos', 'das', 'e', 'em', 'a', 'o', 'as', 'os',
+    'dra', 'dr', 'doutor', 'doutora', 'ltda', 'me', 'eireli', 'sa',
+    'clinica', 'clínica', 'odontologia', 'odonto', 'dental', 'estetica',
+    'estética', 'saude', 'saúde', 'consultorio', 'consultório', 'centro',
+    'instituto', 'unidade', 'grupo', 'espaco', 'espaço'
+  ]);
+
+  const getSignificantWords = (s: string) =>
+    normStr(s).split(' ').filter(w => w.length >= 2 && !stopWords.has(w));
+
+  const cWords = getSignificantWords(candidate);
+  const tWords = getSignificantWords(target);
+
+  if (cWords.length > 0 && tWords.length > 0) {
+    const hasWordOverlap = tWords.some(tw => cWords.some(cw => cw === tw || (cw.length >= 3 && tw.length >= 3 && (cw.includes(tw) || tw.includes(cw)))));
+    if (hasWordOverlap) return true;
+  }
+
+  const cBase = stripBusinessSuffixes(candidate);
+  const tBase = stripBusinessSuffixes(target);
   if (cBase && tBase && (cBase === tBase || cBase.includes(tBase) || tBase.includes(cBase))) return true;
 
-  // Todas as palavras significativas do target aparecem no candidato
-  const stopWords = new Set(['de', 'da', 'do', 'dos', 'das', 'e', 'em', 'a', 'o', 'as', 'os']);
-  const targetWords = t.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
-  if (targetWords.length > 0 && targetWords.every(w => c.includes(w))) return true;
+  if (cWords[0] && tWords[0] && cWords[0].slice(0, 6) === tWords[0].slice(0, 6)) return true;
+
   return false;
 };
 
@@ -364,10 +386,11 @@ const autoAddLocationToLocalFalcon = async (
     const noSuffix = locationName.replace(/\b(odontologia|odonto|clinica|cl[ii]nica|est[ee]tica|dental|saude|sa[uu]de|consultorio|consult[oo]rio|centro|instituto|spa|estetico|est[ee]tico)\b/gi, '').replace(/\s+/g, ' ').trim();
     if (noSuffix && noSuffix !== locationName && noSuffix.length > 3) namesToTry.push(noSuffix);
 
-    // Primeiras 2-3 palavras (nome curto)
+    // Primeiras 1-3 palavras (nome curto)
     const words = locationName.split(/\s+/);
-    if (words.length > 2) {
-      namesToTry.push(words.slice(0, 2).join(' '));
+    if (words.length > 1) {
+      if (words[0].length >= 3) namesToTry.push(words[0]);
+      if (words.length > 2) namesToTry.push(words.slice(0, 2).join(' '));
       if (words.length > 3) namesToTry.push(words.slice(0, 3).join(' '));
     }
 
@@ -406,10 +429,10 @@ const autoAddLocationToLocalFalcon = async (
         const normCity = (cleanCity || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
 
         // Candidatos com nome similar
-        const nameMatches = results.filter(r => isSimilarName(r.name || '', locationName));
+        let nameMatches = results.filter(r => isSimilarName(r.name || '', locationName));
         if (nameMatches.length === 0) {
-          console.warn('[LocalFalcon AUTO] Nenhum resultado da busca tem nome semelhante a "' + locationName + '". Ignorando fallback para evitar empresa errada (ex: SouClinic).');
-          continue;
+          console.warn('[LocalFalcon AUTO] Nenhum resultado com filtro estrito de nome para "' + locationName + '". Usando os resultados encontrados diretamente pela API do Google.');
+          nameMatches = results;
         }
         const pool = nameMatches;
 
@@ -609,12 +632,12 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
     const creditsUsed = creditsMap[gridSize] || 9;
 
   try {
-    let placeId = params.placeId ? params.placeId.trim() : '';
+    let placeId = cleanPlaceId(params.placeId);
     let lat = '';
     let lng = '';
     let foundName = '';
 
-    // 1. Se um Place ID foi informado manualmente pelo usuário, usa EXCLUSIVAMENTE esse Place ID
+    // 1. Se um Place ID válido foi informado manualmente pelo usuário, usa esse Place ID
     if (placeId) {
       console.log('[LocalFalcon] Place ID fornecido manualmente pelo usuário:', placeId);
       const savedByPid = await findSavedLocationByPlaceId(key, placeId);

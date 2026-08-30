@@ -6,7 +6,7 @@ import {
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic, generateOportunidadesPersonalizadasIA } from '../services/geminiService';
-import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, fetchLocalFalconReportDetailsByScanId, LocalFalconHistoryItem } from '../services/localFalconService';
+import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, fetchLocalFalconReportDetailsByScanId, LocalFalconHistoryItem, cleanPlaceId } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
@@ -560,7 +560,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       setFormData({
         companyName: selectedProspect.clinicName || '',
         keyword: (selectedProspect as any).keyword || 'Dentista',
-        placeId: (selectedProspect as any).placeId || (selectedProspect as any).marketingDiagnostic?.gmn?.placeId || '',
+        placeId: cleanPlaceId((selectedProspect as any).placeId || (selectedProspect as any).marketingDiagnostic?.gmn?.placeId || ''),
         gridSize: (selectedProspect as any).gridSize || '5x5',
         radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? 2,
         ticketMedio: (selectedProspect as any).ticketMedio || '',
@@ -703,7 +703,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       setFalconRescanData({
         companyName: selectedProspect.clinicName || formData.companyName || '',
         keyword: (selectedProspect as any).keyword || formData.keyword || 'Dentista',
-        placeId: (selectedProspect as any).placeId || formData.placeId || '',
+        placeId: cleanPlaceId((selectedProspect as any).placeId || formData.placeId || ''),
         gridSize: (selectedProspect as any).gridSize || formData.gridSize || '5x5',
         radius: (selectedProspect as any).radius ?? (selectedProspect as any).marketingDiagnostic?.gmn?.radius ?? formData.radius ?? 2,
         stateUf: extractedState,
@@ -731,7 +731,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       ...formData,
       companyName: falconRescanData.companyName.trim(),
       keyword: falconRescanData.keyword.trim(),
-      placeId: falconRescanData.placeId ? falconRescanData.placeId.trim() : '',
+      placeId: cleanPlaceId(falconRescanData.placeId),
       gridSize: falconRescanData.gridSize,
       radius: falconRescanData.radius,
       stateUf: falconRescanData.stateUf,
