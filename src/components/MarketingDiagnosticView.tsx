@@ -736,7 +736,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       radius: falconRescanData.radius,
       stateUf: falconRescanData.stateUf,
       cityName: falconRescanData.cityName,
-      neighborhoodName: falconRescanData.neighborhoodName
+      neighborhoodName: falconRescanData.neighborhoodName,
+      modules: { ...(formData.modules || {}), gmn: true }
     };
 
     setFormData(updatedForm);
@@ -1117,10 +1118,14 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     // Don't add if already in queue (waiting or running) by prospectId, companyName or placeId
     const alreadyQueued = queueRef.current.some(q => {
       if (q.status !== 'waiting' && q.status !== 'running') return false;
+      // Se a tarefa está travada na fila há mais de 15 minutos, ignora a trava de duplicidade
+      const age = Date.now() - (q.startedAt || q.addedAt || 0);
+      if (age > 15 * 60 * 1000) return false;
+
       if (q.prospectId === prospect.id) return true;
       const qName = (q.formSnapshot?.companyName || q.clinicName || '').toLowerCase().trim();
       if (normName && qName === normName) return true;
-      const qPid = (q.formSnapshot?.placeId || '').trim();
+      const qPid = cleanPlaceId(q.formSnapshot?.placeId);
       if (normPid && qPid && qPid === normPid) return true;
       return false;
     });
@@ -1412,9 +1417,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         }
       }
 
-      const runModules = nextItem.actionType === 'rerun_module' && nextItem.targetModule
-        ? { gmn: nextItem.targetModule === 'gmn', site: nextItem.targetModule === 'site', instagram: nextItem.targetModule === 'instagram', ads: nextItem.targetModule === 'ads' }
-        : form.modules;
+      const runModules = nextItem.actionType === 'force_new_gmn' || nextItem.actionType === 'fetch_existing_gmn'
+        ? { gmn: true, site: false, instagram: false, ads: false }
+        : (nextItem.actionType === 'rerun_module' && nextItem.targetModule
+            ? { gmn: nextItem.targetModule === 'gmn', site: nextItem.targetModule === 'site', instagram: nextItem.targetModule === 'instagram', ads: nextItem.targetModule === 'ads' }
+            : (form.modules || { gmn: true, site: true, instagram: true, ads: true }));
 
       try {
         if (isItemCancelled(queueId) || checkTimeout('Execução Módulos')) continue;
