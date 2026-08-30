@@ -173,7 +173,7 @@ export const getFalconApiUrl = (endpoint: string): string => {
   const cleanPath = endpoint.replace(/^\/api-proxy\/localfalcon/, '');
   const pathWithSlash = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
 
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return `/api-proxy/localfalcon${pathWithSlash}`;
   }
   return `https://api.localfalcon.com${pathWithSlash}`;
@@ -310,7 +310,7 @@ const findSavedLocation = async (key: string, locationName: string, exactOnly = 
       if (!res.ok) continue;
 
       const data = await res.json();
-      const locations = data?.data?.locations || [];
+      const locations = Array.isArray(data?.data?.locations) ? data.data.locations : (Array.isArray(data?.locations) ? data.locations : (Array.isArray(data?.data) ? data.data : []));
       if (locations.length === 0) continue;
 
       const targetBaseName = stripBusinessSuffixes(locationName);
@@ -396,7 +396,9 @@ const autoAddLocationToLocalFalcon = async (
         }
 
         const searchData = await searchRes.json();
-        const results: any[] = searchData?.data?.results || [];
+        const results: any[] = Array.isArray(searchData?.data?.results)
+          ? searchData.data.results
+          : (Array.isArray(searchData?.data) ? searchData.data : (Array.isArray(searchData?.results) ? searchData.results : []));
         console.log('[LocalFalcon AUTO] Resultados para "' + nameQuery + '" prox "' + prox + '":', results.length, 'encontrados');
 
         if (results.length === 0) continue;
@@ -477,15 +479,17 @@ const findSavedLocationByPlaceId = async (
     });
     if (res.ok) {
       const data = await res.json();
-      const locations: any[] = data?.data?.locations || data?.locations || [];
+      const locations: any[] = Array.isArray(data?.data?.locations)
+        ? data.data.locations
+        : (Array.isArray(data?.locations) ? data.locations : (Array.isArray(data?.data) ? data.data : []));
       const match = locations.find((loc: any) => (loc.place_id || loc.id) === placeId);
       if (match) {
         console.log('[LocalFalcon] Match por Place ID nas Saved Locations:', match.name, placeId);
         return {
           placeId: match.place_id || match.id,
-          lat: String(match.lat),
-          lng: String(match.lng),
-          name: match.name || ''
+          lat: String(match.lat || match.latitude || ''),
+          lng: String(match.lng || match.longitude || ''),
+          name: match.name || match.location_name || ''
         };
       }
     }
@@ -510,9 +514,9 @@ const addLocationByPlaceId = async (
     });
     if (addRes.ok) {
       const addData = await addRes.json();
-      const locData = addData?.data || addData?.location || {};
-      const lat = String(locData.lat || '');
-      const lng = String(locData.lng || '');
+      const locData = addData?.data?.location || addData?.data || addData?.location || {};
+      const lat = String(locData.lat || locData.latitude || '');
+      const lng = String(locData.lng || locData.longitude || '');
       const name = locData.name || locData.location_name || '';
       console.log('[LocalFalcon] Localização cadastrada via Place ID:', name, placeId);
       return { placeId, lat, lng, name };
@@ -704,13 +708,18 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
       api_key: key,
       place_id: placeId,
       keyword: params.keyword,
-      lat: lat,
-      lng: lng,
       grid_size: gridSize,
       radius: String(params.radius || 2),
       measurement: 'km',
       platform: 'google'
     };
+
+    if (lat && !isNaN(parseFloat(lat))) {
+      formParams.lat = lat;
+    }
+    if (lng && !isNaN(parseFloat(lng))) {
+      formParams.lng = lng;
+    }
 
     console.log('[LocalFalcon] Rodando scan v2/run-scan com params:', { ...formParams, api_key: '***' });
 
@@ -718,40 +727,60 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
       const res = await postForm('/api-proxy/localfalcon/v2/run-scan/', formParams, 75000);
       console.log('[LocalFalcon] Status do disparo do scan:', res.status, res.statusText);
 
-      if (res.ok || res.status === 202) {
-        const data = await res.json();
-        console.log('[LocalFalcon] Scan disparado na API:', JSON.stringify(data, null, 2));
-        const scanData = data?.data || {};
-        const dataPoints = extractDataPointsArray(scanData);
+      const data = await parseFalconJson(res);
 
-        if (dataPoints.length > 0) {
-          const reportKey = scanData.report_key;
-          const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
-          const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
-          const solv = parseFloat(scanData.solv || '0');
-          const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
-          const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId, params.locationName);
+      if (data?.success === false) {
+        const apiErrMsg = data?.message || data?.error || data?.code_desc || 'Erro retornado pela API do Local Falcon.';
+        console.error('[LocalFalcon] Erro no disparo v2/run-scan:', apiErrMsg);
+        return {
+          success: false,
+          error: `API Local Falcon: ${apiErrMsg}`
+        };
+      }
 
-          return {
-            success: true,
-            solv: isNaN(solv) ? 0 : solv,
-            avgRank: isNaN(avgRank) ? 0 : avgRank,
-            clientRank,
-            gridPoints: dataPoints.map((pt: any) => ({
-              lat: parseFloat(pt.lat),
-              lng: parseFloat(pt.lng),
-              rank: pt.rank
-            })),
-            scanId: reportKey,
-            mapImageUrl,
-            heatmapUrl,
-            creditsUsed,
-            competitors
-          };
-        }
+      if (!res.ok && res.status !== 202) {
+        const errTxt = data?.message || data?.error || `HTTP ${res.status}`;
+        console.error('[LocalFalcon] Resposta não OK v2/run-scan:', errTxt);
+        return {
+          success: false,
+          error: `Erro ao disparar scan no Local Falcon (HTTP ${res.status}): ${errTxt}`
+        };
+      }
+
+      const scanData = data?.data || data || {};
+      const dataPoints = extractDataPointsArray(scanData);
+
+      if (dataPoints.length > 0) {
+        const reportKey = scanData.report_key || scanData.scan_id || scanData.id;
+        const mapImageUrl = scanData.image || (reportKey ? `https://lf-static-v2.localfalcon.com/image/${reportKey}` : '');
+        const heatmapUrl = scanData.heatmap || (reportKey ? `https://lf-static-v2.localfalcon.com/heatmap-img/${reportKey}` : '');
+        const solv = parseFloat(scanData.solv || '0');
+        const avgRank = parseFloat(scanData.arp || scanData.atrp || '0');
+        const { competitors, clientRank } = extractCompetitorRanking(dataPoints, placeId, params.locationName);
+
+        return {
+          success: true,
+          solv: isNaN(solv) ? 0 : solv,
+          avgRank: isNaN(avgRank) ? 0 : avgRank,
+          clientRank,
+          gridPoints: dataPoints.map((pt: any) => ({
+            lat: parseFloat(pt.lat),
+            lng: parseFloat(pt.lng),
+            rank: pt.rank
+          })),
+          scanId: reportKey,
+          mapImageUrl,
+          heatmapUrl,
+          creditsUsed,
+          competitors
+        };
       }
     } catch (e: any) {
-      console.warn('[LocalFalcon] Disparo v2/run-scan em processamento assíncrono pelo servidor:', e.message);
+      console.warn('[LocalFalcon] Exceção no disparo v2/run-scan:', e.message);
+      return {
+        success: false,
+        error: `Erro de conexão com o Local Falcon: ${e.message}`
+      };
     }
 
     // 4. AGUARDAR CONCLUSÃO DO SCAN NO LOCAL FALCON (POLLING DE ATÉ 10 MINUTOS - 0 CRÉDITOS):

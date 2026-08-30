@@ -1430,6 +1430,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               keyword: form.keyword,
               locationName: form.companyName,
               cityName: form.cityName,
+              placeId: form.placeId,
               gridSize: form.gridSize || '5x5',
               radius: Number(form.radius || 2),
               forceNewScan: (nextItem as any).actionType === 'force_new_gmn',
