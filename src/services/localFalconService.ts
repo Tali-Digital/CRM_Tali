@@ -799,11 +799,16 @@ export const runLocalFalconScan = async (params: LocalFalconScanParams): Promise
         };
       }
     } catch (e: any) {
-      console.warn('[LocalFalcon] Exceção no disparo v2/run-scan:', e.message);
-      return {
-        success: false,
-        error: `Erro de conexão com o Local Falcon: ${e.message}`
-      };
+      const isAbort = e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('abort')));
+      if (isAbort) {
+        console.log('[LocalFalcon] Disparo v2/run-scan em processamento assíncrono pelo servidor (Timeout HTTP, prosseguindo com busca de histórico)...');
+      } else {
+        console.warn('[LocalFalcon] Exceção no disparo v2/run-scan:', e.message);
+        return {
+          success: false,
+          error: `Erro de conexão com o Local Falcon: ${e.message}`
+        };
+      }
     }
 
     // 4. AGUARDAR CONCLUSÃO DO SCAN NO LOCAL FALCON (POLLING DE ATÉ 10 MINUTOS - 0 CRÉDITOS):
