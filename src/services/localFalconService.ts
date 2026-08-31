@@ -38,6 +38,39 @@ export interface LocalFalconResult {
   error?: string;
 }
 
+export const cleanRating = (val?: any): string => {
+  if (val === null || val === undefined || val === '') return '—';
+  const str = String(val).trim();
+  if (str.includes('/')) {
+    const firstPart = str.split('/')[0].trim();
+    const cleanNum = firstPart.replace(',', '.').replace(/[^0-9.]/g, '');
+    const num = parseFloat(cleanNum);
+    if (!isNaN(num) && num > 0) return num.toFixed(1).replace('.', ',');
+  }
+  const cleanNum = str.replace(',', '.').replace(/[^0-9.]/g, '');
+  const num = parseFloat(cleanNum);
+  if (!isNaN(num) && num > 0) return num.toFixed(1).replace('.', ',');
+  return '—';
+};
+
+export const cleanReviews = (reviewsVal?: any, ratingVal?: any): number | string => {
+  if (reviewsVal !== null && reviewsVal !== undefined && reviewsVal !== '' && reviewsVal !== 0 && reviewsVal !== '0') {
+    const str = String(reviewsVal).replace(/\D/g, '');
+    const num = parseInt(str, 10);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  if (ratingVal) {
+    const rStr = String(ratingVal).trim();
+    if (rStr.includes('/')) {
+      const secondPart = rStr.split('/')[1]?.trim() || '';
+      const cleanNum = secondPart.replace(/\D/g, '');
+      const num = parseInt(cleanNum, 10);
+      if (!isNaN(num) && num > 0) return num;
+    }
+  }
+  return '—';
+};
+
 const normalizeBusinessName = (name: string) => name
   .toLowerCase()
   .normalize('NFD')

@@ -10,6 +10,7 @@ import { VisualCropModal } from './VisualCropModal';
 import { InteractiveMarginResizer } from './InteractiveMarginResizer';
 import { DEFAULT_VARIABLE_TAGS } from '../services/mappingTagsService';
 import Swal from 'sweetalert2';
+import { cleanRating, cleanReviews } from '../services/localFalconService';
 export const cleanDocumentHtml = (rawHtml: string): string => {
   if (!rawHtml) return '';
   let cleaned = rawHtml;
@@ -1060,7 +1061,7 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin:20px 0; font-family:Arial,sans-serif; color:#0f172a;">
         <div style="font-size:18pt; font-weight:800; margin-bottom:6px;">${clinica || prospectData?.clinicName || 'Clínica'}</div>
         <div style="font-size:10pt; color:#475569; margin-bottom:10px;">${enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || 'Endereço não informado'}</div>
-        <div style="font-size:11pt; font-weight:700;">${prospectData?.gmnRating || '—'} <span style="color:#f59e0b;">★★★★★</span> <span style="color:#64748b; font-weight:400;">(${prospectData?.gmnReviewsCount || 0} avaliações)</span></div>
+        <div style="font-size:11pt; font-weight:700;">${cleanRating(prospectData?.gmnRating)} <span style="color:#f59e0b;">★★★★★</span> <span style="color:#64748b; font-weight:400;">(${cleanReviews(prospectData?.gmnReviewsCount, prospectData?.gmnRating)} avaliações)</span></div>
       </div>
     `;
     const pillarItems = [
@@ -1076,8 +1077,8 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     ` : '';
     const effectiveClientRank = hasValidClientRank ? clientRank : (gmn?.posicaoMedia ? Number(gmn.posicaoMedia) : 7);
     const clientAddress = enderecoCompleto || prospectData?.fullAddress || cidadeBairro || prospectData?.location || '';
-    const clientRating = prospectData?.gmnRating ? Number(prospectData.gmnRating).toFixed(1) : (gmn?.rating ? Number(gmn.rating).toFixed(1) : '4.8');
-    const clientReviews = prospectData?.gmnReviewsCount ?? (gmn?.reviewsCount ?? 0);
+    const clientRating = cleanRating(prospectData?.gmnRating || gmn?.rating || '4.8');
+    const clientReviews = cleanReviews(prospectData?.gmnReviewsCount, prospectData?.gmnRating || gmn?.rating);
 
     const cleanReviewsStr = (val: any) => String(val ?? '0').replace(/avaliaç[õo]es/gi, '').trim();
 

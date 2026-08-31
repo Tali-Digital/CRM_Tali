@@ -6,7 +6,7 @@ import {
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
 import { generateMarketingDiagnostic, generateOportunidadesPersonalizadasIA } from '../services/geminiService';
-import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, fetchLocalFalconReportDetailsByScanId, LocalFalconHistoryItem, cleanPlaceId } from '../services/localFalconService';
+import { runLocalFalconScan, checkLocalFalconStatus, fetchLocalFalconReportHistory, fetchLocalFalconAllReportsHistoryList, fetchLocalFalconReportDetailsByScanId, LocalFalconHistoryItem, cleanPlaceId, cleanRating, cleanReviews } from '../services/localFalconService';
 import { runPageSpeedAnalysis } from '../services/pagespeedService';
 import { checkMetaAds } from '../services/metaAdsService';
 import { computeOportunidadesDetectadas } from '../services/mappingTagsService';
@@ -32,22 +32,14 @@ const getCompetitorAddress = (c: any, defaultLoc = ''): string => {
 const getCompetitorRating = (c: any): string => {
   if (!c) return '—';
   const val = c.nota ?? c.rating ?? c.gmnRating ?? c.stars ?? c.score ?? c.rating_val;
-  if (val !== null && val !== undefined && val !== '') {
-    const num = Number(val);
-    if (!isNaN(num) && num > 0) return num.toFixed(1);
-  }
-  return '—';
+  return cleanRating(val);
 };
 
-const getCompetitorReviews = (c: any): number | null => {
-  if (!c) return null;
+const getCompetitorReviews = (c: any): number | string => {
+  if (!c) return '—';
   const val = c.avaliacoes ?? c.reviews ?? c.reviewsCount ?? c.reviews_count ?? c.user_ratings_total ?? c.gmnReviewsCount;
-  if (val !== null && val !== undefined && val !== '') {
-    const cleanStr = String(val).replace(/avaliaç[õo]es/gi, '').replace(/\D/g, '').trim();
-    const num = parseInt(cleanStr, 10);
-    if (!isNaN(num)) return num;
-  }
-  return null;
+  const ratingVal = c.nota ?? c.rating ?? c.gmnRating;
+  return cleanReviews(val, ratingVal);
 };
 
 // ── Queue Types ──
@@ -2462,8 +2454,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             <div className="flex flex-wrap items-center gap-3">
               {selectedProspect.gmnRating && (
                 <div className="bg-[#0d0f19] px-4 py-2.5 rounded-xl border border-gray-800 flex items-center gap-2">
-                  <span className="text-amber-400 text-lg font-black">{selectedProspect.gmnRating} ★</span>
-                  <span className="text-xs text-gray-400 font-bold">({selectedProspect.gmnReviewsCount || 0} avaliações no Google)</span>
+                  <span className="text-amber-400 text-lg font-black">{cleanRating(selectedProspect.gmnRating)} ★</span>
+                  <span className="text-xs text-gray-400 font-bold">({cleanReviews(selectedProspect.gmnReviewsCount, selectedProspect.gmnRating)} avaliações no Google)</span>
                 </div>
               )}
               <div className="bg-[#0d0f19] pl-3 pr-4 py-2.5 rounded-xl border border-gray-800 flex items-center gap-3">
@@ -2752,11 +2744,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-sm text-gray-900">
-                    {selectedProspect.gmnRating || '4.9'}
+                    {cleanRating(selectedProspect.gmnRating)}
                   </span>
                   <span className="text-amber-400 text-sm tracking-wider font-bold">★★★★★</span>
                   <span className="text-xs text-gray-500 font-medium">
-                    ({selectedProspect.gmnReviewsCount || 0})
+                    ({cleanReviews(selectedProspect.gmnReviewsCount, selectedProspect.gmnRating)})
                   </span>
                 </div>
               </div>
@@ -2957,8 +2949,8 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   </div>
                   <p className="text-xs text-amber-200/70">{selectedProspect.fullAddress || selectedProspect.location}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-amber-400 font-bold text-xs">{selectedProspect.gmnRating || '—'} ★</span>
-                    <span className="text-amber-200/70 text-xs">({selectedProspect.gmnReviewsCount || '—'} avaliações)</span>
+                    <span className="text-amber-400 font-bold text-xs">{cleanRating(selectedProspect.gmnRating)} ★</span>
+                    <span className="text-amber-200/70 text-xs">({cleanReviews(selectedProspect.gmnReviewsCount, selectedProspect.gmnRating)} avaliações)</span>
                   </div>
                   <p className="text-xs font-bold text-amber-400 mt-2">Posição no Google (Local Falcon): #{clientRank}</p>
                 </div>
@@ -4911,7 +4903,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                     <div className="grid grid-cols-5 gap-4">
                       {[
                         { label: 'Google (Local)', val: diagnosticData.gmn?.top3Percent || 'N/A', color: 'text-indigo-400', bg: 'border-indigo-500/30 bg-indigo-500/10' },
-                        { label: 'Reputação', val: selectedProspect.gmnRating ? `${selectedProspect.gmnRating}★` : 'N/A', color: 'text-amber-400', bg: 'border-amber-500/30 bg-amber-500/10' },
+                        { label: 'Reputação', val: selectedProspect.gmnRating ? `${cleanRating(selectedProspect.gmnRating)}★` : 'N/A', color: 'text-amber-400', bg: 'border-amber-500/30 bg-amber-500/10' },
                         { label: 'Instagram', val: diagnosticData.instagram?.seguidores || 'Ativo', color: 'text-pink-400', bg: 'border-pink-500/30 bg-pink-500/10' },
                         { label: 'Site (Mobile)', val: diagnosticData.site?.velocidade || 'N/A', color: 'text-emerald-400', bg: 'border-emerald-500/30 bg-emerald-500/10' },
                         { label: 'Anúncios (Meta)', val: diagnosticData.ads?.anunciosAtivos ? 'Ativo' : 'Inativo', color: 'text-purple-400', bg: 'border-purple-500/30 bg-purple-500/10' }
