@@ -102,6 +102,7 @@ import {
   subscribeToSectors,
   subscribeToDynamicLists,
   subscribeToDynamicCards,
+  addDynamicList,
   addSector,
   updateSector,
   deleteSector,
@@ -557,25 +558,54 @@ export function App() {
   }, [user, selectedCompanyId]);
 
   useEffect(() => {
-    if (user && allSectors.length > 0) {
+    if (user) {
       const currentUnsubs: Record<string, () => void> = {};
       
-      allSectors.forEach(sector => {
-        const unsubL = subscribeToDynamicLists(sector.id, (lists) => {
-          setDynamicLists(prev => ({ ...prev, [sector.id]: lists }));
+      const sectorIds = Array.from(new Set(['prospeccao_followup', ...allSectors.map(s => s.id)]));
+
+      sectorIds.forEach(sectorId => {
+        const unsubL = subscribeToDynamicLists(sectorId, async (lists) => {
+          if (sectorId === 'prospeccao_followup' && lists.length === 0) {
+            const PROSPECCAO_FOLLOWUP_STAGES = [
+              'Cliente Selecionado',
+              'Carta pronta',
+              'Carta entregue',
+              '1 Follow up',
+              '2 follow up',
+              '3 follow up',
+              'Reunião Agendada',
+              'Contato Encerrado',
+              'Pós reunião - 1 Follow up',
+              'Pós reunião - 2 follow up',
+              'Pós reunião - 3 follow up',
+              'Pós reunião - 4 follow up',
+              'Pós reunião - 5 follow up',
+              'Cliente fechado'
+            ];
+            for (let i = 0; i < PROSPECCAO_FOLLOWUP_STAGES.length; i++) {
+              await addDynamicList({
+                name: PROSPECCAO_FOLLOWUP_STAGES[i],
+                order: i,
+                sectorId: 'prospeccao_followup',
+                companyId: selectedCompanyId
+              });
+            }
+          } else {
+            setDynamicLists(prev => ({ ...prev, [sectorId]: lists.sort((a, b) => (a.order || 0) - (b.order || 0)) }));
+          }
         });
-        const unsubC = subscribeToDynamicCards(sector.id, (cards) => {
-          setDynamicCards(prev => ({ ...prev, [sector.id]: cards }));
+        const unsubC = subscribeToDynamicCards(sectorId, (cards) => {
+          setDynamicCards(prev => ({ ...prev, [sectorId]: cards }));
         });
-        currentUnsubs[`${sector.id}_lists`] = unsubL;
-        currentUnsubs[`${sector.id}_cards`] = unsubC;
+        currentUnsubs[`${sectorId}_lists`] = unsubL;
+        currentUnsubs[`${sectorId}_cards`] = unsubC;
       });
       
       return () => {
         Object.values(currentUnsubs).forEach(unsub => unsub());
       };
     }
-  }, [user, allSectors]);
+  }, [user, allSectors, selectedCompanyId]);
 
   // Recurrence logic: Check every hour if any cards need to trigger a notification
   useEffect(() => {
@@ -692,9 +722,10 @@ export function App() {
     } else {
       // Setores dinâmicos
       const dynamicS = allSectors.find(s => s.id === targetSector);
-      if (dynamicS) {
-        targetLists = dynamicLists[dynamicS.id] || [];
-        addFn = (data: any) => addDynamicCard({ ...data, sectorId: dynamicS.id });
+      if (dynamicS || targetSector === 'prospeccao_followup') {
+        const sId = dynamicS ? dynamicS.id : targetSector;
+        targetLists = dynamicLists[sId] || [];
+        addFn = (data: any) => addDynamicCard({ ...data, sectorId: sId });
       }
     }
 
@@ -705,7 +736,7 @@ export function App() {
     else {
       // Deletar de setor dinâmico
       const dynamicS = allSectors.find(s => s.id === sourceSector);
-      if (dynamicS) {
+      if (dynamicS || sourceSector === 'prospeccao_followup') {
         deleteFn = deleteDynamicCard;
       }
     }
@@ -1115,6 +1146,35 @@ export function App() {
         return <RotaProspeccaoView companyId={selectedCompanyId} />;
       case 'editor_prospeccao':
         return <GestaoProspeccaoEditor />;
+      case 'prospeccao_followup':
+        return (
+          <UnifiedSectorView 
+            sector={'prospeccao_followup' as any}
+            viewMode={sectorViewMode} 
+            cardFilter={sectorCardFilter} 
+            companyId={selectedCompanyId} 
+            lists={dynamicLists['prospeccao_followup'] || []} 
+            cards={(dynamicCards['prospeccao_followup'] || []).filter(c => !c.deleted && !c.completed)} 
+            clients={clients} 
+            tags={tags} 
+            users={users}
+            onJumpToCard={(cardId, sector, mode = 'view') => {
+              setActiveTab(sector as any);
+              setJumpToCard({ id: cardId, sector, mode });
+            }}
+            allSectors={allSectors}
+            onMoveToSector={(card, target) => moveCardBetweenSectors(card, 'prospeccao_followup', target)}
+            allCommercialCards={commercialCards}
+            allFinancialCards={financialCards}
+            allOperationCards={operationCards}
+            allInternalTaskCards={internalTaskCards}
+            jumpToCard={jumpToCard}
+            onClearJump={() => setJumpToCard(null)}
+            userRole={userProfile?.role}
+            activeId={activeId}
+            activeCard={activeCard}
+          />
+        );
       case 'comercial':
         if (!isTabAllowed('comercial')) return null;
         return (

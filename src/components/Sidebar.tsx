@@ -20,7 +20,7 @@ import {
   FileText,
   Lock,
   Map,
-  Wand2, Activity
+  Wand2, Activity, Repeat
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -104,6 +104,7 @@ export const Sidebar: React.FC<Props> = ({ onLogout, activeTab, onTabChange, isC
         { id: 'prospeccao', icon: Search, iconColor: 'text-blue-400', label: 'Prospecção online' },
         { id: 'marketing_diagnostic', icon: Activity, iconColor: 'text-orange-400', label: 'Diagnóstico de Marketing' },
         { id: 'editor_prospeccao', icon: FileText, iconColor: 'text-emerald-400', label: 'Prospecção Presencial' },
+        { id: 'prospeccao_followup', icon: Repeat, iconColor: 'text-teal-400', label: 'Follow Up' },
         { id: 'rota_prospeccao', icon: Map, iconColor: 'text-stone-400', label: 'Rota de Prospecção' },
       ]
     },
