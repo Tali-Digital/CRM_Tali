@@ -114,7 +114,7 @@ import {
   subscribeToProspects,
   subscribeToProspeccaoDocs
 } from './services/firestoreService';
-import { syncFollowupCards } from './utils/syncFollowup';
+import { syncFollowupCardsDirect } from './utils/syncFollowup';
 import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
 import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
@@ -619,47 +619,42 @@ export function App() {
   const [hasAutoSyncedFollowup, setHasAutoSyncedFollowup] = useState(false);
 
   const handleManualSyncFollowup = async () => {
-    const lists = dynamicLists['prospeccao_followup'] || [];
-    const cards = dynamicCards['prospeccao_followup'] || [];
-    if (lists.length === 0) {
-      const Swal = (await import('sweetalert2')).default;
-      Swal.fire({ icon: 'warning', title: 'Aguarde', text: 'As listas do Kanban de Follow Up ainda estão sendo inicializadas.' });
-      return;
-    }
-    const count = await syncFollowupCards({
-      lists,
-      cards,
-      prospects,
-      prospeccoes,
-      clients,
-      companyId: selectedCompanyId
-    });
     const Swal = (await import('sweetalert2')).default;
     Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: count > 0 ? `${count} cliente(s) sincronizado(s)!` : 'Todos os clientes já estão sincronizados!',
-      showConfirmButton: false,
-      timer: 2000
+      title: 'Sincronizando Clientes...',
+      text: 'Organizando clientes no Kanban de Follow Up.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
     });
+
+    try {
+      const res = await syncFollowupCardsDirect(selectedCompanyId);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: res.total > 0 ? `${res.total} cliente(s) organizados!` : 'Todos os clientes já estão no Kanban de Follow Up!',
+        showConfirmButton: false,
+        timer: 2500
+      });
+    } catch (e: any) {
+      console.error('Erro na sincronização:', e);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro ao Sincronizar',
+        text: e?.message || 'Ocorreu um erro ao sincronizar os clientes.'
+      });
+    }
   };
 
   useEffect(() => {
-    const lists = dynamicLists['prospeccao_followup'];
-    const cards = dynamicCards['prospeccao_followup'] || [];
-    if (user && lists && lists.length > 0 && (prospects.length > 0 || prospeccoes.length > 0) && !hasAutoSyncedFollowup) {
+    if (user && !hasAutoSyncedFollowup) {
       setHasAutoSyncedFollowup(true);
-      syncFollowupCards({
-        lists,
-        cards,
-        prospects,
-        prospeccoes,
-        clients,
-        companyId: selectedCompanyId
-      });
+      syncFollowupCardsDirect(selectedCompanyId).catch(console.error);
     }
-  }, [user, dynamicLists, dynamicCards, prospects, prospeccoes, clients, selectedCompanyId, hasAutoSyncedFollowup]);
+  }, [user, selectedCompanyId, hasAutoSyncedFollowup]);
 
   // Recurrence logic: Check every hour if any cards need to trigger a notification
   useEffect(() => {
