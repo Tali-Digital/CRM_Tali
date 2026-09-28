@@ -69,6 +69,7 @@ interface UnifiedSectorViewProps {
   onJumpToCard?: (cardId: string, sector: string, mode?: 'view' | 'edit') => void;
   allSectors?: Sector[];
   userRole?: string;
+  onSyncFollowup?: () => void;
   // Drag props from parent
   activeId?: string | null;
   activeCard?: any | null;
@@ -768,6 +769,7 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
   onJumpToCard,
   allSectors = [],
   userRole,
+  onSyncFollowup,
   activeId,
   activeCard
 }) => {
@@ -987,11 +989,12 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
   }
 
   const getSectorInfo = () => {
-    switch (sector) {
+    switch (sector as string) {
       case 'commercial': return { title: 'Comercial', subtitle: 'Gerencie as oportunidades de negócio da sua empresa.' };
       case 'financial': case 'integracao': return { title: 'Integração do Cliente', subtitle: 'Acompanhe e gerencie a integração dos novos clientes.' };
       case 'operation': case 'operacao': return { title: 'Operação Contínua', subtitle: 'Gerencie as atividades recorrentes e entregas contínuas.' };
       case 'internal': case 'internal_tasks': return { title: 'Tarefas Internas', subtitle: 'Organize as demandas internas da equipe.' };
+      case 'prospeccao_followup': return { title: 'Follow Up Presencial', subtitle: 'Acompanhe cada cliente nas 14 etapas do processo de prospecção.' };
       default: 
         const info = (allSectors as any[])?.find(s => s.id === sector);
         return { title: info?.name || 'Setor', subtitle: '' };
@@ -1012,6 +1015,16 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
             </p>
           )}
         </div>
+        {sector === ('prospeccao_followup' as any) && onSyncFollowup && (
+          <button
+            onClick={onSyncFollowup}
+            className="flex items-center gap-2 bg-[#5271FF] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-md hover:bg-blue-600 transition-all shrink-0 cursor-pointer"
+            title="Sincronizar clientes e seus status com o Kanban"
+          >
+            <RotateCcw size={14} />
+            Sincronizar Clientes
+          </button>
+        )}
       </div>
 
       <div className={`flex-1 flex flex-col min-h-0 bg-[#F5F5F7] rounded-[2.5rem] overflow-hidden border border-stone-200 shadow-inner p-1`}>

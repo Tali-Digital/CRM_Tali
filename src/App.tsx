@@ -110,8 +110,11 @@ import {
   addDynamicCard,
   updateDynamicCard,
   deleteDynamicCard,
-  subscribeToQuickLinks
+  subscribeToQuickLinks,
+  subscribeToProspects,
+  subscribeToProspeccaoDocs
 } from './services/firestoreService';
+import { syncFollowupCards } from './utils/syncFollowup';
 import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
 import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
@@ -376,6 +379,8 @@ export function App() {
   const [internalTaskLists, setInternalTaskLists] = useState<InternalTaskList[]>([]);
   const [internalTaskCards, setInternalTaskCards] = useState<InternalTaskCard[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [prospects, setProspects] = useState<any[]>([]);
+  const [prospeccoes, setProspeccoes] = useState<any[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [allSectors, setAllSectors] = useState<any[]>([]);
   const [dynamicLists, setDynamicLists] = useState<Record<string, any[]>>({});
@@ -532,6 +537,8 @@ export function App() {
       const unsubInternalLists = subscribeToInternalTaskLists(selectedCompanyId, setInternalTaskLists);
       const unsubInternalCards = subscribeToInternalTaskCards(selectedCompanyId, setInternalTaskCards);
       const unsubClients = subscribeToClients(selectedCompanyId, setClients);
+      const unsubProspects = subscribeToProspects(selectedCompanyId, setProspects);
+      const unsubProspeccoes = subscribeToProspeccaoDocs(setProspeccoes);
       const unsubTags = subscribeToTags(selectedCompanyId, setTags);
       const unsubLinks = subscribeToQuickLinks(selectedCompanyId, setQuickLinks);
       
@@ -550,6 +557,8 @@ export function App() {
         unsubInternalLists();
         unsubInternalCards();
         unsubClients();
+        unsubProspects();
+        unsubProspeccoes();
         unsubTags();
         unsubSectors();
         unsubLinks();
@@ -606,6 +615,51 @@ export function App() {
       };
     }
   }, [user, allSectors, selectedCompanyId]);
+
+  const [hasAutoSyncedFollowup, setHasAutoSyncedFollowup] = useState(false);
+
+  const handleManualSyncFollowup = async () => {
+    const lists = dynamicLists['prospeccao_followup'] || [];
+    const cards = dynamicCards['prospeccao_followup'] || [];
+    if (lists.length === 0) {
+      const Swal = (await import('sweetalert2')).default;
+      Swal.fire({ icon: 'warning', title: 'Aguarde', text: 'As listas do Kanban de Follow Up ainda estão sendo inicializadas.' });
+      return;
+    }
+    const count = await syncFollowupCards({
+      lists,
+      cards,
+      prospects,
+      prospeccoes,
+      clients,
+      companyId: selectedCompanyId
+    });
+    const Swal = (await import('sweetalert2')).default;
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: count > 0 ? `${count} cliente(s) sincronizado(s)!` : 'Todos os clientes já estão sincronizados!',
+      showConfirmButton: false,
+      timer: 2000
+    });
+  };
+
+  useEffect(() => {
+    const lists = dynamicLists['prospeccao_followup'];
+    const cards = dynamicCards['prospeccao_followup'] || [];
+    if (user && lists && lists.length > 0 && (prospects.length > 0 || prospeccoes.length > 0) && !hasAutoSyncedFollowup) {
+      setHasAutoSyncedFollowup(true);
+      syncFollowupCards({
+        lists,
+        cards,
+        prospects,
+        prospeccoes,
+        clients,
+        companyId: selectedCompanyId
+      });
+    }
+  }, [user, dynamicLists, dynamicCards, prospects, prospeccoes, clients, selectedCompanyId, hasAutoSyncedFollowup]);
 
   // Recurrence logic: Check every hour if any cards need to trigger a notification
   useEffect(() => {
@@ -1171,6 +1225,7 @@ export function App() {
             jumpToCard={jumpToCard}
             onClearJump={() => setJumpToCard(null)}
             userRole={userProfile?.role}
+            onSyncFollowup={handleManualSyncFollowup}
             activeId={activeId}
             activeCard={activeCard}
           />
