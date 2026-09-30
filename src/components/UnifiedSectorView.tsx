@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   CommercialList, CommercialCard, 
   FinancialList, FinancialCard, 
   OperationList, OperationCard, 
   InternalTaskList, InternalTaskCard, 
-  CompanyType, Client, Tag, UserProfile, SectorCardFilter, Sector
+  CompanyType, Client, Tag, UserProfile, SectorCardFilter, Sector, EditorProspeccaoDoc
 } from '../types';
 import { playSuccessSound, playDeleteSound } from '../utils/audio';
+import { deduplicateFollowupCardsInFirestore, restoreCompletedFollowupCards } from '../utils/syncFollowup';
 import { 
   // Commercial
   addCommercialList, addCommercialCard, updateCommercialCard, updateCommercialList, deleteCommercialList, 
@@ -22,9 +23,11 @@ import {
   deleteInternalTaskCard, completeInternalTaskCard, duplicateInternalTaskCard,
   // Dynamic
   addDynamicList, updateDynamicList, deleteDynamicList,
-  addDynamicCard, updateDynamicCard, deleteDynamicCard, completeDynamicCard, duplicateDynamicCard
+  addDynamicCard, updateDynamicCard, deleteDynamicCard, completeDynamicCard, duplicateDynamicCard,
+  // Prospecção Docs
+  subscribeToProspeccaoDocs
 } from '../services/firestoreService';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers, FileText, Mail } from 'lucide-react';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
@@ -75,7 +78,15 @@ interface UnifiedSectorViewProps {
   activeCard?: any | null;
 }
 
-const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, onDuplicate, onArchive, onComplete, viewMode, isHighlighted, sector, userRole }: any) => {
+const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdateCard, onDuplicate, onArchive, onComplete, viewMode, isHighlighted, sector, userRole, prospeccoesDocs }: any) => {
+  const isFollowup = sector === 'prospeccao_followup';
+  const prospectId = card.clientId || (card.id && !card.id.startsWith('virtual-') ? card.id : null);
+  const carta = (isFollowup || prospectId) && prospeccoesDocs ? prospeccoesDocs.find((d: any) => 
+    (card.clientId && d.clienteId === card.clientId) ||
+    (d.clinicName && card.title && d.clinicName.toLowerCase().trim() === card.title.toLowerCase().trim()) ||
+    (d.titulo && card.title && d.titulo.toLowerCase().trim() === card.title.toLowerCase().trim())
+  ) : null;
+
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
 
@@ -352,12 +363,12 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         className={`px-3 py-2 rounded-xl shadow-sm border-2 hover:shadow-md transition-all group cursor-pointer flex items-center justify-between gap-3 mb-1 card-draggable ${isDragging ? 'card-placeholder' : ''} ${isHighlighted ? 'highlight-pulse' : ''} ${isFinishing ? 'shadow-[0_0_20px_rgba(34,197,94,0.4)] pointer-events-none' : ''}`}
         onClick={() => !isFinishing && onQuickView(card)}
       >
-        <div className="flex items-center gap-3 overflow-hidden">
+        <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing transition-colors ${iconColorClass} shrink-0`}>
             <GripVertical size={14} />
           </div>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <h4 className={`font-extrabold text-xs truncate ${textColorClass}`}>{title}</h4>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <h4 className={`font-extrabold text-xs truncate ${textColorClass}`} title={title}>{title}</h4>
             {card.recurrence?.enabled && (
               <RotateCcw size={10} className={textColorClass} />
             )}
@@ -370,7 +381,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               {card.statusTags.includes('em aprovação') && (userRole !== 'equipe') && (
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Em Aprovação" />
               )}
-              </div>
+            </div>
           )}
           {total > 0 && (
             <div className={`flex items-center gap-1.5 text-[10px] font-bold shrink-0 ${isDarkBg ? 'text-white/90' : (completed === total ? 'text-green-600' : 'text-stone-500')}`}>
@@ -378,16 +389,60 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               <span>{completed}/{total}</span>
             </div>
           )}
+
+          {/* Links e dados rápidos para Follow Up na visualização em Lista */}
+          {isFollowup && (
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              {card.cidade && (
+                <span className="text-[10px] text-stone-400 font-medium truncate max-w-[120px] hidden md:inline">
+                  {card.cidade}
+                </span>
+              )}
+              {(prospectId || card.title) && (
+                <a
+                  href={`#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.hash = `#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`;
+                  }}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[9px] font-bold transition-all shadow-2xs hover:scale-[1.02]"
+                  title="Abrir ficha do prospecto na Prospecção Online"
+                >
+                  <FileText size={10} className="text-blue-600" />
+                  <span>Ficha</span>
+                </a>
+              )}
+              {carta && (
+                <a
+                  href={`#/editor_prospeccao?cartaId=${carta.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${
+                    carta.isEntregue
+                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                      : carta.isFinalizada
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                        : 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200'
+                  } border text-[9px] font-bold transition-all shadow-2xs hover:scale-[1.02]`}
+                  title="Abrir a carta deste cliente"
+                >
+                  <Mail size={10} />
+                  <span>{carta.isEntregue ? 'Carta (Entregue)' : carta.isFinalizada ? 'Carta (Pronta)' : 'Carta'}</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            type="button"
-            onClick={handleComplete}
-            className={`p-1 rounded-lg transition-colors shrink-0 z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
-            title="Marcar como concluído"
-          >
-            <CheckCircle2 size={16} className={isFinishing ? 'animate-bounce' : ''} />
-          </button>
+          {!isFollowup && (
+            <button 
+              type="button"
+              onClick={handleComplete}
+              className={`p-1 rounded-lg transition-colors shrink-0 z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
+              title="Marcar como concluído"
+            >
+              <CheckCircle2 size={16} className={isFinishing ? 'animate-bounce' : ''} />
+            </button>
+          )}
           <button 
             type="button"
             onClick={handleOpenMenu}
@@ -450,17 +505,70 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 </div>
               )}
             </h4>
+            {card.notes && (
+              <p className={`text-[11px] font-medium line-clamp-2 mt-1 ${isDarkBg ? 'text-white/70' : 'text-stone-500'}`}>
+                {card.notes}
+              </p>
+            )}
+
+            {/* Links rápidos de cara no card: Ficha Online & Carta (quando houver) */}
+            {(isFollowup || prospectId) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {(prospectId || card.title) && (
+                  <a
+                    href={`#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.hash = `#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`;
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50/90 hover:bg-blue-100 text-blue-700 border border-blue-200/80 text-[10px] font-bold transition-all shadow-2xs hover:scale-[1.02] active:scale-95"
+                    title="Abrir ficha do prospecto na Prospecção Online"
+                  >
+                    <FileText size={11} className="text-blue-600 shrink-0" />
+                    <span>Ficha</span>
+                  </a>
+                )}
+
+                {carta && (
+                  <a
+                    href={`#/editor_prospeccao?cartaId=${carta.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg ${
+                      carta.isEntregue
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/80'
+                        : carta.isFinalizada
+                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/80'
+                          : 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200/80'
+                    } border text-[10px] font-bold transition-all shadow-2xs hover:scale-[1.02] active:scale-95`}
+                    title="Abrir a carta deste cliente"
+                  >
+                    <Mail size={11} className="shrink-0" />
+                    <span>{carta.isEntregue ? 'Carta (Entregue)' : carta.isFinalizada ? 'Carta (Pronta)' : 'Carta'}</span>
+                  </a>
+                )}
+
+                {isFollowup && (
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-100 text-teal-700 text-[8.5px] font-bold uppercase tracking-tight">
+                    Prospecto
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={handleComplete}
-            className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
-            title="Marcar como concluído"
-          >
-            <CheckSquare size={16} className={isFinishing ? 'animate-bounce' : ''} />
-          </button>
+          {!isFollowup && (
+            <button
+              type="button"
+              onClick={handleComplete}
+              className={`p-1 rounded-lg transition-colors z-30 relative cursor-pointer ${isFinishing ? 'text-white' : 'hover:bg-stone-100 text-stone-400 hover:text-green-600'}`}
+              title="Marcar como concluído"
+            >
+              <CheckSquare size={16} className={isFinishing ? 'animate-bounce' : ''} />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleOpenMenu}
@@ -512,6 +620,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
         </div>
       )}
 
+      {(!isFollowup || (card.assignees && card.assignees.length > 0) || client) && (
         <div className="flex items-center justify-between mt-3 ml-6">
           <div className="flex -space-x-2">
             {card.assignees?.map((userId: string) => {
@@ -533,7 +642,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
             })}
           </div>
 
-          {client && (
+          {client ? (
             <div 
               title={`Cliente: ${client.name}`}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isDarkBg ? 'bg-white/10 border-white/10 text-white/80' : 'bg-stone-50 border-stone-100 text-stone-500'}`}
@@ -543,8 +652,9 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                 {client.name}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
+      )}
         
         <CardOptionsMenu 
           isOpen={menuOpen} 
@@ -568,7 +678,7 @@ const isLightColor = (color: string) => {
   return brightness > 155;
 };
 
-const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter, highlightedListId, highlightedCardId, sector, onDuplicate, onArchive, onComplete, userRole }: any) => {
+const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickView, onSettings, onAddCard, onUpdateCard, viewMode, cardFilter, highlightedListId, highlightedCardId, sector, onDuplicate, onArchive, onComplete, userRole, prospeccoesDocs }: any) => {
   const [localFilter, setLocalFilter] = useState<SectorCardFilter>(cardFilter);
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ 
     id: list.id,
@@ -586,10 +696,6 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
     ...(isDragging ? { zIndex: 40, position: 'relative' as const } : {}),
   };
 
-  const hasClientsInSector = cards.some(c => c.clientId);
-  const showActivities = localFilter === 'activities' || localFilter === 'both';
-  const showClients = (localFilter === 'clients' || (localFilter === 'both' && hasClientsInSector));
-
   const isLight = isLightColor(list.color || '#E6E6E6');
   const textColor = isLight ? 'text-stone-900' : 'text-white';
   const subtextColor = isLight ? 'text-stone-600/70' : 'text-white/70';
@@ -598,76 +704,112 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
   const badgeBg = isLight ? 'bg-black/10' : 'bg-white/20';
   const badgeText = isLight ? 'text-stone-900' : 'text-white';
 
-  const activities = cards
+  const isFollowup = sector === 'prospeccao_followup';
+
+  const activities = isFollowup ? [] : cards
     .filter((c: any) => c.type !== 'client')
     .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
 
+  const clientCards = isFollowup ? cards : cards.filter((c: any) => c.type === 'client');
   const clientIdsInList = [...new Set(cards.map((c: any) => c.clientId).filter(Boolean))];
-  const virtualClientCards = clientIdsInList.map(clientId => {
-    const existingCard = cards.find((c: any) => c.clientId === clientId && c.type === 'client');
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return null;
 
-    return existingCard || {
-      id: `virtual-${clientId}`,
-      clientId,
-      type: 'client',
-      listId: list.id,
-      order: 0,
-      companyId: list.companyId,
-      createdAt: client.createdAt,
-      updatedAt: client.createdAt,
-      title: client.name,
-    };
-  }).filter(Boolean);
+  // Sempre incluir cards reais
+  const virtualClientCards = [
+    ...clientCards,
+    ...clientIdsInList
+      .filter(clientId => !clientCards.some((c: any) => c.clientId === clientId))
+      .map(clientId => {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return null;
+        return {
+          id: `virtual-${clientId}`,
+          clientId,
+          type: 'client',
+          listId: list.id,
+          order: 0,
+          companyId: list.companyId,
+          createdAt: client.createdAt,
+          updatedAt: client.createdAt,
+          title: client.name,
+        };
+      })
+      .filter(Boolean) as any[]
+  ].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
 
-  const allRenderedCardIds = [
+  const hasClientsInSector = cards.some(c => c.clientId) || clientCards.length > 0;
+  const showActivities = isFollowup ? false : (localFilter === 'activities' || localFilter === 'both');
+  const showClients = isFollowup ? true : (localFilter === 'clients' || (localFilter === 'both' && hasClientsInSector));
+
+  // Evitar duplicidade de cards
+  const seenKeys = new Set<string>();
+  const uniqueVirtualClientCards = virtualClientCards.filter((c: any) => {
+    if (!c || !c.id) return false;
+    if (isFollowup) {
+      const key = c.clientId ? `client_${c.clientId}` : (c.title ? `title_${c.title.trim().toLowerCase()}` : c.id);
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    }
+    if (seenKeys.has(c.id)) return false;
+    seenKeys.add(c.id);
+    return true;
+  });
+
+  const allRenderedCardIds = Array.from(new Set([
     ...activities.map((c: any) => c.id),
-    ...virtualClientCards.map((c: any) => c.id)
-  ];
+    ...uniqueVirtualClientCards.map((c: any) => c.id)
+  ].filter(Boolean)));
+
+  const columnCardCount = isFollowup ? uniqueVirtualClientCards.length : cards.length;
+
+  const columnWidthClass = isFollowup
+    ? (viewMode === 'list' ? 'w-[88vw] sm:w-[460px] md:w-[480px]' : 'w-[85vw] sm:w-[340px] md:w-[360px]')
+    : (viewMode === 'kanban' ? 'w-[88vw] sm:w-[450px]' : 'w-full');
 
   return (
     <div 
       id={`list-${list.id}`}
       ref={setNodeRef} 
       style={{ ...style, backgroundColor: list.color || '#E6E6E6' }} 
-      className={`${viewMode === 'kanban' ? 'w-[88vw] sm:w-[450px] h-full' : 'w-full'} shadow-xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
+      className={`${columnWidthClass} h-full max-h-full min-h-0 shadow-xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-5 flex flex-col border border-stone-800/20 shrink-0 transition-all duration-500 ${highlightedListId === list.id ? 'highlight-pulse' : ''}`}
     >
-      <div className="flex items-center justify-between mb-2 px-2 group/header">
+      <div className="flex items-center justify-between mb-3 px-2 group/header">
         <div className="flex items-center gap-2">
           <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing ${iconColor} ${iconHoverColor} transition-colors`}>
             <GripVertical size={16} />
           </div>
           <h3 className={`font-black uppercase tracking-widest text-sm drop-shadow-sm ${textColor}`}>{list.name}</h3>
-          <span className={`opacity-0 group-hover/header:opacity-100 transition-opacity ${badgeBg} ${badgeText} text-[10px] font-black px-2 py-0.5 rounded-full border border-white/20 shadow-sm`}>
-            {cards.length}
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${isFollowup ? 'bg-stone-200 text-stone-700 shadow-xs' : `${badgeBg} ${badgeText} border border-white/20`} shrink-0 select-none`}>
+            {columnCardCount}
           </span>
         </div>
-        <div className="flex items-center gap-3 opacity-0 group-hover/header:opacity-100 transition-opacity">
-          <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
-            <button 
-              onClick={() => setLocalFilter('activities')}
-              className={`p-1 rounded-md transition-all ${localFilter === 'activities' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
-              title="Apenas Atividades"
-            >
-              <LayoutGrid size={12} />
-            </button>
-            <button 
-              onClick={() => setLocalFilter('clients')}
-              className={`p-1 rounded-md transition-all ${localFilter === 'clients' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
-              title="Apenas Clientes"
-            >
-              <User size={12} />
-            </button>
-            <button 
-              onClick={() => setLocalFilter('both')}
-              className={`p-1 rounded-md transition-all ${localFilter === 'both' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
-              title="Duo"
-            >
-              <Layers size={12} />
-            </button>
-          </div>
-          <button onClick={onSettings} className={`${iconColor} ${iconHoverColor} p-1 rounded-lg hover:bg-white/20 transition-colors`}>
+        <div className="flex items-center gap-2">
+          {!isFollowup && (
+            <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5 opacity-0 group-hover/header:opacity-100 transition-opacity">
+              <button 
+                onClick={() => setLocalFilter('activities')}
+                className={`p-1 rounded-md transition-all ${localFilter === 'activities' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+                title="Apenas Atividades"
+              >
+                <LayoutGrid size={12} />
+              </button>
+              <button 
+                onClick={() => setLocalFilter('clients')}
+                className={`p-1 rounded-md transition-all ${localFilter === 'clients' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+                title="Apenas Clientes"
+              >
+                <User size={12} />
+              </button>
+              <button 
+                onClick={() => setLocalFilter('both')}
+                className={`p-1 rounded-md transition-all ${localFilter === 'both' ? 'bg-white/90 text-stone-900 shadow-sm' : 'text-white/40 hover:text-white'}`}
+                title="Duo"
+              >
+                <Layers size={12} />
+              </button>
+            </div>
+          )}
+          <button onClick={onSettings} className={`${iconColor} ${iconHoverColor} p-1.5 rounded-lg hover:bg-white/20 transition-colors ${isFollowup ? 'text-stone-400 hover:text-stone-700' : 'opacity-0 group-hover/header:opacity-100'}`} title="Configurações da lista">
             <Settings size={16} />
           </button>
         </div>
@@ -678,14 +820,14 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
         items={allRenderedCardIds}
         strategy={verticalListSortingStrategy}
       >
-        <div className={`flex-1 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'} min-h-[100px]`}>
+        <div className={`flex-1 min-h-0 flex ${viewMode === 'kanban' ? 'gap-6' : 'flex-col gap-4'}`}>
           {showActivities && (
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 min-h-0 flex flex-col min-w-0">
               <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
                 <span>Atividades</span>
                 <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>{activities.length}</span>
               </div>
-              <div className="flex-1 space-y-3 pr-1 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-0 space-y-3 pr-1 overflow-y-auto custom-scrollbar">
                 {activities.map((card: any) => (
                   <SortableCard 
                     key={card.id} 
@@ -703,23 +845,26 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
                     isHighlighted={highlightedCardId === card.id}
                     sector={sector}
                     userRole={userRole}
+                    prospeccoesDocs={prospeccoesDocs}
                   />
                 ))}
               </div>
             </div>
           )}
           {showClients && (
-            <div className={`${viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex flex-col`}>
-              <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
-                <span>Clientes</span>
-                <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
-                  {virtualClientCards.length}
-                </span>
-              </div>
-              <div className="flex-1 space-y-2 pr-1 overflow-y-auto custom-scrollbar">
-                {virtualClientCards.map((cardToRender: any) => {
+            <div className={`${!isFollowup && viewMode === 'kanban' && localFilter === 'both' ? `w-40 border-l ${isLight ? 'border-black/5' : 'border-white/5'} pl-4` : 'w-full'} flex-1 min-h-0 flex flex-col min-w-0`}>
+              {!isFollowup && (
+                <div className={`text-[10px] font-black tracking-widest ${subtextColor} mb-3 uppercase flex items-center justify-between px-1 group/column`}>
+                  <span>Clientes</span>
+                  <span className={`opacity-0 group-hover/column:opacity-100 transition-opacity ${badgeBg} ${badgeText} px-1.5 py-0.5 rounded text-[8px] font-bold`}>
+                    {virtualClientCards.length}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-h-0 space-y-2.5 pr-1 overflow-y-auto custom-scrollbar">
+                {uniqueVirtualClientCards.map((cardToRender: any) => {
                   const client = clients.find(c => c.id === cardToRender.clientId);
-                  if (!client) return null;
+                  if (!client && !isFollowup && cardToRender.id.startsWith('virtual-')) return null;
 
                   return (
                     <SortableCard 
@@ -738,6 +883,7 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
                       isHighlighted={highlightedCardId === cardToRender.id}
                       sector={sector}
                       userRole={userRole}
+                      prospeccoesDocs={prospeccoesDocs}
                     />
                   );
                 })}
@@ -747,13 +893,15 @@ const SortableList = ({ list, cards, clients, tags, users, onEditCard, onQuickVi
         </div>
       </SortableContext>
 
-      <button 
-        onClick={onAddCard}
-        className="mt-3 w-full py-3 rounded-xl border-2 border-dashed border-stone-200 text-stone-500 font-bold text-sm hover:border-stone-300 hover:text-stone-700 transition-colors flex items-center justify-center gap-2"
-      >
-        <Plus size={16} />
-        Adicionar Item
-      </button>
+      {!isFollowup && (
+        <button 
+          onClick={onAddCard}
+          className="mt-3 w-full py-3 rounded-xl border-2 border-dashed border-stone-200 text-stone-500 font-bold text-sm hover:border-stone-300 hover:text-stone-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Plus size={16} />
+          Adicionar Item
+        </button>
+      )}
     </div>
   );
 };
@@ -773,6 +921,18 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
   activeId,
   activeCard
 }) => {
+  const isFollowup = sector === ('prospeccao_followup' as any);
+  const [prospeccoesDocs, setProspeccoesDocs] = useState<EditorProspeccaoDoc[]>([]);
+
+  useEffect(() => {
+    if (isFollowup) {
+      deduplicateFollowupCardsInFirestore().catch(console.error);
+      restoreCompletedFollowupCards().catch(console.error);
+      const unsubscribe = subscribeToProspeccaoDocs(docs => setProspeccoesDocs(docs));
+      return () => unsubscribe();
+    }
+  }, [isFollowup]);
+
   const { ref: boardRef, props: boardScrollProps, dragClassName } = useDraggableScroll();
 
   const [isAddListOpen, setIsAddListOpen] = useState(false);
@@ -909,7 +1069,17 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
   });
 
   const visibleListIds = visibleLists.sort((a, b) => (a.order || 0) - (b.order || 0)).map(l => l.id);
-  const activeCards = cards.filter(c => !c.completed && !c.deleted && visibleListIds.includes(c.listId));
+  const filteredActiveCards = cards.filter(c => !c.deleted && (isFollowup || !c.completed) && visibleListIds.includes(c.listId));
+  const activeCards = useMemo(() => {
+    if (!isFollowup) return filteredActiveCards;
+    const seen = new Set<string>();
+    return filteredActiveCards.filter((c: any) => {
+      const key = c.clientId ? `client_${c.clientId}` : (c.title ? `title_${c.title.trim().toLowerCase()}` : c.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [filteredActiveCards, isFollowup]);
 
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -974,9 +1144,15 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
   if (viewMode === 'calendar') {
     return (
       <CalendarDashboardView 
-        cards={activeCards}
-        clients={clients}
-        users={users}
+        allCards={activeCards || []}
+        cards={activeCards || []}
+        clients={clients || []}
+        tags={tags || []}
+        users={users || []}
+        onCardClick={(card, s) => {
+          setQuickViewCard(card);
+          setQuickViewSector(s || sector);
+        }}
         onEditCard={(card) => {
           setEditingCard(card);
         }}
@@ -1068,19 +1244,22 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
                   highlightedCardId={highlightedCardId}
                   sector={sector}
                   userRole={userRole}
+                  prospeccoesDocs={prospeccoesDocs}
                 />
               ))}
           </SortableContext>
 
-          <button 
-            onClick={() => setIsAddListOpen(true)}
-            className="w-[88vw] sm:w-[450px] shrink-0 h-full bg-white/50 border-4 border-dashed border-stone-200 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 text-stone-400 hover:text-stone-600 hover:border-stone-300 hover:bg-white/80 transition-all group"
-          >
-            <div className="p-6 bg-stone-100 rounded-3xl group-hover:scale-110 transition-transform">
-              <Plus size={40} />
-            </div>
-            <span className="font-black uppercase tracking-[0.2em] text-sm">Novo Setor</span>
-          </button>
+          {!isFollowup && (
+            <button 
+              onClick={() => setIsAddListOpen(true)}
+              className="w-[88vw] sm:w-[450px] shrink-0 h-full bg-white/50 border-4 border-dashed border-stone-200 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 text-stone-400 hover:text-stone-600 hover:border-stone-300 hover:bg-white/80 transition-all group"
+            >
+              <div className="p-6 bg-stone-100 rounded-3xl group-hover:scale-110 transition-transform">
+                <Plus size={40} />
+              </div>
+              <span className="font-black uppercase tracking-[0.2em] text-sm">Novo Setor</span>
+            </button>
+          )}
         </div>
       </div>
       

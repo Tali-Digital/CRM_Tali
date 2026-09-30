@@ -5,19 +5,25 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, User, Clock } from
 import { Client, Tag, UserProfile } from '../types';
 
 interface CalendarDashboardViewProps {
-  allCards: any[];
-  clients: Client[];
-  tags: Tag[];
-  users: UserProfile[];
-  onCardClick: (card: any, sector: string) => void;
+  allCards?: any[];
+  cards?: any[];
+  clients?: Client[];
+  tags?: Tag[];
+  users?: UserProfile[];
+  onCardClick?: (card: any, sector: string) => void;
+  onEditCard?: (card: any) => void;
+  onQuickView?: (card: any) => void;
 }
 
 export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
   allCards,
-  clients,
-  tags,
-  users,
+  cards,
+  clients = [],
+  tags = [],
+  users = [],
   onCardClick,
+  onEditCard,
+  onQuickView,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<{ date: Date, cards: any[] } | null>(null);
@@ -53,9 +59,10 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
     const calendarStart = new Date(year, month, 1);
     const calendarEnd = new Date(year, month + 1, 0);
 
-    allCards.forEach(card => {
+    const safeCards = allCards || cards || [];
+    safeCards.forEach(card => {
       // Base date for the original card: delivery date, start date, or creation date
-      const baseDateObj = card.deliveryDate || card.startDate || card.createdAt;
+      const baseDateObj = card.deliveryDate || card.startDate || card.createdAt || card.dataEnvio;
       if (!baseDateObj) return;
       
       let baseDate: Date;
@@ -301,7 +308,13 @@ export const CalendarDashboardView: React.FC<CalendarDashboardViewProps> = ({
                   <div 
                     key={card.id}
                     onClick={() => {
-                      onCardClick(card, card.sector);
+                      if (onCardClick) {
+                        onCardClick(card, card.sector || card.sectorId || 'prospeccao_followup');
+                      } else if (onQuickView) {
+                        onQuickView(card);
+                      } else if (onEditCard) {
+                        onEditCard(card);
+                      }
                       setSelectedDay(null);
                     }}
                     className={`p-4 rounded-2xl border-2 cursor-pointer hover:shadow-lg transition-all group flex items-start justify-between gap-4 ${sectorColor} shadow-sm`}

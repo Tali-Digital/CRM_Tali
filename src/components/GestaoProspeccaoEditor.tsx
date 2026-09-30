@@ -7,6 +7,7 @@ import GerenciadorModelosModal from './GerenciadorModelosModal';
 
 
 import { subscribeToProspeccaoDocs, deleteProspeccaoDoc, addProspeccaoDoc, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
+import { syncCartaProspeccaoToFollowup } from '../utils/syncFollowup';
 import { EditorProspeccaoDoc } from '../types';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../firebase';
@@ -99,6 +100,29 @@ export default function GestaoProspeccaoEditor() {
     setIsGeradorOpen(true);
   };
 
+  useEffect(() => {
+    if (prospeccoes.length > 0) {
+      const fullHash = window.location.hash;
+      if (fullHash.includes('?cartaId=')) {
+        const cartaId = fullHash.split('?cartaId=')[1]?.split('&')[0];
+        if (cartaId) {
+          const doc = prospeccoes.find(p => p.id === cartaId);
+          if (doc) {
+            handleOpenGerador(doc);
+          }
+        }
+      } else if (fullHash.includes('?clienteId=')) {
+        const cId = fullHash.split('?clienteId=')[1]?.split('&')[0];
+        if (cId) {
+          const doc = prospeccoes.find(p => p.clienteId === cId);
+          if (doc) {
+            handleOpenGerador(doc);
+          }
+        }
+      }
+    }
+  }, [prospeccoes]);
+
 
 
   const handleDelete = async () => {
@@ -141,12 +165,43 @@ export default function GestaoProspeccaoEditor() {
 
   const handleToggleFinalizada = async (prospeccao: EditorProspeccaoDoc) => {
     const isFinalizada = prospeccao.isFinalizada === true;
-    await updateProspeccaoDoc(prospeccao.id, { isFinalizada: !isFinalizada });
+    const newStatus = !isFinalizada;
+    await updateProspeccaoDoc(prospeccao.id, { isFinalizada: newStatus });
+    if (prospeccao.clienteId) {
+      await updateProspect(prospeccao.clienteId, {
+        statusGeral: newStatus ? 'Carta pronta' : 'Cliente Selecionado'
+      });
+    }
+    syncCartaProspeccaoToFollowup(prospeccao.id, prospeccao, newStatus ? 'finalizada' : 'ativa').catch(console.error);
+
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
       title: isFinalizada ? 'Movido para Ativas' : 'Movido para Finalizadas (Pronta p/ Entrega)',
+      showConfirmButton: false,
+      timer: 1500
+    });
+  };
+
+  const handleToggleEntregue = async (prospeccao: EditorProspeccaoDoc) => {
+    const isEntregue = prospeccao.isEntregue === true;
+    const newEntregue = !isEntregue;
+    await updateProspeccaoDoc(prospeccao.id, { isEntregue: newEntregue });
+    const targetStatus = newEntregue ? 'Carta entregue' : (prospeccao.isFinalizada ? 'Carta pronta' : 'Cliente Selecionado');
+    if (prospeccao.clienteId) {
+      await updateProspect(prospeccao.clienteId, {
+        isEntregue: newEntregue,
+        statusGeral: targetStatus
+      });
+    }
+    syncCartaProspeccaoToFollowup(prospeccao.id, prospeccao, newEntregue ? 'entregue' : (prospeccao.isFinalizada ? 'finalizada' : 'ativa')).catch(console.error);
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: newEntregue ? 'Marcado como Entregue!' : 'Desmarcado como Entregue',
       showConfirmButton: false,
       timer: 1500
     });
@@ -632,7 +687,8 @@ export default function GestaoProspeccaoEditor() {
                       ) : (
                         <>
                            <button onClick={(e) => { e.stopPropagation(); handleDuplicate(prospeccao) }} title="Duplicar" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Copy size={18} /></button>
-                           <button onClick={(e) => { e.stopPropagation(); handleToggleFinalizada(prospeccao) }} title={prospeccao.isFinalizada ? 'Mover para Ativas' : 'Marcar como Finalizada (Pronta p/ Entrega)'} className="p-1.5 text-teal-600 hover:bg-teal-50 rounded"><CheckSquare size={18} /></button>
+                           <button onClick={(e) => { e.stopPropagation(); handleToggleFinalizada(prospeccao) }} title={prospeccao.isFinalizada ? 'Mover para Ativas' : 'Marcar como Finalizada (Pronta p/ Entrega)'} className={`p-1.5 rounded transition-all ${prospeccao.isFinalizada ? 'text-teal-600 bg-teal-50' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}><CheckSquare size={18} /></button>
+                           <button onClick={(e) => { e.stopPropagation(); handleToggleEntregue(prospeccao) }} title={prospeccao.isEntregue ? 'Desmarcar como Entregue' : 'Marcar como Entregue'} className={`p-1.5 rounded transition-all ${prospeccao.isEntregue ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}><CheckCircle size={18} /></button>
                            <button onClick={(e) => { e.stopPropagation(); handleToggleAguardando(prospeccao) }} title={prospeccao.isAguardando ? 'Mover para Ativas' : 'Mover para Aguardando'} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded"><Clock size={18} /></button>
                           <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(prospeccao) }} title="Mover para Lixeira" className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
                         </>

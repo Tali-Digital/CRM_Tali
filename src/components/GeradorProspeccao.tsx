@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { subscribeToModelosProspeccao, addModeloProspeccao, updateModeloProspeccao, getGlobalSettings, updateProspeccaoDoc, updateProspect } from '../services/firestoreService';
+import { syncCartaProspeccaoToFollowup } from '../utils/syncFollowup';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ModeloProspeccao } from '../types';
@@ -1279,9 +1280,11 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
     const newStatus = !isEntregue;
     try {
       await updateProspeccaoDoc(prospeccaoParaEditar.id, { isEntregue: newStatus });
+      const targetStatus = newStatus ? 'Carta entregue' : (isFinalizada ? 'Carta pronta' : 'Cliente Selecionado');
       if (prospeccaoParaEditar.clienteId) {
-        await updateProspect(prospeccaoParaEditar.clienteId, { isEntregue: newStatus });
+        await updateProspect(prospeccaoParaEditar.clienteId, { isEntregue: newStatus, statusGeral: targetStatus });
       }
+      syncCartaProspeccaoToFollowup(prospeccaoParaEditar.id, prospeccaoParaEditar, newStatus ? 'entregue' : (isFinalizada ? 'finalizada' : 'ativa')).catch(console.error);
       setIsEntregue(newStatus);
       Swal.fire('Sucesso', newStatus ? 'Endereço marcado como entregue!' : 'Status de entrega revertido!', 'success');
     } catch (error) {
@@ -1299,6 +1302,11 @@ export default function GeradorProspeccao({ onClose, onSaveProspeccao, prospecca
       setIsSaving(true);
       try {
         await updateProspeccaoDoc(prospeccaoParaEditar.id, { isFinalizada: newStatus });
+        const targetStatus = newStatus ? 'Carta pronta' : 'Cliente Selecionado';
+        if (prospeccaoParaEditar.clienteId) {
+          await updateProspect(prospeccaoParaEditar.clienteId, { statusGeral: targetStatus });
+        }
+        syncCartaProspeccaoToFollowup(prospeccaoParaEditar.id, prospeccaoParaEditar, newStatus ? 'finalizada' : 'ativa').catch(console.error);
         setIsFinalizada(newStatus);
         Swal.fire({
           toast: true,

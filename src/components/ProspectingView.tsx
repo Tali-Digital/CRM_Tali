@@ -50,6 +50,7 @@ import { subscribeToProspects, subscribeToProspeccaoDocs, addProspect, updatePro
 import { generateProspectReport, generateInstagramMessage, parseProspectFromBlockText } from '../services/geminiService';
 import { enrichSingleLeadWithOutscraper, calcAgeFromDate } from '../services/outscraperEnrichment';
 import { geocodeAndSaveProspect } from '../utils/geocode';
+import { PROSPECCAO_FOLLOWUP_STAGES, syncProspectToFollowupCard, normalizeStageName } from '../utils/syncFollowup';
 
 interface ProspectingViewProps {
   companyId: CompanyType;
@@ -72,10 +73,23 @@ const STATUS_COLORS = {
   'Reunião Agendada': 'bg-orange-100 text-orange-800',
   'Base de Recomeço': 'bg-slate-100 text-slate-800',
 
-  // Status Geral
+  // Status Geral & Follow Up
+  'Cliente Selecionado': 'bg-slate-100 text-slate-800',
+  'Carta pronta': 'bg-teal-100 text-teal-800',
+  'Carta entregue': 'bg-blue-100 text-blue-800',
+  '1 Follow up': 'bg-cyan-100 text-cyan-800',
+  '2 follow up': 'bg-purple-100 text-purple-800',
+  '3 follow up': 'bg-indigo-100 text-indigo-800',
+  'Contato Encerrado': 'bg-red-100 text-red-800',
+  'Pós reunião - 1 Follow up': 'bg-amber-100 text-amber-800',
+  'Pós reunião - 2 follow up': 'bg-amber-200 text-amber-900',
+  'Pós reunião - 3 follow up': 'bg-orange-100 text-orange-800',
+  'Pós reunião - 4 follow up': 'bg-orange-200 text-orange-900',
+  'Pós reunião - 5 follow up': 'bg-rose-100 text-rose-800',
+  'Cliente fechado': 'bg-emerald-800 text-white',
+  'Cliente Fechado': 'bg-emerald-800 text-white',
   'Entra em Contato': 'bg-teal-100 text-teal-800',
   'Negociando': 'bg-yellow-100 text-yellow-800',
-  'Cliente Fechado': 'bg-emerald-800 text-white',
   'Contrato Encerrado': 'bg-red-100 text-red-800',
 
   '': 'bg-gray-100 text-gray-800'
@@ -720,20 +734,44 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
   };
 
   useEffect(() => {
-    if (prospects.length > 0) {
+    const handleUrlProspectEdit = () => {
       const fullHash = window.location.hash;
-      if (fullHash.includes('?edit=')) {
-        const editId = fullHash.split('?edit=')[1]?.split('&')[0];
-        if (editId) {
-          const prospectToEdit = prospects.find(p => p.id === editId);
-          if (prospectToEdit) {
-            handleOpenModal(prospectToEdit);
-          }
-          // Cleanup hash
-          window.location.hash = fullHash.split('?')[0];
-        }
+      if (!fullHash.includes('?edit=') && !fullHash.includes('&name=') && !fullHash.includes('?name=')) {
+        return;
       }
-    }
+
+      if (prospects.length === 0) return;
+
+      const queryPart = fullHash.includes('?') ? fullHash.split('?')[1] : '';
+      const params = new URLSearchParams(queryPart);
+      const editId = decodeURIComponent(params.get('edit') || '');
+      const editName = decodeURIComponent(params.get('name') || '');
+
+      const normName = normalizeStageName(editName);
+      const normId = normalizeStageName(editId);
+
+      const prospectToEdit = prospects.find(p => {
+        if (editId && p.id === editId) return true;
+        if (editId && (p as any).clienteId === editId) return true;
+        const pNormClinic = normalizeStageName(p.clinicName || '');
+        const pNormOwner = normalizeStageName(p.ownerName || '');
+        if (normName && (pNormClinic === normName || pNormOwner === normName)) return true;
+        if (normId && (pNormClinic === normId || pNormOwner === normId)) return true;
+        return false;
+      });
+
+      if (prospectToEdit) {
+        handleOpenModal(prospectToEdit);
+        try {
+          window.history.replaceState(null, '', '#/prospeccao');
+        } catch (_) {}
+      }
+    };
+
+    handleUrlProspectEdit();
+
+    window.addEventListener('hashchange', handleUrlProspectEdit);
+    return () => window.removeEventListener('hashchange', handleUrlProspectEdit);
   }, [prospects]);
 
   const renderAiReviewBadge = (fieldName: string) => {
@@ -805,6 +843,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
       if (formData.isContractClosed !== editingProspect?.isContractClosed) {
         await processContractStatus(formData);
+      }
+
+      if (savedId && dataToSave.statusGeral) {
+        syncProspectToFollowupCard(savedId, dataToSave.statusGeral, dataToSave, companyId).catch(console.error);
       }
 
       setIsModalOpen(false);
@@ -1113,6 +1155,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
 
   const handleQuickUpdate = async (id: string, field: keyof Prospect, value: any) => {
     await updateProspect(id, { [field]: value });
+    if (field === 'statusGeral' && value) {
+      const prospect = prospects.find(p => p.id === id);
+      syncProspectToFollowupCard(id, value, prospect, companyId).catch(console.error);
+    }
   };
 
   const handleGenerateAI = async (tempFormData?: typeof formData) => {
@@ -1505,11 +1551,13 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                       { key: 'Reunião Agendada', label: 'Reunião Agendada', count: prospects.filter(p => p.status === 'Reunião Agendada').length, dotColor: 'bg-orange-500' },
                       { key: 'Base de Recomeço', label: 'Base de Recomeço', count: prospects.filter(p => p.status === 'Base de Recomeço').length, dotColor: 'bg-slate-500' },
 
-                      { group: 'Status Geral' },
-                      { key: 'Entra em Contato', label: 'Entra em Contato', count: prospects.filter(p => p.statusGeral === 'Entra em Contato').length, dotColor: 'bg-teal-500' },
-                      { key: 'Negociando', label: 'Negociando', count: prospects.filter(p => p.statusGeral === 'Negociando').length, dotColor: 'bg-yellow-500' },
-                      { key: 'Cliente Fechado', label: 'Cliente Fechado', count: prospects.filter(p => p.statusGeral === 'Cliente Fechado').length, dotColor: 'bg-emerald-600' },
-                      { key: 'Contrato Encerrado', label: 'Contrato Encerrado', count: prospects.filter(p => p.statusGeral === 'Contrato Encerrado').length, dotColor: 'bg-red-500' }
+                      { group: 'Status Geral (Follow Up)' },
+                      ...PROSPECCAO_FOLLOWUP_STAGES.map(stage => ({
+                        key: stage,
+                        label: stage,
+                        count: prospects.filter(p => p.statusGeral === stage).length,
+                        dotColor: stage.includes('fechado') ? 'bg-emerald-600' : stage.includes('Encerrado') ? 'bg-red-500' : 'bg-blue-500'
+                      }))
                     ].map((f, i) => (
                       f.group ? (
                         <div key={`group-${i}`} className="text-[9px] font-black text-blue-900/60 uppercase tracking-widest px-4 mt-2.5 mb-1.5 border-b border-gray-100 pb-1">{f.group}</div>
@@ -1919,10 +1967,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             className={`text-[10px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.statusGeral ? STATUS_COLORS[p.statusGeral as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
                           >
                             <option value="">Status Geral</option>
-                            <option value="Entra em Contato">Entra em Contato</option>
-                            <option value="Negociando">Negociando</option>
-                            <option value="Cliente Fechado">Cliente Fechado</option>
-                            <option value="Contrato Encerrado">Contrato Encerrado</option>
+                            {PROSPECCAO_FOLLOWUP_STAGES.map((st, idx) => (
+                              <option key={st} value={st}>{idx + 1}. {st}</option>
+                            ))}
+                            {p.statusGeral && !PROSPECCAO_FOLLOWUP_STAGES.includes(p.statusGeral) && (
+                              <option value={p.statusGeral}>{p.statusGeral}</option>
+                            )}
                           </select>
                         </div>
                       </td>
@@ -2259,10 +2309,12 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                             className={`text-[9px] font-black px-1.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer shadow-sm w-full uppercase tracking-tighter transition-all ${p.statusGeral ? STATUS_COLORS[p.statusGeral as keyof typeof STATUS_COLORS] : 'bg-gray-100 text-gray-800'}`}
                           >
                             <option value="">Status Geral</option>
-                            <option value="Entra em Contato">Entra em Contato</option>
-                            <option value="Negociando">Negociando</option>
-                            <option value="Cliente Fechado">Cliente Fechado</option>
-                            <option value="Contrato Encerrado">Contrato Encerrado</option>
+                            {PROSPECCAO_FOLLOWUP_STAGES.map((st, idx) => (
+                              <option key={st} value={st}>{idx + 1}. {st}</option>
+                            ))}
+                            {p.statusGeral && !PROSPECCAO_FOLLOWUP_STAGES.includes(p.statusGeral) && (
+                              <option value={p.statusGeral}>{p.statusGeral}</option>
+                            )}
                           </select>
                         </div>
 
@@ -2949,10 +3001,16 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
                                   onChange={(e) => handleFieldChange('statusGeral', e.target.value as any)}
                                 >
                                   <option value="">Selecione...</option>
-                                  <option value="Entra em Contato">Entra em Contato</option>
-                                  <option value="Negociando">Negociando</option>
-                                  <option value="Cliente Fechado">Cliente Fechado</option>
-                                  <option value="Contrato Encerrado">Contrato Encerrado</option>
+                                  <optgroup label="Passos do Follow Up">
+                                    {PROSPECCAO_FOLLOWUP_STAGES.map((st, idx) => (
+                                      <option key={st} value={st}>{idx + 1}. {st}</option>
+                                    ))}
+                                  </optgroup>
+                                  {formData.statusGeral && !PROSPECCAO_FOLLOWUP_STAGES.includes(formData.statusGeral) && (
+                                    <optgroup label="Outro Status">
+                                      <option value={formData.statusGeral}>{formData.statusGeral}</option>
+                                    </optgroup>
+                                  )}
                                 </select>
                               </div>
 

@@ -114,7 +114,7 @@ import {
   subscribeToProspects,
   subscribeToProspeccaoDocs
 } from './services/firestoreService';
-import { syncFollowupCardsDirect } from './utils/syncFollowup';
+import { syncFollowupCardsDirect, syncFollowupCardMoved } from './utils/syncFollowup';
 import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
 import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
@@ -227,146 +227,189 @@ export function App() {
     const { active, over } = event;
     const finalActiveCard = activeCard || [...commercialCards, ...financialCards, ...operationCards, ...internalTaskCards, ...Object.values(dynamicCards).flat()].find(c => c.id === active.id);
     
-    setActiveId(null);
-    setActiveCard(null);
+    try {
+      // Cross-Tab Drop Support (Sidebar Drop)
+      const x = (window as any).__lastPointerX;
+      const y = (window as any).__lastPointerY;
+      if (x !== undefined && y !== undefined && finalActiveCard) {
+        const elements = document.elementsFromPoint(x, y);
+        const sidebarTab = elements.find(el => el.hasAttribute('data-sidebar-tab'));
+        if (sidebarTab) {
+          let targetSector = sidebarTab.getAttribute('data-sidebar-tab');
+          if (targetSector === 'tarefas') targetSector = 'internal_tasks';
+          const sourceS = activeTab === 'internal_tasks' ? 'tarefas' : activeTab;
+          if (targetSector && targetSector !== sourceS) {
+            await moveCardBetweenSectors(finalActiveCard, activeTab, targetSector);
+            return;
+          }
+        }
+      }
 
-    // Cross-Tab Drop Support (Sidebar Drop)
-    const x = (window as any).__lastPointerX;
-    const y = (window as any).__lastPointerY;
-    if (x !== undefined && y !== undefined && finalActiveCard) {
-      const elements = document.elementsFromPoint(x, y);
-      const sidebarTab = elements.find(el => el.hasAttribute('data-sidebar-tab'));
-      if (sidebarTab) {
-        let targetSector = sidebarTab.getAttribute('data-sidebar-tab');
-        if (targetSector === 'tarefas') targetSector = 'internal_tasks';
-        const sourceS = activeTab === 'internal_tasks' ? 'tarefas' : activeTab;
-        if (targetSector && targetSector !== sourceS) {
-          await moveCardBetweenSectors(finalActiveCard, activeTab, targetSector);
+      // Se não foi solto em cima de nenhum droppable válido
+      if (!over) return;
+      
+      const activeIdVal = active.id as string;
+      const overId = over.id as string;
+      if (activeIdVal === overId) return;
+
+      // Determine current lists and cards
+      let currentLists: any[] = [];
+      let currentCards: any[] = [];
+      let updateCardFn: any = null;
+      let updateListFn: any = null;
+
+      if (activeTab === 'comercial') {
+        currentLists = commercialLists;
+        currentCards = commercialCards;
+        updateCardFn = updateCommercialCard;
+        updateListFn = updateCommercialList;
+      } else if (activeTab === 'integracao') {
+        currentLists = financialLists;
+        currentCards = financialCards;
+        updateCardFn = updateFinancialCard;
+        updateListFn = updateFinancialList;
+      } else if (activeTab === 'operacao') {
+        currentLists = operationLists;
+        currentCards = operationCards;
+        updateCardFn = updateOperationCard;
+        updateListFn = updateOperationList;
+      } else if (activeTab === 'internal_tasks') {
+        currentLists = internalTaskLists;
+        currentCards = internalTaskCards;
+        updateCardFn = updateInternalTaskCard;
+        updateListFn = updateInternalTaskList;
+      } else if (activeTab === 'dashboard') {
+        const activeSector = active.data.current?.sector;
+        const overSector = over.data.current?.sector || (['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(overId) ? overId : null);
+        
+        if (activeSector && overSector && activeSector !== overSector) {
+          await moveCardBetweenSectors(finalActiveCard, activeSector, overSector);
           return;
         }
+        
+        if (activeSector) {
+          if (activeSector === 'comercial') {
+            currentLists = commercialLists;
+            currentCards = commercialCards;
+            updateCardFn = updateCommercialCard;
+          } else if (activeSector === 'integracao') {
+            currentLists = financialLists;
+            currentCards = financialCards;
+            updateCardFn = updateFinancialCard;
+          } else if (activeSector === 'operacao') {
+            currentLists = operationLists;
+            currentCards = operationCards;
+            updateCardFn = updateOperationCard;
+          } else if (activeSector === 'internal_tasks') {
+            currentLists = internalTaskLists;
+            currentCards = internalTaskCards;
+            updateCardFn = updateInternalTaskCard;
+          }
+        }
+      } else if (activeTab === 'prospeccao_followup' || allSectors.some(s => s.id === activeTab)) {
+        currentLists = dynamicLists[activeTab] || [];
+        currentCards = dynamicCards[activeTab] || [];
+        updateCardFn = updateDynamicCard;
+        updateListFn = updateDynamicList;
       }
-    }
 
-    // Delegar para o handler interno do setor se for no Kanban
-    if (!over) return;
-    
-    const activeIdVal = active.id as string;
-    const overId = over.id as string;
-    if (activeIdVal === overId) return;
-
-    // Determine current lists and cards
-    let currentLists: any[] = [];
-    let currentCards: any[] = [];
-    let updateCardFn: any = null;
-    let updateListFn: any = null;
-
-    if (activeTab === 'comercial') {
-      currentLists = commercialLists;
-      currentCards = commercialCards;
-      updateCardFn = updateCommercialCard;
-      updateListFn = updateCommercialList;
-    } else if (activeTab === 'integracao') {
-      currentLists = financialLists;
-      currentCards = financialCards;
-      updateCardFn = updateFinancialCard;
-      updateListFn = updateFinancialList;
-    } else if (activeTab === 'operacao') {
-      currentLists = operationLists;
-      currentCards = operationCards;
-      updateCardFn = updateOperationCard;
-      updateListFn = updateOperationList;
-    } else if (activeTab === 'internal_tasks') {
-      currentLists = internalTaskLists;
-      currentCards = internalTaskCards;
-      updateCardFn = updateInternalTaskCard;
-      updateListFn = updateInternalTaskList;
-    } else if (activeTab === 'dashboard') {
-      const activeSector = active.data.current?.sector;
-      const overSector = over.data.current?.sector || (['comercial', 'integracao', 'operacao', 'internal_tasks'].includes(overId) ? overId : null);
-      
-      if (activeSector && overSector && activeSector !== overSector) {
-        await moveCardBetweenSectors(finalActiveCard, activeSector, overSector);
-        return;
+      // List sorting
+      const isActiveList = active.data.current?.type === 'List';
+      if (isActiveList && updateListFn) {
+         const oldIndex = currentLists.findIndex(l => l.id === activeIdVal);
+         const newIndex = currentLists.findIndex(l => l.id === overId);
+         if (oldIndex !== -1 && newIndex !== -1) {
+           const newLists = arrayMove(currentLists, oldIndex, newIndex);
+           newLists.forEach((list, index) => {
+             if (list.order !== index) updateListFn(list.id, { order: index });
+           });
+         }
+         return;
       }
-      
-      if (activeSector) {
-        if (activeSector === 'comercial') {
-          currentLists = commercialLists;
-          currentCards = commercialCards;
-          updateCardFn = updateCommercialCard;
-        } else if (activeSector === 'integracao') {
-          currentLists = financialLists;
-          currentCards = financialCards;
-          updateCardFn = updateFinancialCard;
-        } else if (activeSector === 'operacao') {
-          currentLists = operationLists;
-          currentCards = operationCards;
-          updateCardFn = updateOperationCard;
-        } else if (activeSector === 'internal_tasks') {
-          currentLists = internalTaskLists;
-          currentCards = internalTaskCards;
-          updateCardFn = updateInternalTaskCard;
+
+      // Card sorting
+      const cardToMove = finalActiveCard;
+      if (!cardToMove || !updateCardFn) return;
+
+      // Localização ultra-resiliente da lista de destino (overListId)
+      let overListId: string | undefined = undefined;
+      const directList = currentLists.find(l => l.id === overId);
+      if (directList) {
+        overListId = directList.id;
+      } else if (over.data.current?.type === 'List' && over.data.current.list?.id) {
+        overListId = over.data.current.list.id;
+      } else if (over.data.current?.type === 'Card' && over.data.current.card?.listId) {
+        overListId = over.data.current.card.listId;
+      } else {
+        const foundCard = currentCards.find(c => c.id === overId);
+        if (foundCard?.listId) {
+          overListId = foundCard.listId;
         }
       }
-    } else {
-      const dynamicS = allSectors.find(s => s.id === activeTab);
-      if (dynamicS) {
-        currentLists = dynamicLists[dynamicS.id] || [];
-        currentCards = dynamicCards[dynamicS.id] || [];
-        updateCardFn = updateDynamicCard;
+
+      if (overListId && cardToMove.listId !== overListId) {
+        const targetList = currentLists.find(l => l.id === overListId);
+        let newChecklist = cardToMove.checklist || [];
+        if (cardToMove.type === 'client' && targetList?.defaultChecklist) {
+           newChecklist = [...newChecklist];
+           targetList.defaultChecklist.forEach((itemText: string) => {
+             if (!newChecklist.some((item: any) => item.text === itemText)) {
+               newChecklist.push({ id: Math.random().toString(36).substring(7), text: itemText, completed: false });
+             }
+           });
+        }
+
+        // Se o card for virtual, adiciona como card dinâmico real no Firestore
+        if (cardToMove.id && cardToMove.id.startsWith('virtual-')) {
+          if (activeTab === 'prospeccao_followup' || (targetList && targetList.sectorId === 'prospeccao_followup')) {
+            const rawClientId = cardToMove.clientId || cardToMove.id.replace('virtual-', '');
+            await addDynamicCard({
+              sectorId: 'prospeccao_followup',
+              listId: overListId,
+              companyId: selectedCompanyId,
+              title: cardToMove.title || '',
+              clientId: rawClientId,
+              type: 'client',
+              order: 0,
+              notes: cardToMove.notes || '',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        } else {
+          await updateCardFn(cardToMove.id, { listId: overListId, checklist: cardToMove.type === 'client' ? [] : newChecklist, updatedAt: new Date() });
+        }
+
+        // Sincronizar prospecto e carta quando card do Follow Up for movido
+        if (activeTab === 'prospeccao_followup' || targetList?.sectorId === 'prospeccao_followup') {
+          syncFollowupCardMoved(cardToMove, targetList, selectedCompanyId).catch(console.error);
+        }
       }
-    }
 
-    // List sorting
-    const isActiveList = active.data.current?.type === 'List';
-    if (isActiveList && updateListFn) {
-       const oldIndex = currentLists.findIndex(l => l.id === activeIdVal);
-       const newIndex = currentLists.findIndex(l => l.id === overId);
-       if (oldIndex !== -1 && newIndex !== -1) {
-         const newLists = arrayMove(currentLists, oldIndex, newIndex);
-         newLists.forEach((list, index) => {
-           if (list.order !== index) updateListFn(list.id, { order: index });
-         });
-       }
-       return;
-    }
+      const isOverList = directList !== undefined;
+      const cardsInTargetList = currentCards.filter(c => 
+        (isOverList ? c.listId === overId : c.listId === overListId) && c.id !== activeIdVal
+      ).sort((a,b) => (a.order || 0) - (b.order || 0));
 
-    // Card sorting
-    const cardToMove = finalActiveCard;
-    if (!cardToMove || !updateCardFn) return;
-
-    const isOverList = currentLists.some(l => l.id === overId);
-    const overListId = isOverList ? overId : currentCards.find(c => c.id === overId)?.listId;
-
-    if (overListId && cardToMove.listId !== overListId) {
-      const targetList = currentLists.find(l => l.id === overListId);
-      let newChecklist = cardToMove.checklist || [];
-      if (cardToMove.type === 'client' && targetList?.defaultChecklist) {
-         newChecklist = [...newChecklist];
-         targetList.defaultChecklist.forEach((itemText: string) => {
-           if (!newChecklist.some((item: any) => item.text === itemText)) {
-             newChecklist.push({ id: Math.random().toString(36).substring(7), text: itemText, completed: false });
-           }
-         });
+      if (!isOverList) {
+         const overIndex = cardsInTargetList.findIndex(c => c.id === overId);
+         const newIndex = overIndex >= 0 ? overIndex : cardsInTargetList.length;
+         cardsInTargetList.splice(newIndex, 0, cardToMove);
+      } else {
+         cardsInTargetList.push(cardToMove);
       }
-      await updateCardFn(cardToMove.id, { listId: overListId, checklist: cardToMove.type === 'client' ? [] : newChecklist, updatedAt: new Date() });
+
+      cardsInTargetList.forEach((c, index) => {
+         if (c.id && !c.id.startsWith('virtual-') && c.order !== index) {
+           updateCardFn(c.id, { order: index });
+         }
+      });
+    } catch (err) {
+      console.error('Erro durante handleDragEnd:', err);
+    } finally {
+      setActiveId(null);
+      setActiveCard(null);
     }
-
-    const cardsInTargetList = currentCards.filter(c => 
-      (isOverList ? c.listId === overId : c.listId === overListId) && c.id !== activeIdVal
-    ).sort((a,b) => (a.order || 0) - (b.order || 0));
-
-    if (!isOverList) {
-       const overIndex = cardsInTargetList.findIndex(c => c.id === overId);
-       const newIndex = overIndex >= 0 ? overIndex : cardsInTargetList.length;
-       cardsInTargetList.splice(newIndex, 0, cardToMove);
-    } else {
-       cardsInTargetList.push(cardToMove);
-    }
-
-    cardsInTargetList.forEach((c, index) => {
-       if (c.order !== index) updateCardFn(c.id, { order: index });
-    });
   };
   const [dashboardViewMode, setDashboardViewMode] = useState<'board' | 'calendar'>('board');
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -1203,7 +1246,7 @@ export function App() {
             cardFilter={sectorCardFilter} 
             companyId={selectedCompanyId} 
             lists={dynamicLists['prospeccao_followup'] || []} 
-            cards={(dynamicCards['prospeccao_followup'] || []).filter(c => !c.deleted && !c.completed)} 
+            cards={(dynamicCards['prospeccao_followup'] || []).filter(c => !c.deleted)} 
             clients={clients} 
             tags={tags} 
             users={users}
@@ -1429,6 +1472,10 @@ export function App() {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setActiveId(null);
+        setActiveCard(null);
+      }}
     >
       <>
         <div className="min-h-screen bg-stone-50 flex">
@@ -1557,26 +1604,28 @@ export function App() {
                   </div>
 
                   {/* Card Filter Toggle */}
-                  <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
-                    <button 
-                      onClick={() => setSectorCardFilter('activities')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'activities' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
-                    >
-                      Atividades
-                    </button>
-                    <button 
-                      onClick={() => setSectorCardFilter('clients')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'clients' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
-                    >
-                      Clientes
-                    </button>
-                    <button 
-                      onClick={() => setSectorCardFilter('both')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
-                    >
-                      Duo
-                    </button>
-                  </div>
+                  {activeTab !== 'prospeccao_followup' && (
+                    <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-200/40 shadow-inner">
+                      <button 
+                        onClick={() => setSectorCardFilter('activities')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'activities' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                      >
+                        Atividades
+                      </button>
+                      <button 
+                        onClick={() => setSectorCardFilter('clients')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'clients' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                      >
+                        Clientes
+                      </button>
+                      <button 
+                        onClick={() => setSectorCardFilter('both')}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sectorCardFilter === 'both' ? 'bg-white shadow-md text-stone-900 border border-stone-100/50' : 'text-stone-400 hover:text-stone-600'}`}
+                      >
+                        Duo
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1635,11 +1684,7 @@ export function App() {
         </main>
       </div>
 
-      <DragOverlay dropAnimation={{
-        sideEffects: defaultDropAnimationSideEffects({
-          styles: { active: { opacity: '0.5' } },
-        }),
-      }}>
+      <DragOverlay dropAnimation={null}>
         {activeId ? (
           <div className="w-[380px] scale-105 pointer-events-none opacity-80">
             <div className="bg-white p-4 rounded-3xl shadow-2xl border border-stone-200">
