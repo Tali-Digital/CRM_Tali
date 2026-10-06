@@ -405,10 +405,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                     e.stopPropagation();
                     window.location.hash = `#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`;
                   }}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[9px] font-bold transition-all shadow-2xs hover:scale-[1.02]"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-black transition-all shadow-xs hover:scale-[1.03]"
                   title="Abrir ficha do prospecto na Prospecção Online"
                 >
-                  <FileText size={10} className="text-blue-600" />
+                  <FileText size={13} className="text-blue-600" />
                   <span>Ficha</span>
                 </a>
               )}
@@ -521,10 +521,10 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
                       e.stopPropagation();
                       window.location.hash = `#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`;
                     }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50/90 hover:bg-blue-100 text-blue-700 border border-blue-200/80 text-[10px] font-bold transition-all shadow-2xs hover:scale-[1.02] active:scale-95"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50/95 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-black transition-all shadow-xs hover:scale-[1.03] active:scale-95 cursor-pointer"
                     title="Abrir ficha do prospecto na Prospecção Online"
                   >
-                    <FileText size={11} className="text-blue-600 shrink-0" />
+                    <FileText size={14} className="text-blue-600 shrink-0" />
                     <span>Ficha</span>
                   </a>
                 )}

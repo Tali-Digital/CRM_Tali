@@ -30,7 +30,7 @@ import { FeedbackFloatingButton } from './components/FeedbackFloatingButton';
 import { HistoryProvider } from './context/HistoryContext';
 import { CompanyType, SectorCardFilter, UserProfile, CommercialList, CommercialCard, FinancialList, FinancialCard, OperationList, OperationCard, InternalTaskList, InternalTaskCard, Client, Tag } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon, Smartphone, Volume2, VolumeX } from 'lucide-react';
+import { Search, Bell, User, Filter, LayoutGrid, List, LogIn, Briefcase, LogOut, Mail, Lock, Layers, AlignLeft, Calendar as CalendarIcon, Menu, X as CloseIcon, Smartphone, Volume2, VolumeX, FileText, CheckSquare } from 'lucide-react';
 import { auth } from './firebase';
 import { 
   DndContext, 
@@ -43,7 +43,8 @@ import {
   DragStartEvent, 
   DragEndEvent,
   DragOverEvent,
-  defaultDropAnimationSideEffects
+  defaultDropAnimationSideEffects,
+  DropAnimation
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 
@@ -103,6 +104,7 @@ import {
   subscribeToDynamicLists,
   subscribeToDynamicCards,
   addDynamicList,
+  updateDynamicList,
   addSector,
   updateSector,
   deleteSector,
@@ -119,8 +121,83 @@ import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
 import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
 
+const dropAnimationConfig: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: '0.4',
+      },
+    },
+  }),
+  duration: 220,
+  easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+};
+
+function KanbanCardDragPreview({ card, activeTab, prospeccoes }: { card: any; activeTab: string; prospeccoes: any[] }) {
+  const isFollowup = activeTab === 'prospeccao_followup' || card.sectorId === 'prospeccao_followup';
+  const prospectId = card.clientId || (card.id && !card.id.startsWith('virtual-') ? card.id : null);
+  const carta = (isFollowup || prospectId) && prospeccoes ? prospeccoes.find((d: any) =>
+    (card.clientId && d.clienteId === card.clientId) ||
+    (d.clinicName && card.title && d.clinicName.toLowerCase().trim() === card.title.toLowerCase().trim()) ||
+    (d.titulo && card.title && d.titulo.toLowerCase().trim() === card.title.toLowerCase().trim())
+  ) : null;
+
+  const title = card.title || card.clientName || 'Card sem Título';
+
+  return (
+    <div className="w-[305px] p-4 rounded-2xl bg-white border-2 border-blue-400 shadow-[0_22px_40px_-5px_rgba(0,0,0,0.25),0_12px_18px_-5px_rgba(0,0,0,0.12)] relative select-none rotate-2 scale-[1.03] transition-transform pointer-events-none text-left ring-2 ring-blue-500/10 cursor-grabbing">
+      <div className="flex justify-between items-start mb-1.5">
+        <h4 className="font-extrabold text-sm text-stone-900 leading-snug">
+          {title}
+        </h4>
+      </div>
+
+      {card.notes && (
+        <p className="text-[11px] font-medium line-clamp-2 text-stone-500 mb-2">
+          {card.notes}
+        </p>
+      )}
+
+      {(isFollowup || prospectId) && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50/95 text-blue-700 border border-blue-200 text-xs font-black shadow-xs">
+            <FileText size={14} className="text-blue-600 shrink-0" />
+            <span>Ficha</span>
+          </div>
+
+          {carta && (
+            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg ${
+              carta.isEntregue
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                : carta.isFinalizada
+                  ? 'bg-amber-50 text-amber-700 border-amber-200/80'
+                  : 'bg-teal-50 text-teal-700 border-teal-200/80'
+            } border text-[10px] font-bold shadow-2xs`}>
+              <Mail size={11} className="shrink-0" />
+              <span>{carta.isEntregue ? 'Carta (Entregue)' : carta.isFinalizada ? 'Carta (Pronta)' : 'Carta'}</span>
+            </div>
+          )}
+
+          {isFollowup && (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-100 text-teal-700 text-[8.5px] font-bold uppercase tracking-tight">
+              Prospecto
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isFollowup && card.checklist && card.checklist.length > 0 && (
+        <div className="mt-2 text-[10px] font-bold text-stone-400 flex items-center gap-1">
+          <CheckSquare size={12} />
+          <span>{card.checklist.filter((i: any) => i.completed).length}/{card.checklist.length}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function App() {
-  const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string } | null>(null);
+  const [jumpToCard, setJumpToCard] = useState<{ id: string, sector: string, mode?: string } | null>(null);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -180,41 +257,128 @@ export function App() {
     setActiveId(active.id as string);
     // Finder global card
     const allCards = [...commercialCards, ...financialCards, ...operationCards, ...internalTaskCards, ...Object.values(dynamicCards).flat()];
-    const card = allCards.find(c => c.id === active.id);
+    const card = allCards.find(c => c.id === active.id) || active.data.current?.card;
     if (card) setActiveCard(card);
   };
 
   const [hoverTabTimer, setHoverTabTimer] = useState<NodeJS.Timeout | null>(null);
 
   const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+
     const x = (window as any).__lastPointerX;
     const y = (window as any).__lastPointerY;
-    if (x === undefined || y === undefined) return;
-
-    const elements = document.elementsFromPoint(x, y);
-    const sidebarTab = elements.find(el => el.hasAttribute('data-sidebar-tab'));
-    
-    if (sidebarTab) {
-      const targetTab = sidebarTab.getAttribute('data-sidebar-tab');
-      if (targetTab && targetTab !== activeTab) {
-        if (!hoverTabTimer) {
-          const timer = setTimeout(() => {
-            setActiveTab(targetTab as any);
+    if (x !== undefined && y !== undefined) {
+      const elements = document.elementsFromPoint(x, y);
+      const sidebarTab = elements.find(el => el.hasAttribute('data-sidebar-tab'));
+      
+      if (sidebarTab) {
+        const targetTab = sidebarTab.getAttribute('data-sidebar-tab');
+        if (targetTab && targetTab !== activeTab) {
+          if (!hoverTabTimer) {
+            const timer = setTimeout(() => {
+              setActiveTab(targetTab as any);
+              setHoverTabTimer(null);
+            }, 800);
+            setHoverTabTimer(timer);
+          }
+        } else {
+          if (hoverTabTimer) {
+            clearTimeout(hoverTabTimer);
             setHoverTabTimer(null);
-          }, 800);
-          setHoverTabTimer(timer);
+          }
         }
+        return;
       } else {
         if (hoverTabTimer) {
           clearTimeout(hoverTabTimer);
           setHoverTabTimer(null);
         }
       }
+    }
+
+    if (!over) return;
+
+    const activeIdVal = active.id as string;
+    const overIdVal = over.id as string;
+    if (activeIdVal === overIdVal) return;
+
+    const isActiveACard = active.data.current?.type === 'Card';
+    if (!isActiveACard) return;
+
+    // Identificar listas e cards do setor ativo
+    let currentLists: any[] = [];
+    let currentCards: any[] = [];
+    let setCardsFn: ((updater: (prev: any[]) => any[]) => void) | null = null;
+
+    if (activeTab === 'comercial') {
+      currentLists = commercialLists;
+      currentCards = commercialCards;
+      setCardsFn = setCommercialCards as any;
+    } else if (activeTab === 'integracao') {
+      currentLists = financialLists;
+      currentCards = financialCards;
+      setCardsFn = setFinancialCards as any;
+    } else if (activeTab === 'operacao') {
+      currentLists = operationLists;
+      currentCards = operationCards;
+      setCardsFn = setOperationCards as any;
+    } else if (activeTab === 'internal_tasks') {
+      currentLists = internalTaskLists;
+      currentCards = internalTaskCards;
+      setCardsFn = setInternalTaskCards as any;
+    } else if (activeTab === 'prospeccao_followup' || allSectors.some(s => s.id === activeTab)) {
+      currentLists = dynamicLists[activeTab] || [];
+      currentCards = dynamicCards[activeTab] || [];
+      setCardsFn = (updater) => {
+        setDynamicCards(prev => ({
+          ...prev,
+          [activeTab]: updater(prev[activeTab] || [])
+        }));
+      };
+    }
+
+    if (!setCardsFn || currentLists.length === 0) return;
+
+    const activeCardItem = currentCards.find(c => c.id === activeIdVal);
+    if (!activeCardItem) return;
+
+    const cleanOverId = typeof overIdVal === 'string' ? overIdVal.replace(/^list-/, '') : overIdVal;
+    let targetListId: string | undefined = undefined;
+
+    const directList = currentLists.find(l => l.id === overIdVal || l.id === cleanOverId);
+    const isOverAList = directList !== undefined || over.data.current?.type === 'List';
+    if (isOverAList) {
+      targetListId = directList?.id || over.data.current?.list?.id;
     } else {
-      if (hoverTabTimer) {
-        clearTimeout(hoverTabTimer);
-        setHoverTabTimer(null);
-      }
+      const overCardItem = currentCards.find(c => c.id === overIdVal || c.id === cleanOverId);
+      targetListId = overCardItem?.listId || over.data.current?.card?.listId;
+    }
+
+    if (!targetListId) return;
+
+    // Se o card sobrevoa uma lista diferente da sua lista atual, move o card para ela no estado da UI em tempo real
+    if (activeCardItem.listId !== targetListId) {
+      setCardsFn(prevCards => {
+        const activeIndex = prevCards.findIndex(c => c.id === activeIdVal);
+        if (activeIndex === -1) return prevCards;
+
+        const overIndex = prevCards.findIndex(c => c.id === overIdVal);
+        const newCards = [...prevCards];
+
+        let newIndex: number;
+        if (isOverAList) {
+          newIndex = newCards.filter(c => c.listId === targetListId).length;
+        } else {
+          newIndex = overIndex >= 0 ? overIndex : newCards.length;
+        }
+
+        const updatedActiveCard = { ...newCards[activeIndex], listId: targetListId };
+        newCards.splice(activeIndex, 1);
+        newCards.splice(newIndex, 0, updatedActiveCard);
+
+        return newCards;
+      });
     }
   };
 
@@ -225,7 +389,7 @@ export function App() {
     }
     
     const { active, over } = event;
-    const finalActiveCard = activeCard || [...commercialCards, ...financialCards, ...operationCards, ...internalTaskCards, ...Object.values(dynamicCards).flat()].find(c => c.id === active.id);
+    const finalActiveCard = active.data.current?.card || activeCard || [...commercialCards, ...financialCards, ...operationCards, ...internalTaskCards, ...Object.values(dynamicCards).flat()].find(c => c.id === active.id);
     
     try {
       // Cross-Tab Drop Support (Sidebar Drop)
@@ -333,15 +497,24 @@ export function App() {
 
       // Localização ultra-resiliente da lista de destino (overListId)
       let overListId: string | undefined = undefined;
-      const directList = currentLists.find(l => l.id === overId);
+      const cleanOverId = typeof overId === 'string' ? overId.replace(/^list-/, '') : overId;
+
+      const directList = currentLists.find(l => l.id === overId || l.id === cleanOverId);
       if (directList) {
         overListId = directList.id;
       } else if (over.data.current?.type === 'List' && over.data.current.list?.id) {
         overListId = over.data.current.list.id;
       } else if (over.data.current?.type === 'Card' && over.data.current.card?.listId) {
         overListId = over.data.current.card.listId;
-      } else {
-        const foundCard = currentCards.find(c => c.id === overId);
+      } else if (over.data.current?.sortable?.containerId) {
+        const cId = over.data.current.sortable.containerId;
+        const cCleanId = typeof cId === 'string' ? cId.replace(/^list-/, '') : cId;
+        const foundContainerList = currentLists.find(l => l.id === cId || l.id === cCleanId);
+        if (foundContainerList) overListId = foundContainerList.id;
+      }
+
+      if (!overListId) {
+        const foundCard = currentCards.find(c => c.id === overId || c.id === cleanOverId);
         if (foundCard?.listId) {
           overListId = foundCard.listId;
         }
@@ -357,6 +530,25 @@ export function App() {
                newChecklist.push({ id: Math.random().toString(36).substring(7), text: itemText, completed: false });
              }
            });
+        }
+
+        // Atualização Otimista Imediata da UI para evitar qualquer travamento visual
+        if (activeTab === 'prospeccao_followup' || allSectors.some(s => s.id === activeTab)) {
+          setDynamicCards(prev => {
+            const list = prev[activeTab] || [];
+            return {
+              ...prev,
+              [activeTab]: list.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c)
+            };
+          });
+        } else if (activeTab === 'comercial') {
+          setCommercialCards(prev => prev.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c));
+        } else if (activeTab === 'integracao') {
+          setFinancialCards(prev => prev.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c));
+        } else if (activeTab === 'operacao') {
+          setOperationCards(prev => prev.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c));
+        } else if (activeTab === 'internal_tasks') {
+          setInternalTaskCards(prev => prev.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c));
         }
 
         // Se o card for virtual, adiciona como card dinâmico real no Firestore
@@ -382,7 +574,7 @@ export function App() {
 
         // Sincronizar prospecto e carta quando card do Follow Up for movido
         if (activeTab === 'prospeccao_followup' || targetList?.sectorId === 'prospeccao_followup') {
-          syncFollowupCardMoved(cardToMove, targetList, selectedCompanyId).catch(console.error);
+          await syncFollowupCardMoved(cardToMove, targetList, selectedCompanyId);
         }
       }
 
@@ -745,7 +937,7 @@ export function App() {
         if (shouldTrigger) {
           // Trigger notification for all assignees
           if (card.assignees && card.assignees.length > 0) {
-            const cardTitle = card.title || card.clientName || 'Card sem título';
+            const cardTitle = card.title || (card as any).clientName || 'Card sem título';
             
             for (const assigneeId of card.assignees) {
               await createNotification({
@@ -1684,15 +1876,9 @@ export function App() {
         </main>
       </div>
 
-      <DragOverlay dropAnimation={null}>
-        {activeId ? (
-          <div className="w-[380px] scale-105 pointer-events-none opacity-80">
-            <div className="bg-white p-4 rounded-3xl shadow-2xl border border-stone-200">
-              <p className="text-sm font-black text-stone-900 uppercase tracking-widest truncate">
-                {activeCard?.title || activeCard?.clientName || 'Arrastando Card...'}
-              </p>
-            </div>
-          </div>
+      <DragOverlay dropAnimation={dropAnimationConfig}>
+        {activeId && activeCard ? (
+          <KanbanCardDragPreview card={activeCard} activeTab={activeTab} prospeccoes={prospeccoes} />
         ) : null}
       </DragOverlay>
 

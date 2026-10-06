@@ -1171,7 +1171,7 @@ export const subscribeToProspects = (companyId: string, callback: (prospects: Pr
   const q = query(collection(db, 'prospects'));
   return onSnapshot(q, (snapshot) => {
     const allProspects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Prospect));
-    const filtered = allProspects.filter(p => !p.companyId || p.companyId === companyId || p.companyId === 'default' || !companyId);
+    const filtered = allProspects.filter(p => !p.companyId || p.companyId === companyId || (p.companyId as any) === 'default' || !companyId);
     filtered.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
     callback(filtered);
   }, (error) => {
@@ -1279,10 +1279,21 @@ export const syncProspectsToClients = async (companyId: string) => {
 };
 
 export const updateProspect = async (id: string, data: Partial<Prospect>) => {
-  await updateDoc(doc(db, 'prospects', id), {
-    ...data,
-    updatedAt: serverTimestamp()
-  });
+  try {
+    await updateDoc(doc(db, 'prospects', id), {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  } catch (err: any) {
+    try {
+      await updateDoc(doc(db, 'prospeccoes_docs', id), {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+    } catch (_) {
+      throw err;
+    }
+  }
 };
 
 // Apaga completamente o campo marketingDiagnostic de um prospect (usa deleteField do Firestore)

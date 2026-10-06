@@ -43,10 +43,15 @@
   }
 
   .card-placeholder {
-    opacity: 0.2;
-    background: #f1f5f9 !important;
-    border: 2px dashed #cbd5e1 !important;
+    opacity: 0.35 !important;
+    background: #e2e8f0 !important;
+    border: 2px dashed #94a3b8 !important;
     box-shadow: none !important;
+    border-radius: 1rem !important;
+  }
+
+  .card-placeholder > * {
+    visibility: hidden !important;
   }
 
   .rich-text-content font[size="2"] { font-size: 0.875rem; }

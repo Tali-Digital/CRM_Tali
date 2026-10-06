@@ -38,6 +38,7 @@ interface UnifiedCardManagerViewProps {
   clients: Client[];
   users: UserProfile[];
   tags: Tag[];
+  onRestoreCard?: (cardId: string, type: any) => Promise<void>;
   onPermanentDelete: (cardId: string, type: 'commercial' | 'financial' | 'operation' | 'internal' | string, skipConfirm?: boolean) => Promise<void>;
   sectors?: any[];
   onRestoreSector?: (id: string) => Promise<void>;

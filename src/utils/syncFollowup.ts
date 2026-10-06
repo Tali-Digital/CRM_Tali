@@ -170,12 +170,16 @@ export async function syncProspectToFollowupCard(
     ...(prospectData || {})
   });
   const normTarget = normalizeStageName(targetStage);
+  const canonicalStage = PROSPECCAO_FOLLOWUP_STAGES.find(
+    st => normalizeStageName(st) === normTarget
+  ) || targetStage;
 
   const targetList = lists.find(l => normalizeStageName(l.name) === normTarget) || lists[0];
   if (!targetList) return;
 
   const title = prospectData?.clinicName || prospectData?.ownerName || 'Prospecto';
   const notes = prospectData?.fullAddress || prospectData?.location || prospectData?.imovel || prospectData?.notes || '';
+  const normTitle = normalizeStageName(title);
 
   // Busca se já existe um dynamic_card para este prospecto
   const cardsQuery = query(
@@ -191,6 +195,7 @@ export async function syncProspectToFollowupCard(
         listId: targetList.id,
         title: title.trim(),
         notes: notes.trim(),
+        statusGeral: canonicalStage,
         updatedAt: Timestamp.now()
       });
     }
@@ -201,7 +206,7 @@ export async function syncProspectToFollowupCard(
     );
     const matchByTitle = allCardsSnap.docs.find(d => {
       const c = d.data();
-      return c.title && normalizeStageName(c.title) === normalizeStageName(title);
+      return c.title && normalizeStageName(c.title) === normTitle;
     });
 
     if (matchByTitle) {
@@ -210,6 +215,7 @@ export async function syncProspectToFollowupCard(
         clientId: prospectId,
         title: title.trim(),
         notes: notes.trim(),
+        statusGeral: canonicalStage,
         updatedAt: Timestamp.now()
       });
     } else {
@@ -223,25 +229,62 @@ export async function syncProspectToFollowupCard(
         type: 'client',
         order: cardsInList.length,
         notes: notes.trim(),
+        statusGeral: canonicalStage,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
     }
   }
 
-  // Sincronizar flags com Prospecção Presencial (prospeccoes_docs)
+  // Sincronizar flags e statusGeral com Prospecção Presencial (prospeccoes_docs)
   try {
     const pDocsSnap = await getDocs(
       query(collection(db, 'prospeccoes_docs'), where('clienteId', '==', prospectId))
     );
-    for (const pDoc of pDocsSnap.docs) {
+    const docsToUpdate = [...pDocsSnap.docs];
+
+    // Se prospectId for ID de uma carta diretamente
+    try {
+      const directCartaSnap = await getDocs(
+        query(collection(db, 'prospeccoes_docs'), where('__name__', '==', prospectId))
+      );
+      directCartaSnap.docs.forEach(d => {
+        if (!docsToUpdate.some(existing => existing.id === d.id)) {
+          docsToUpdate.push(d);
+        }
+      });
+    } catch (_) {}
+
+    // Se ainda não encontrou carta, busca por título
+    if (docsToUpdate.length === 0 && normTitle) {
+      const allCartaSnap = await getDocs(collection(db, 'prospeccoes_docs'));
+      allCartaSnap.docs.forEach(d => {
+        const data = d.data();
+        const t = data.titulo || data.clinicName || data.clienteNome || '';
+        if (t && normalizeStageName(t) === normTitle) {
+          docsToUpdate.push(d);
+        }
+      });
+    }
+
+    for (const pDoc of docsToUpdate) {
+      const cartaUpdates: any = {
+        statusGeral: canonicalStage,
+        updatedAt: Timestamp.now()
+      };
       if (normTarget === 'carta pronta') {
-        await updateDoc(doc(db, 'prospeccoes_docs', pDoc.id), { isFinalizada: true, isEntregue: false });
+        cartaUpdates.isFinalizada = true;
+        cartaUpdates.isEntregue = false;
+        cartaUpdates.isAguardando = false;
       } else if (normTarget === 'carta entregue') {
-        await updateDoc(doc(db, 'prospeccoes_docs', pDoc.id), { isEntregue: true });
+        cartaUpdates.isEntregue = true;
+        cartaUpdates.isAguardando = false;
       } else if (normTarget === 'cliente selecionado') {
-        await updateDoc(doc(db, 'prospeccoes_docs', pDoc.id), { isFinalizada: false, isEntregue: false });
+        cartaUpdates.isFinalizada = false;
+        cartaUpdates.isEntregue = false;
+        cartaUpdates.isAguardando = false;
       }
+      await updateDoc(doc(db, 'prospeccoes_docs', pDoc.id), cartaUpdates);
     }
   } catch (err) {
     console.error('Erro ao atualizar prospeccoes_docs no sync:', err);
@@ -343,109 +386,129 @@ export async function syncFollowupCardMoved(
 ): Promise<void> {
   if (!card || !targetList || !targetList.name) return;
 
-  const stageName = targetList.name.trim();
-  const normStage = normalizeStageName(stageName);
-  const clientId = card.clientId;
+  const rawStageName = targetList.name.trim();
+  const normStage = normalizeStageName(rawStageName);
+  
+  // Encontrar o nome canônico EXATO do estágio conforme PROSPECCAO_FOLLOWUP_STAGES
+  const canonicalStage = PROSPECCAO_FOLLOWUP_STAGES.find(
+    st => normalizeStageName(st) === normStage
+  ) || rawStageName;
 
-  let prospectFound = false;
+  const clientId = card.clientId;
+  const cardTitle = card.title ? card.title.trim() : '';
+  const normTitle = normalizeStageName(cardTitle);
+
+  let prospectFoundId = '';
+
+  const prospectUpdates: any = {
+    statusGeral: canonicalStage,
+    updatedAt: Timestamp.now()
+  };
+
+  const cartaUpdates: any = {
+    statusGeral: canonicalStage,
+    updatedAt: Timestamp.now()
+  };
+
+  if (normStage === 'carta entregue') {
+    prospectUpdates.isEntregue = true;
+    cartaUpdates.isEntregue = true;
+    cartaUpdates.isAguardando = false;
+  } else if (normStage === 'carta pronta') {
+    prospectUpdates.isEntregue = false;
+    cartaUpdates.isFinalizada = true;
+    cartaUpdates.isEntregue = false;
+    cartaUpdates.isAguardando = false;
+  } else if (normStage === 'cliente fechado') {
+    prospectUpdates.isContractClosed = true;
+  } else if (normStage === 'cliente selecionado') {
+    prospectUpdates.isEntregue = false;
+    cartaUpdates.isFinalizada = false;
+    cartaUpdates.isEntregue = false;
+    cartaUpdates.isAguardando = false;
+  }
 
   // 1. Tentar atualizar prospecto diretamente por clientId
   if (clientId) {
     try {
       const prospectRef = doc(db, 'prospects', clientId);
-      const updates: any = {
-        statusGeral: stageName,
-        updatedAt: Timestamp.now()
-      };
-
-      if (normStage === 'carta entregue') {
-        updates.isEntregue = true;
-      } else if (normStage === 'carta pronta') {
-        updates.isEntregue = false;
-      } else if (normStage === 'cliente fechado') {
-        updates.isContractClosed = true;
-      } else if (normStage === 'cliente selecionado') {
-        updates.isEntregue = false;
-      }
-
-      await updateDoc(prospectRef, updates);
-      prospectFound = true;
+      await updateDoc(prospectRef, prospectUpdates);
+      prospectFoundId = clientId;
     } catch (_) {
       // clientId pode ser de outro tipo (ex: prospeccoes_docs)
     }
   }
 
-  // 2. Verificar vínculo com prospeccoes_docs
+  // 2. Se o clientId for de prospeccoes_docs ou houver vínculo com cartas
   try {
-    let cartaDocId = '';
-    let linkedProspectId = '';
+    const docsToUpdateCartas: any[] = [];
 
     if (clientId) {
+      // Buscar cartas por clienteId
       const pDocSnap = await getDocs(
         query(collection(db, 'prospeccoes_docs'), where('clienteId', '==', clientId))
       );
-      if (!pDocSnap.empty) {
-        cartaDocId = pDocSnap.docs[0].id;
-        linkedProspectId = clientId;
-      } else {
-        // Verificar se o clientId é o id de um prospeccoes_docs
-        try {
-          const directSnap = await getDocs(
-            query(collection(db, 'prospeccoes_docs'), where('__name__', '==', clientId))
-          );
-          if (!directSnap.empty) {
-            cartaDocId = directSnap.docs[0].id;
-            linkedProspectId = directSnap.docs[0].data().clienteId || '';
+      pDocSnap.docs.forEach(d => docsToUpdateCartas.push(d));
+
+      // Verificar se o próprio clientId é o id de um doc de prospeccoes_docs
+      try {
+        const directSnap = await getDocs(
+          query(collection(db, 'prospeccoes_docs'), where('__name__', '==', clientId))
+        );
+        directSnap.docs.forEach(d => {
+          if (!docsToUpdateCartas.some(existing => existing.id === d.id)) {
+            docsToUpdateCartas.push(d);
           }
-        } catch (_) {}
+        });
+      } catch (_) {}
+    }
+
+    // Se ainda não encontrou cartas, busca por título da clínica
+    if (docsToUpdateCartas.length === 0 && normTitle) {
+      const allCartaSnap = await getDocs(collection(db, 'prospeccoes_docs'));
+      allCartaSnap.docs.forEach(d => {
+        const data = d.data();
+        const t = data.titulo || data.clinicName || data.clienteNome || '';
+        if (t && normalizeStageName(t) === normTitle) {
+          docsToUpdateCartas.push(d);
+        }
+      });
+    }
+
+    // Atualiza TODAS as cartas encontradas com statusGeral e flags
+    for (const cDoc of docsToUpdateCartas) {
+      await updateDoc(doc(db, 'prospeccoes_docs', cDoc.id), cartaUpdates);
+      if (!prospectFoundId && cDoc.data().clienteId) {
+        prospectFoundId = cDoc.data().clienteId;
       }
     }
 
-    if (!prospectFound && !linkedProspectId && card.title) {
-      // Buscar prospecto por título
+    // 3. Se temos prospectFoundId agora, atualiza o prospecto correspondente
+    if (prospectFoundId) {
+      try {
+        await updateDoc(doc(db, 'prospects', prospectFoundId), prospectUpdates);
+      } catch (_) {}
+    }
+
+    // 4. Se ainda não achou prospecto e temos o título da clínica, busca em prospects por título
+    if (!prospectFoundId && normTitle) {
       const prospectsSnap = await getDocs(collection(db, 'prospects'));
       const found = prospectsSnap.docs.find(d => {
         const data = d.data();
-        return (data.clinicName && normalizeStageName(data.clinicName) === normalizeStageName(card.title)) ||
-               (data.ownerName && normalizeStageName(data.ownerName) === normalizeStageName(card.title));
+        return (data.clinicName && normalizeStageName(data.clinicName) === normTitle) ||
+               (data.ownerName && normalizeStageName(data.ownerName) === normTitle);
       });
       if (found) {
-        linkedProspectId = found.id;
-        await updateDoc(doc(db, 'prospects', found.id), {
-          statusGeral: stageName,
-          ...(normStage === 'carta entregue' ? { isEntregue: true } : {}),
-          ...(normStage === 'cliente fechado' ? { isContractClosed: true } : {})
-        });
-        prospectFound = true;
+        await updateDoc(doc(db, 'prospects', found.id), prospectUpdates);
       }
     }
 
-    // Se encontramos a carta vinculada, atualiza flags na carta
-    if (cartaDocId) {
-      const cartaUpdates: any = {};
-      if (normStage === 'carta pronta') {
-        cartaUpdates.isFinalizada = true;
-        cartaUpdates.isEntregue = false;
-        cartaUpdates.isAguardando = false;
-      } else if (normStage === 'carta entregue') {
-        cartaUpdates.isEntregue = true;
-        cartaUpdates.isAguardando = false;
-      } else if (normStage === 'cliente selecionado') {
-        cartaUpdates.isFinalizada = false;
-        cartaUpdates.isEntregue = false;
-        cartaUpdates.isAguardando = false;
-      }
-      if (Object.keys(cartaUpdates).length > 0) {
-        await updateDoc(doc(db, 'prospeccoes_docs', cartaDocId), cartaUpdates);
-      }
-    }
-
-    // Se temos linkedProspectId e não atualizou ainda
-    if (!prospectFound && linkedProspectId) {
-      await updateDoc(doc(db, 'prospects', linkedProspectId), {
-        statusGeral: stageName,
-        ...(normStage === 'carta entregue' ? { isEntregue: true } : {}),
-        ...(normStage === 'cliente fechado' ? { isContractClosed: true } : {})
+    // 5. Garantir que o próprio dynamic_card tenha statusGeral atualizado
+    if (card.id && !card.id.startsWith('virtual-')) {
+      await updateDoc(doc(db, 'dynamic_cards', card.id), {
+        listId: targetList.id,
+        statusGeral: canonicalStage,
+        updatedAt: Timestamp.now()
       });
     }
   } catch (err) {

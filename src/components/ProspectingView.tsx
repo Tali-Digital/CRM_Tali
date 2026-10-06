@@ -42,7 +42,10 @@ import {
   HelpCircle,
   Archive,
   ArchiveRestore,
-  Briefcase
+  Briefcase,
+  ArrowRight,
+  Columns3,
+  X
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { auth } from '../firebase';
@@ -426,6 +429,10 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               editingProspectRef.current.isContractClosed = currentData.isContractClosed;
             }
           }
+
+          if (savedId && currentData.statusGeral) {
+            syncProspectToFollowupCard(savedId, currentData.statusGeral, currentData, companyId).catch(console.error);
+          }
         }
       } catch (error) {
         console.error('Erro ao salvar prospecto automaticamente:', error);
@@ -434,6 +441,15 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
       }
     }
   }, []);
+
+  const handleGoToFollowUp = useCallback(async () => {
+    await handleCloseAndSave();
+    if (window.location.hash === '#/prospeccao_followup') {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } else {
+      window.location.hash = '#/prospeccao_followup';
+    }
+  }, [handleCloseAndSave]);
 
   // Keyboard Escape Handler to close modal and save
   useEffect(() => {
@@ -2411,58 +2427,92 @@ export const ProspectingView: React.FC<ProspectingViewProps> = ({ companyId }) =
               onClick={(e) => e.stopPropagation()}
               className={`bg-white rounded-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 ${!editingProspect ? 'max-w-7xl' : 'max-w-4xl'}`}
             >
-              <div className="px-4 py-3 sm:px-8 sm:py-6 border-b border-gray-100 bg-blue-900 text-white flex flex-row items-start sm:items-center justify-between gap-2">
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <h2 className="text-base sm:text-xl font-bold flex items-center gap-2 leading-tight">
-                      {editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}
+              <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-b border-blue-800 bg-gradient-to-r from-blue-900 via-blue-900 to-indigo-950 text-white flex flex-col gap-2.5">
+                {/* Linha Superior: Título, Identificação e Ações Rápidas */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 leading-tight">
+                      <span>{editingProspect ? 'Editar Prospecto' : 'Novo Prospecto'}</span>
                       {formData.isInPerson && (
-                        <span className="text-[9px] sm:text-xs font-black bg-blue-800 text-blue-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-blue-700">
-                          (Presencial)
+                        <span className="text-[9px] sm:text-[10px] font-black bg-blue-800 text-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wide border border-blue-700">
+                          Presencial
                         </span>
                       )}
                       {formData.isContractClosed && (
-                        <span className="text-[9px] sm:text-xs font-black bg-emerald-800 text-emerald-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-emerald-700">
-                          (Contrato Fechado)
+                        <span className="text-[9px] sm:text-[10px] font-black bg-emerald-800 text-emerald-100 px-2 py-0.5 rounded-md uppercase tracking-wide border border-emerald-700">
+                          Contrato Fechado
                         </span>
                       )}
                       {formData.offerSpotWork && (
-                        <span className="text-[9px] sm:text-xs font-black bg-amber-800 text-amber-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg uppercase tracking-wide border border-amber-700">
-                          (Trabalhos Pontuais)
+                        <span className="text-[9px] sm:text-[10px] font-black bg-amber-800 text-amber-100 px-2 py-0.5 rounded-md uppercase tracking-wide border border-amber-700">
+                          Trabalhos Pontuais
                         </span>
                       )}
                     </h2>
-                    <p className="text-blue-100 text-sm hidden sm:block mt-1">
-                      {editingProspect ? `Editando: ${formData.clinicName}` : 'Preencha os dados da clínica para prospecção'}
-                    </p>
-                  </div>
-
-                  {/* Exibição do Progresso Atual */}
-                  <div className={`w-fit px-2 py-1 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black tracking-wide shadow-sm flex items-center gap-1 sm:gap-2 uppercase border ${formData.status === 'Base de Recomeço'
-                      ? 'bg-red-500 border-red-400 text-white animate-pulse'
-                      : 'bg-white border-blue-200 text-blue-900'
-                    }`}>
-                    {formData.status === 'Base de Recomeço' ? (
-                      <>
-                        <RotateCcw size={12} className="animate-spin sm:hidden" />
-                        <RotateCcw size={16} className="animate-spin hidden sm:block" />
-                        Base de Recomeço
-                      </>
-                    ) : (
-                      <span className="uppercase font-bold text-blue-950">
-                        Progresso: {formData.status || 'Não Iniciado'}
+                    {editingProspect && formData.clinicName && (
+                      <span className="text-blue-200 text-xs sm:text-sm font-medium truncate max-w-[280px] sm:max-w-[420px] before:content-['•'] before:mr-2 before:text-blue-400">
+                        {formData.clinicName}
                       </span>
                     )}
                   </div>
+
+                  {/* Ações da Direita: Voltar ao Follow Up & Fechar */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleGoToFollowUp}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/20 text-[11px] sm:text-xs font-semibold transition-all shadow-sm group"
+                      title="Salvar alterações e abrir Kanban de Follow Up"
+                    >
+                      <Columns3 size={13} className="text-blue-200 group-hover:text-white transition-colors" />
+                      <span className="hidden sm:inline">Voltar ao Follow Up</span>
+                      <span className="sm:hidden">Follow Up</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCloseAndSave}
+                      className="p-1.5 hover:bg-white/20 active:scale-95 rounded-xl transition-colors text-white/80 hover:text-white"
+                      title="Salvar e Fechar"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  onClick={handleCloseAndSave}
-                  className="p-1.5 hover:bg-white/20 rounded-full transition-colors shrink-0"
-                  title="Salvar e Fechar"
-                >
-                  <ChevronDown className="rotate-180" size={24} />
-                </button>
+                {/* Linha Inferior: Trajetos / Status (Online e Follow Up Presencial) */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {/* Status do Trajeto Online */}
+                  <div className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold tracking-wide flex items-center gap-1.5 uppercase border ${
+                    formData.status === 'Base de Recomeço'
+                      ? 'bg-red-500 border-red-400 text-white animate-pulse'
+                      : 'bg-blue-950/70 border-blue-700/60 text-blue-100 shadow-inner'
+                  }`}>
+                    {formData.status === 'Base de Recomeço' ? (
+                      <>
+                        <RotateCcw size={12} className="animate-spin" />
+                        <span>Online: Base de Recomeço</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-blue-300 font-semibold text-[9px] sm:text-[10px]">Trajeto Online:</span>
+                        <span className="text-white font-black">{formData.status || 'Não Iniciado'}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Status do Follow Up Presencial (Botão Branco Clicável) */}
+                  <button
+                    type="button"
+                    onClick={handleGoToFollowUp}
+                    className="px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold tracking-wide flex items-center gap-1.5 uppercase border bg-white hover:bg-blue-50 border-blue-200 text-blue-950 shadow-sm transition-all hover:scale-[1.02] active:scale-95 group cursor-pointer"
+                    title="Clique para salvar e ver este cliente no Kanban de Follow Up"
+                  >
+                    <span className="text-blue-600 font-bold text-[9px] sm:text-[10px]">Follow Up Presencial:</span>
+                    <span className="text-blue-950 font-black">{formData.statusGeral || 'Não Selecionado'}</span>
+                    <ArrowRight size={12} className="text-blue-500 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
               </div>
 
               {/* Tabs for Editing - Design Pills Premium */}
