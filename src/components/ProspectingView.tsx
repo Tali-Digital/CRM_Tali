@@ -79,8 +79,10 @@ const STATUS_COLORS = {
   // Status Geral & Follow Up
   'Cliente Selecionado': 'bg-slate-100 text-slate-800',
   'Carta pronta': 'bg-teal-100 text-teal-800',
+  'Dono avisado': 'bg-amber-100 text-amber-800',
   'Carta entregue': 'bg-blue-100 text-blue-800',
   '1 Follow up': 'bg-cyan-100 text-cyan-800',
+  'Confirmação feita com a secretária': 'bg-sky-100 text-sky-800',
   '2 follow up': 'bg-purple-100 text-purple-800',
   '3 follow up': 'bg-indigo-100 text-indigo-800',
   'Contato Encerrado': 'bg-red-100 text-red-800',

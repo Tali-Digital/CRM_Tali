@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NotesEditor } from './NotesEditor';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus, Briefcase } from 'lucide-react';
+import { X, Edit2, CheckSquare, Calendar, User, AlignLeft, Clock, RotateCcw, Trash2, Check, CheckCircle2, Layers, MousePointer2, Plus, Briefcase, MessageSquare } from 'lucide-react';
 import { playTickSound, playRemoveItemSound, playDeleteSound, playSuccessSound } from '../utils/audio';
+import { getFollowupStageScript } from '../utils/syncFollowup';
 import { 
   updateCommercialCard,
   updateFinancialCard,
@@ -510,6 +511,23 @@ export const QuickViewCardModal: React.FC<QuickViewCardModalProps> = ({
                   {localTitle}
                 </h1>
               )}
+
+              {/* Banner de Instrução do Follow-up (se for setor prospeccao_followup ou tiver script) */}
+              {(() => {
+                const scriptInfo = getFollowupStageScript(card.statusGeral || '', card.title || client?.name);
+                if (!scriptInfo) return null;
+                return (
+                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-teal-500 to-blue-600 text-white shadow-md flex items-start gap-3.5 border border-white/20">
+                    <div className="p-2.5 bg-white/20 rounded-xl shrink-0 mt-0.5 backdrop-blur-sm">
+                      <MessageSquare size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-teal-100">{scriptInfo.actionTitle}</h4>
+                      <p className="text-sm font-black text-white mt-1 leading-snug">{scriptInfo.scriptText}</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Informações Básicas: Datas e Responsáveis em Linha */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">

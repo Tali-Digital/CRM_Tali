@@ -7,7 +7,7 @@ import {
   CompanyType, Client, Tag, UserProfile, SectorCardFilter, Sector, EditorProspeccaoDoc
 } from '../types';
 import { playSuccessSound, playDeleteSound } from '../utils/audio';
-import { deduplicateFollowupCardsInFirestore, restoreCompletedFollowupCards } from '../utils/syncFollowup';
+import { deduplicateFollowupCardsInFirestore, restoreCompletedFollowupCards, getFollowupStageTimerInfo } from '../utils/syncFollowup';
 import { 
   // Commercial
   addCommercialList, addCommercialCard, updateCommercialCard, updateCommercialList, deleteCommercialList, 
@@ -27,7 +27,7 @@ import {
   // Prospecção Docs
   subscribeToProspeccaoDocs
 } from '../services/firestoreService';
-import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers, FileText, Mail } from 'lucide-react';
+import { Plus, Settings, MoreVertical, CheckSquare, GripVertical, Edit2, User, Calendar, CheckCircle2, Archive, RotateCcw, Trash2, MousePointer2, LayoutGrid, Layers, FileText, Mail, Clock } from 'lucide-react';
 import { useDraggableScroll } from '../hooks/useDraggableScroll';
 import { Timestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
@@ -86,6 +86,7 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
     (d.clinicName && card.title && d.clinicName.toLowerCase().trim() === card.title.toLowerCase().trim()) ||
     (d.titulo && card.title && d.titulo.toLowerCase().trim() === card.title.toLowerCase().trim())
   ) : null;
+  const timerInfo = isFollowup ? getFollowupStageTimerInfo(card) : null;
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
@@ -393,6 +394,21 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
           {/* Links e dados rápidos para Follow Up na visualização em Lista */}
           {isFollowup && (
             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              {timerInfo && (
+                <div 
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border text-[10px] font-black transition-all ${
+                    timerInfo.color === 'green'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : timerInfo.color === 'yellow'
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-md animate-pulse'
+                        : 'bg-red-600 text-white border-red-700 shadow-md animate-pulse ring-2 ring-red-400/40'
+                  }`}
+                  title={timerInfo.tooltip}
+                >
+                  <Clock size={11} className="text-white shrink-0" />
+                  <span>{timerInfo.label}</span>
+                </div>
+              )}
               {card.cidade && (
                 <span className="text-[10px] text-stone-400 font-medium truncate max-w-[120px] hidden md:inline">
                   {card.cidade}
@@ -511,9 +527,24 @@ const SortableCard = ({ card, client, tags, users, onEdit, onQuickView, onUpdate
               </p>
             )}
 
-            {/* Links rápidos de cara no card: Ficha Online & Carta (quando houver) */}
+            {/* Links rápidos de cara no card: Ficha Online & Carta & Timer (quando houver) */}
             {(isFollowup || prospectId) && (
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {timerInfo && (
+                  <div 
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border text-[10px] font-black transition-all ${
+                      timerInfo.color === 'green'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                        : timerInfo.color === 'yellow'
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-md animate-pulse'
+                          : 'bg-red-600 text-white border-red-700 shadow-md animate-pulse ring-2 ring-red-400/40'
+                    }`}
+                    title={timerInfo.tooltip}
+                  >
+                    <Clock size={11} className="text-white shrink-0" />
+                    <span>{timerInfo.label}</span>
+                  </div>
+                )}
                 {(prospectId || card.title) && (
                   <a
                     href={`#/prospeccao?edit=${encodeURIComponent(prospectId || '')}&name=${encodeURIComponent(title || card.title || '')}`}
@@ -1170,7 +1201,7 @@ export const UnifiedSectorView: React.FC<UnifiedSectorViewProps> = ({
       case 'financial': case 'integracao': return { title: 'Integração do Cliente', subtitle: 'Acompanhe e gerencie a integração dos novos clientes.' };
       case 'operation': case 'operacao': return { title: 'Operação Contínua', subtitle: 'Gerencie as atividades recorrentes e entregas contínuas.' };
       case 'internal': case 'internal_tasks': return { title: 'Tarefas Internas', subtitle: 'Organize as demandas internas da equipe.' };
-      case 'prospeccao_followup': return { title: 'Follow Up Presencial', subtitle: 'Acompanhe cada cliente nas 14 etapas do processo de prospecção.' };
+      case 'prospeccao_followup': return { title: 'Follow Up Presencial', subtitle: 'Acompanhe cada cliente nas 16 etapas do processo de prospecção.' };
       default: 
         const info = (allSectors as any[])?.find(s => s.id === sector);
         return { title: info?.name || 'Setor', subtitle: '' };

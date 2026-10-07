@@ -116,7 +116,7 @@ import {
   subscribeToProspects,
   subscribeToProspeccaoDocs
 } from './services/firestoreService';
-import { syncFollowupCardsDirect, syncFollowupCardMoved } from './utils/syncFollowup';
+import { syncFollowupCardsDirect, syncFollowupCardMoved, ensureFollowupListsInFirestore, PROSPECCAO_FOLLOWUP_STAGES } from './utils/syncFollowup';
 import { MemberDashboard } from './components/MemberDashboard';
 import { AdminView } from './components/AdminView';
 import GestaoProspeccaoEditor from './components/GestaoProspeccaoEditor';
@@ -538,7 +538,7 @@ export function App() {
             const list = prev[activeTab] || [];
             return {
               ...prev,
-              [activeTab]: list.map(c => c.id === cardToMove.id ? { ...c, listId: overListId } : c)
+              [activeTab]: list.map(c => c.id === cardToMove.id ? { ...c, listId: overListId, stageUpdatedAt: new Date() } : c)
             };
           });
         } else if (activeTab === 'comercial') {
@@ -564,12 +564,19 @@ export function App() {
               type: 'client',
               order: 0,
               notes: cardToMove.notes || '',
+              statusGeral: targetList?.name,
+              stageUpdatedAt: new Date(),
               createdAt: new Date(),
               updatedAt: new Date()
             });
           }
         } else {
-          await updateCardFn(cardToMove.id, { listId: overListId, checklist: cardToMove.type === 'client' ? [] : newChecklist, updatedAt: new Date() });
+          await updateCardFn(cardToMove.id, {
+            listId: overListId,
+            checklist: cardToMove.type === 'client' ? [] : newChecklist,
+            stageUpdatedAt: new Date(),
+            updatedAt: new Date()
+          });
         }
 
         // Sincronizar prospecto e carta quando card do Follow Up for movido
@@ -809,31 +816,8 @@ export function App() {
 
       sectorIds.forEach(sectorId => {
         const unsubL = subscribeToDynamicLists(sectorId, async (lists) => {
-          if (sectorId === 'prospeccao_followup' && lists.length === 0) {
-            const PROSPECCAO_FOLLOWUP_STAGES = [
-              'Cliente Selecionado',
-              'Carta pronta',
-              'Carta entregue',
-              '1 Follow up',
-              '2 follow up',
-              '3 follow up',
-              'Reunião Agendada',
-              'Contato Encerrado',
-              'Pós reunião - 1 Follow up',
-              'Pós reunião - 2 follow up',
-              'Pós reunião - 3 follow up',
-              'Pós reunião - 4 follow up',
-              'Pós reunião - 5 follow up',
-              'Cliente fechado'
-            ];
-            for (let i = 0; i < PROSPECCAO_FOLLOWUP_STAGES.length; i++) {
-              await addDynamicList({
-                name: PROSPECCAO_FOLLOWUP_STAGES[i],
-                order: i,
-                sectorId: 'prospeccao_followup',
-                companyId: selectedCompanyId
-              });
-            }
+          if (sectorId === 'prospeccao_followup' && lists.length < PROSPECCAO_FOLLOWUP_STAGES.length) {
+            await ensureFollowupListsInFirestore(selectedCompanyId);
           } else {
             setDynamicLists(prev => ({ ...prev, [sectorId]: lists.sort((a, b) => (a.order || 0) - (b.order || 0)) }));
           }
