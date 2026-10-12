@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, Brain, Map, MapPin, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target, BookmarkPlus, Check
+  Search, Brain, Map, MapPin, Activity, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Sparkles, AlertTriangle, AlertCircle, Archive, Trash2, RotateCcw, Layers, Printer, Maximize2, Minimize2, RotateCw, Code, RefreshCw, Clock, Terminal, ListOrdered, X, Play, Pause, ChevronDown, Plus, XCircle, CheckCircle, Download, Tv, Monitor, Crop, Sun, Moon, Target, BookmarkPlus, Check, FileText, Building2, ExternalLink, Phone, User, Save
 } from 'lucide-react';
 import { Prospect, CompanyType } from '../types';
 import { subscribeToProspects, subscribeToProspeccaoDocs, updateProspect, updateProspeccaoDoc, createNotification, subscribeToDiagnosticQueue, saveDiagnosticQueueItem, deleteDiagnosticQueueItem, clearFinishedDiagnosticQueue } from '../services/firestoreService';
@@ -875,6 +875,106 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       });
     } finally {
       setIsRefetchingCnpj(false);
+    }
+  };
+
+  // ── Controle de Acesso e Edição da Ficha do Prospecto ──
+  const [showFichaModal, setShowFichaModal] = useState(false);
+  const [fichaFormData, setFichaFormData] = useState<any>({});
+  const [isSavingFicha, setIsSavingFicha] = useState(false);
+
+  useEffect(() => {
+    if (selectedProspect) {
+      setFichaFormData({
+        clinicName: selectedProspect.clinicName || '',
+        ownerName: selectedProspect.ownerName || '',
+        cnpj: selectedProspect.cnpj || '',
+        age: selectedProspect.age || '',
+        responsible: selectedProspect.responsible || '',
+        status: selectedProspect.status || '',
+        fullAddress: selectedProspect.fullAddress || selectedProspect.location || '',
+        location: selectedProspect.location || '',
+        cityName: (selectedProspect as any).cityName || '',
+        neighborhoodName: (selectedProspect as any).neighborhoodName || '',
+        phone: (selectedProspect as any).phone || '',
+        whatsapp: (selectedProspect as any).whatsapp || '',
+        clinicInstagram: selectedProspect.clinicInstagram || '',
+        ownerInstagram: selectedProspect.ownerInstagram || '',
+        site: selectedProspect.site || '',
+        gmn: selectedProspect.gmn || '',
+        gmnRating: selectedProspect.gmnRating || '',
+        gmnReviewsCount: selectedProspect.gmnReviewsCount || '',
+        placeId: (selectedProspect as any).placeId || '',
+        ticketMedio: (selectedProspect as any).ticketMedio || '',
+        observations: selectedProspect.observations || ''
+      });
+    }
+  }, [selectedProspect]);
+
+  const openInProspeccao = (prospect: Prospect, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const url = `#/prospeccao?edit=${encodeURIComponent(prospect.id || '')}&name=${encodeURIComponent(prospect.clinicName || '')}`;
+    window.location.hash = url;
+  };
+
+  const handleSaveFicha = async () => {
+    if (!selectedProspect) return;
+    setIsSavingFicha(true);
+    try {
+      const updates: Partial<Prospect> = {
+        clinicName: fichaFormData.clinicName ?? selectedProspect.clinicName,
+        ownerName: fichaFormData.ownerName ?? selectedProspect.ownerName,
+        cnpj: fichaFormData.cnpj ?? selectedProspect.cnpj,
+        age: fichaFormData.age ?? selectedProspect.age,
+        responsible: fichaFormData.responsible ?? selectedProspect.responsible,
+        status: fichaFormData.status ?? selectedProspect.status,
+        fullAddress: fichaFormData.fullAddress ?? selectedProspect.fullAddress,
+        location: fichaFormData.location ?? selectedProspect.location,
+        cityName: fichaFormData.cityName ?? (selectedProspect as any).cityName,
+        neighborhoodName: fichaFormData.neighborhoodName ?? (selectedProspect as any).neighborhoodName,
+        phone: fichaFormData.phone ?? (selectedProspect as any).phone,
+        whatsapp: fichaFormData.whatsapp ?? (selectedProspect as any).whatsapp,
+        clinicInstagram: fichaFormData.clinicInstagram ?? selectedProspect.clinicInstagram,
+        ownerInstagram: fichaFormData.ownerInstagram ?? selectedProspect.ownerInstagram,
+        site: fichaFormData.site ?? selectedProspect.site,
+        gmn: fichaFormData.gmn ?? selectedProspect.gmn,
+        placeId: fichaFormData.placeId ?? (selectedProspect as any).placeId,
+        ticketMedio: fichaFormData.ticketMedio ?? (selectedProspect as any).ticketMedio,
+        observations: fichaFormData.observations ?? selectedProspect.observations
+      } as any;
+
+      await updateProspect(selectedProspect.id, updates);
+      setSelectedProspect(prev => prev ? { ...prev, ...updates } : null);
+
+      setFormData(prev => ({
+        ...prev,
+        companyName: updates.clinicName || prev.companyName,
+        placeId: cleanPlaceId((updates as any).placeId || prev.placeId),
+        ticketMedio: (updates as any).ticketMedio || prev.ticketMedio,
+        cityName: (updates as any).cityName || prev.cityName,
+        neighborhoodName: (updates as any).neighborhoodName || prev.neighborhoodName,
+        instagramUrl: updates.clinicInstagram || prev.instagramUrl,
+        siteUrl: updates.site || prev.siteUrl
+      }));
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Ficha salva com sucesso!',
+        toast: true,
+        position: 'top-end',
+        timer: 2500,
+        showConfirmButton: false
+      });
+      setShowFichaModal(false);
+    } catch (err: any) {
+      console.error('Erro ao salvar ficha:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro ao salvar ficha',
+        text: err?.message || 'Falha ao atualizar dados.'
+      });
+    } finally {
+      setIsSavingFicha(false);
     }
   };
 
@@ -1787,16 +1887,35 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         </div>
 
         <div className="space-y-6">
-          {/* Card 1: LEAD EXISTENTE */}
-          <div className="bg-[#141626] p-6 rounded-2xl border border-gray-800 shadow-xl">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-              <Layers size={14} className="text-indigo-400" /> Lead Existente (preenche o form abaixo automaticamente)
+          {/* Card 1: LEAD EXISTENTE E FICHA DA CLÍNICA */}
+          <div className="bg-[#141626] p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <Layers size={14} className="text-indigo-400" /> Ficha do Lead Selecionado
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFichaModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="Acessar e editar a ficha completa deste lead"
+                >
+                  <FileText size={14} className="text-blue-200" />
+                  <span>Acessar Ficha</span>
+                </button>
+                <a
+                  href={`#/prospeccao?edit=${encodeURIComponent(selectedProspect.id || '')}&name=${encodeURIComponent(selectedProspect.clinicName || '')}`}
+                  onClick={(e) => openInProspeccao(selectedProspect, e)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold border border-gray-700 transition-all hover:text-white"
+                  title="Abrir diretamente na tela de Prospecção Online"
+                >
+                  <span>Prospecção</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
             </div>
 
-            <label className="block text-xs font-bold text-gray-300 mb-1.5">
-              Buscar lead da sua lista
-            </label>
-            <div className="bg-[#0d0f19] border border-gray-800 rounded-xl p-3.5 text-sm text-white font-bold mb-3 flex items-center justify-between">
+            <div className="bg-[#0d0f19] border border-gray-800 rounded-xl p-3.5 text-sm text-white font-bold flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
                 {selectedProspect.clinicName}
@@ -1804,17 +1923,73 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <span className="text-xs text-gray-400 font-mono">{selectedProspect.location}</span>
             </div>
 
-            <div className="bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 p-3 rounded-xl text-xs font-semibold flex items-center justify-between">
-              <span>✓ lead vinculado — o diagnóstico ficará salvo no histórico dele</span>
-              {(
-                <button
-                  type="button"
-                  onClick={() => setShowDiagnosticForm(false)}
-                  className="text-emerald-300 underline hover:text-white text-[11px] font-bold"
-                >
-                  ver relatório atual
-                </button>
-              )}
+            {/* Ficha Resumida do Prospecto (Visualização direta sem precisar gerar diagnóstico) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-[#090b13] p-4 rounded-xl border border-gray-800/80 text-xs">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Proprietário / Sócios</p>
+                <p className="font-bold text-indigo-400 truncate">{selectedProspect.ownerName || 'Não Informado'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">CNPJ</p>
+                <p className="font-bold text-gray-200 font-mono truncate">{selectedProspect.cnpj || 'Não Informado'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Tempo de Abertura</p>
+                <p className="font-bold text-emerald-400 truncate">
+                  {selectedProspect.age ? (selectedProspect.age.toLowerCase().includes('ano') ? selectedProspect.age : `${selectedProspect.age} anos`) : 'Não Informado'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Contato / WhatsApp</p>
+                <p className="font-bold text-gray-200 truncate">{(selectedProspect as any).whatsapp || (selectedProspect as any).phone || 'Não Informado'}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Endereço Completo</p>
+                <p className="font-medium text-gray-300 truncate">{selectedProspect.fullAddress || selectedProspect.location || 'Não Informado'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Instagram</p>
+                <p className="font-medium text-pink-400 truncate">{selectedProspect.clinicInstagram || 'Não Informado'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Website</p>
+                <p className="font-medium text-blue-400 truncate">{selectedProspect.site || 'Não Informado'}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleReanalyzeCnpj}
+                disabled={isRefetchingCnpj}
+                className="py-2 px-3 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 shadow-sm cursor-pointer"
+                title="Refazer análise do CNPJ (Empresa, Dono, CNPJ e Tempo de Abertura)"
+              >
+                {isRefetchingCnpj ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-indigo-400" />
+                    <span>Analisando CNPJ...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={13} className="text-indigo-400" />
+                    <span>Refazer Ficha CNPJ</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-emerald-400 font-medium">✓ Lead vinculado ao histórico</span>
+                {(
+                  <button
+                    type="button"
+                    onClick={() => setShowDiagnosticForm(false)}
+                    className="text-emerald-300 underline hover:text-white text-[11px] font-bold"
+                  >
+                    ver relatório atual
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -2501,23 +2676,32 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Website / Landing Page</p>
               <p className="font-bold text-blue-400 text-xs truncate">{selectedProspect.site || 'Não Informado'}</p>
             </div>
-            <div className="flex items-end justify-start sm:justify-end">
+            <div className="flex items-end justify-start sm:justify-end gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowFichaModal(true)}
+                className="py-2.5 px-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white border border-blue-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                title="Acessar e editar a ficha cadastral deste prospecto"
+              >
+                <FileText size={14} className="text-blue-400" />
+                <span>Acessar Ficha</span>
+              </button>
               <button
                 type="button"
                 onClick={handleReanalyzeCnpj}
                 disabled={isRefetchingCnpj}
-                className="w-full py-2.5 px-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+                className="py-2.5 px-3 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm cursor-pointer"
                 title="Refazer análise do CNPJ (Empresa, Dono, CNPJ e Tempo de Abertura)"
               >
                 {isRefetchingCnpj ? (
                   <>
                     <Loader2 size={14} className="animate-spin text-indigo-400" />
-                    <span>Analisando CNPJ...</span>
+                    <span>Analisando...</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw size={14} className="text-indigo-400" />
-                    <span>Refazer Ficha CNPJ</span>
+                    <span>Refazer CNPJ</span>
                   </>
                 )}
               </button>
@@ -4146,6 +4330,19 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                   </div>
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProspect(p);
+                        setDiagnosticData(p.marketingDiagnostic || null);
+                        setShowFichaModal(true);
+                      }}
+                      title="Acessar Ficha do Prospecto"
+                      className={`p-1 rounded-lg transition-colors ${selectedProspect?.id === p.id ? 'hover:bg-white/20 text-white' : 'hover:bg-blue-100 text-blue-600'}`}
+                    >
+                      <FileText size={14} />
+                    </button>
                     {activeTab !== 'lixeira' ? (
                       <>
                         <button
@@ -4223,6 +4420,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                       "{selectedText}"
                     </span>
                   )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowFichaModal(true)}
+                  title="Acessar e editar a ficha cadastral completa do prospecto"
+                  className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/40 px-2.5 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md text-center cursor-pointer shrink-0"
+                >
+                  <FileText size={14} className="text-blue-200" />
+                  <span>Acessar Ficha</span>
                 </button>
 
                 <button
@@ -5244,6 +5451,323 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <div className="border-t border-gray-800/60 pt-4 flex items-center justify-between text-xs text-gray-500">
                 <span>Use ◄ ► no teclado ou clique nas setas para navegar</span>
                 <span className="font-bold text-gray-400">{selectedProspect.clinicName} — Apresentação Oficial</span>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL DA FICHA COMPLETA DO PROSPECTO */}
+      {showFichaModal && selectedProspect && createPortal(
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999999] flex items-center justify-center p-2 sm:p-4 md:p-6"
+          onClick={() => setShowFichaModal(false)}
+        >
+          <div
+            className="bg-[#141626] border border-gray-700/80 rounded-3xl shadow-2xl w-full max-w-4xl text-gray-200 flex flex-col max-h-[92vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-800 bg-[#0d0f19] flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+                  <FileText size={20} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base sm:text-lg font-black text-white truncate">
+                      Ficha do Prospecto
+                    </h3>
+                    {selectedProspect.isInPerson && (
+                      <span className="text-[10px] font-black bg-blue-900/60 text-blue-300 border border-blue-700/60 px-2 py-0.5 rounded-md uppercase tracking-wide">
+                        Presencial
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate font-medium">
+                    {selectedProspect.clinicName || 'Sem nome'} {selectedProspect.location ? `• ${selectedProspect.location}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`#/prospeccao?edit=${encodeURIComponent(selectedProspect.id || '')}&name=${encodeURIComponent(selectedProspect.clinicName || '')}`}
+                  onClick={(e) => openInProspeccao(selectedProspect, e)}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-xs font-bold transition-all"
+                  title="Abrir diretamente na tela de Prospecção"
+                >
+                  <span>Abrir na Prospecção</span>
+                  <ExternalLink size={12} />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setShowFichaModal(false)}
+                  className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer"
+                  title="Fechar Ficha"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar text-xs">
+              {/* Banner com atalhos de consulta */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-[#0d0f19] rounded-2xl border border-gray-800">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-gray-400 font-bold">Ações Rápidas:</span>
+                  {fichaFormData.whatsapp && (
+                    <a
+                      href={`https://wa.me/55${fichaFormData.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 font-bold hover:bg-emerald-600/30 transition-all"
+                    >
+                      <Phone size={11} /> WhatsApp
+                    </a>
+                  )}
+                  {fichaFormData.clinicInstagram && (
+                    <a
+                      href={fichaFormData.clinicInstagram.startsWith('http') ? fichaFormData.clinicInstagram : `https://instagram.com/${fichaFormData.clinicInstagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-600/20 text-pink-300 border border-pink-500/30 font-bold hover:bg-pink-600/30 transition-all"
+                    >
+                      Instagram
+                    </a>
+                  )}
+                  {fichaFormData.site && (
+                    <a
+                      href={fichaFormData.site.startsWith('http') ? fichaFormData.site : `https://${fichaFormData.site}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 font-bold hover:bg-blue-600/30 transition-all"
+                    >
+                      Website
+                    </a>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleReanalyzeCnpj}
+                  disabled={isRefetchingCnpj}
+                  className="py-1.5 px-3 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-xl font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  title="Refazer busca do CNPJ e dados da Receita Federal"
+                >
+                  {isRefetchingCnpj ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                  <span>Refazer Ficha CNPJ</span>
+                </button>
+              </div>
+
+              {/* 1. Identificação da Empresa */}
+              <div className="space-y-3">
+                <h4 className="font-black text-gray-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <Building2 size={13} className="text-indigo-400" />
+                  Identificação da Empresa & CNPJ
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Nome da Empresa / Clínica</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.clinicName || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, clinicName: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Proprietário / Sócios</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.ownerName || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, ownerName: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-indigo-300 font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">CNPJ</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.cnpj || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, cnpj: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-mono font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Tempo de Abertura</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.age || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, age: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-emerald-400 font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="Ex: 5 anos"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Contato & Redes */}
+              <div className="space-y-3">
+                <h4 className="font-black text-gray-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <Phone size={13} className="text-emerald-400" />
+                  Contato & Presença Digital
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Telefone</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.phone || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, phone: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="(00) 0000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">WhatsApp</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.whatsapp || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, whatsapp: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="(00) 90000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Instagram da Clínica</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.clinicInstagram || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, clinicInstagram: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-pink-400 font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="@clinica"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Website</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.site || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, site: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-blue-400 font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Localização */}
+              <div className="space-y-3">
+                <h4 className="font-black text-gray-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <MapPin size={13} className="text-amber-400" />
+                  Endereço & Localização
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-gray-400 font-bold mb-1">Endereço Completo</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.fullAddress || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, fullAddress: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="Rua, número, complemento, bairro"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Cidade - UF</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.location || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, location: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                      placeholder="Brasília - DF"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Gestão & Observações */}
+              <div className="space-y-3">
+                <h4 className="font-black text-gray-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <User size={13} className="text-purple-400" />
+                  Gestão & Notas
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Responsável</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.responsible || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, responsible: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Status</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.status || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, status: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Ticket Médio (R$)</label>
+                    <input
+                      type="text"
+                      value={fichaFormData.ticketMedio || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, ticketMedio: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-amber-400 font-medium font-mono focus:outline-none focus:border-indigo-500"
+                      placeholder="Ex: 1500"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="block text-gray-400 font-bold mb-1">Observações / Anotações</label>
+                    <textarea
+                      rows={2}
+                      value={fichaFormData.observations || ''}
+                      onChange={e => setFichaFormData({ ...fichaFormData, observations: e.target.value })}
+                      className="w-full bg-[#0d0f19] border border-gray-800 rounded-xl p-2.5 text-white font-medium focus:outline-none focus:border-indigo-500 custom-scrollbar resize-none"
+                      placeholder="Anotações gerais sobre o lead..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 border-t border-gray-800 bg-[#0d0f19] flex items-center justify-between gap-3 shrink-0 flex-wrap">
+              <a
+                href={`#/prospeccao?edit=${encodeURIComponent(selectedProspect.id || '')}&name=${encodeURIComponent(selectedProspect.clinicName || '')}`}
+                onClick={(e) => openInProspeccao(selectedProspect, e)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition-all border border-gray-700 active:scale-95 cursor-pointer"
+              >
+                <span>Abrir Ficha Completa na Prospecção Online</span>
+                <ExternalLink size={13} />
+              </a>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFichaModal(false)}
+                  className="px-4 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveFicha}
+                  disabled={isSavingFicha}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSavingFicha ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>Salvar Alterações</span>
+                </button>
               </div>
             </div>
           </div>
