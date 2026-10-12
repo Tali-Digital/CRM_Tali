@@ -565,11 +565,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         modules: { gmn: true, instagram: true, site: true, ads: true }
       });
 
-      if (!selectedProspect.marketingDiagnostic) {
-        setShowDiagnosticForm(true);
-      } else {
-        setShowDiagnosticForm(false);
-      }
+      setShowDiagnosticForm(false);
     }
   }, [selectedProspect?.id]);
 
@@ -2414,7 +2410,16 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     return isNaN(n) ? defaultVal : n;
   };
 
-  const renderDiagnostic = () => renderDiagnosticContent((diagnosticData || {}) as any);
+  const renderDiagnostic = () => {
+    const d: any = diagnosticData || {};
+    return renderDiagnosticContent({
+      ...d,
+      gmn: d.gmn || {},
+      site: d.site || {},
+      anuncios: d.anuncios || {},
+      instagram: d.instagram || {},
+    });
+  };
 
   const renderDiagnosticContent = (diagnosticData: any) => {
     if (!selectedProspect) return null;
