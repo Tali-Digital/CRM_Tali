@@ -2316,7 +2316,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={() => selectedProspect && enqueueDiagnostic(selectedProspect)}
@@ -2326,6 +2326,22 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             >
               <Plus size={20} />
               <span>Gerar Diagnóstico (Segundo Plano)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Abre a página de resultado mesmo sem diagnóstico gerado (estrutura vazia, apenas local — não salva no banco).
+                // Permite usar "Puxar Análise Existente do Local Falcon (0 Créditos)" sem gastar créditos.
+                if (!diagnosticData) {
+                  setDiagnosticData({ gmn: {}, site: {}, anuncios: {}, instagram: {}, concorrentes: [] } as any);
+                }
+                setShowDiagnosticForm(false);
+              }}
+              className="w-full bg-[#1a1d2d] hover:bg-[#232741] text-indigo-200 font-black py-4 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base active:scale-98 cursor-pointer border border-indigo-500/40"
+              title="Abrir a página de resultado do diagnóstico, mesmo em branco, sem gastar créditos"
+            >
+              <FileText size={20} />
+              <span>Acessar Página de Resultado</span>
             </button>
           </div>
         </div>
@@ -2491,7 +2507,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
     const regionalCompetitorCount = parsedCompetitors.length;
 
     return (
-      <div id="printable-diagnostic-content" className="bg-[#0d0f19] text-gray-100 min-h-screen p-8 rounded-2xl shadow-2xl font-sans">
+      <div id="printable-diagnostic-content" className="@container bg-[#0d0f19] text-gray-100 min-h-screen p-4 xl:p-8 rounded-2xl shadow-2xl font-sans">
         <style>{`
           @media print {
             body.is-printing-marketing-diagnostic {
@@ -2627,11 +2643,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         `}</style>
 
         {/* Capa */}
-        <div className="bg-[#1a1d2d] rounded-2xl p-6 md:p-8 mb-8 border border-gray-800">
-          <div className="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+        <div className="bg-[#1a1d2d] rounded-2xl p-6 @3xl:p-8 mb-8 border border-gray-800">
+          <div className="mb-6 flex flex-col @5xl:flex-row justify-between items-start @5xl:items-center gap-5">
             <div>
               <h4 className="text-orange-500 font-bold text-xs tracking-widest uppercase mb-1">Diagnóstico de Presença Digital</h4>
-              <h1 className="text-3xl md:text-4xl font-black text-white">{selectedProspect.clinicName || 'Nome da Clínica'}</h1>
+              <h1 className="text-3xl @3xl:text-4xl font-black text-white">{selectedProspect.clinicName || 'Nome da Clínica'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {selectedProspect.gmnRating && (
@@ -2652,7 +2668,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 bg-[#0d0f19] p-6 rounded-xl border border-gray-800">
+          <div className="grid grid-cols-1 @2xl:grid-cols-2 @3xl:grid-cols-4 gap-6 bg-[#0d0f19] p-6 rounded-xl border border-gray-800">
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Empresa / Clínica</p>
               <p className="font-bold text-gray-100">{selectedProspect.clinicName || 'N/A'}</p>
@@ -2681,7 +2697,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Website / Landing Page</p>
               <p className="font-bold text-blue-400 text-xs truncate">{selectedProspect.site || 'Não Informado'}</p>
             </div>
-            <div className="flex items-end justify-start sm:justify-end gap-2 flex-wrap">
+            <div className="flex items-end justify-start @2xl:justify-end gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => setShowFichaModal(true)}
@@ -2724,7 +2740,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             • <strong>Google:</strong> % Top 3 no Local Falcon | • <strong>Reputação:</strong> Estrelas Google × 20 | • <strong>Instagram:</strong> Presença em redes | • <strong>Site:</strong> Google PageSpeed Mobile | • <strong>Ads:</strong> Meta Ad Library
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 @2xl:grid-cols-3 @3xl:grid-cols-5 gap-4">
             {[
               { label: 'Google', score: diagnosticData.placar?.google ?? 21 },
               { label: 'Reputação', score: diagnosticData.placar?.reputacao ?? 'N/A' },
@@ -2813,11 +2829,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
           </div>
 
-            <div className="bg-[#141626] p-4 md:p-8 rounded-2xl border border-gray-800 shadow-xl">
+            <div className="bg-[#141626] p-4 @3xl:p-8 rounded-2xl border border-gray-800 shadow-xl">
             <h3 className="text-lg font-black text-white mb-6">Perfil no Google</h3>
 
             {/* 3 Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-4 mb-6">
               <div className="bg-[#0d0f19] p-5 rounded-xl border border-gray-800">
                 <h4 className="text-3xl font-black text-white mb-1">0%</h4>
                 <p className="text-xs text-gray-400 font-medium">da região no top 3</p>
@@ -2838,7 +2854,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
 
             {/* Two Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+            <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-5 @3xl:gap-8">
               <div>
                 <h4 className="text-xs font-black text-indigo-400 tracking-wider uppercase mb-3">O QUE OS NÚMEROS MOSTRAM</h4>
                 <ul className="space-y-3 text-xs text-gray-300">
@@ -2965,7 +2981,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                         title="Ver mapa anterior (mais antigo)"
                       >
                         <ChevronLeft size={16} />
-                        <span className="hidden sm:inline">Anterior</span>
+                        <span className="hidden @2xl:inline">Anterior</span>
                       </button>
 
                       <div className="text-center text-xs font-bold text-gray-200 flex items-center gap-2">
@@ -2988,7 +3004,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                         className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
                         title="Ver mapa mais recente"
                       >
-                        <span className="hidden sm:inline">Mais recente</span>
+                        <span className="hidden @2xl:inline">Mais recente</span>
                         <ChevronRight size={16} />
                       </button>
                     </div>
@@ -3463,7 +3479,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </div>
 
               {/* Grid Principal de Duas Colunas: Diagnóstico do Site VS Rastreamento de Visitantes */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 @5xl:grid-cols-2 gap-6 mb-6">
                 
                 {/* Coluna Esquerda: O que os números mostram & Oportunidades */}
                 <div className="bg-[#0d0f19] p-5 rounded-xl border border-gray-800 space-y-4">
@@ -3546,7 +3562,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
         {/* Seção Exclusiva: Anúncios na Meta (Facebook & Instagram) */}
         {diagnosticData.anuncios && (
           <div className="bg-[#141626] p-8 rounded-2xl border border-gray-800 shadow-xl mb-10">
-            <div className="-mx-4 -mt-4 md:-mx-4 md:-mt-4 mb-6 flex items-center justify-between flex-wrap gap-4 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/50 via-[#171526] to-[#141626] p-4 shadow-lg">
+            <div className="-mx-4 -mt-4 @3xl:-mx-4 @3xl:-mt-4 mb-6 flex items-center justify-between flex-wrap gap-4 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/50 via-[#171526] to-[#141626] p-4 shadow-lg">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
@@ -3579,7 +3595,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             </div>
 
             {/* Grid de Métricas de Anúncios na Meta */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-4 mb-6">
               <div className="bg-[#0d0f19] p-5 rounded-xl border border-gray-800">
                 <span className="text-xs text-gray-400 block mb-1 font-semibold">Sua Presença no Meta Ads</span>
                 <div className="flex items-center gap-2 mt-1">
@@ -3696,7 +3712,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
             <h3 className="text-xl font-bold mb-2">Anúncios</h3>
             <p className="text-sm text-gray-400 mb-6">Como ler: consultamos as bibliotecas públicas de anúncios do Google e do Meta para ver quem está pagando para aparecer na sua região.</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-4 gap-4 mb-6">
               {/* Card 1: Você Anuncia no Google */}
               <div className="bg-[#141626] p-5 rounded-2xl border border-gray-800 flex items-center gap-4 shadow-sm hover:border-blue-500/30 transition-all">
                 <div className="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -3754,7 +3770,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-6 @3xl:gap-8">
               <div>
                 <h4 className="text-sm font-bold text-purple-400 mb-2 uppercase">O que os números mostram</h4>
                 <ul className="list-disc pl-4 space-y-2 text-sm text-gray-300">
@@ -3795,7 +3811,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
           </div>
 
           {/* Cards com Parâmetros de Cálculo da Região */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-4 mb-8">
             <div className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800">
               <span className="text-[11px] font-bold text-gray-400 block mb-1 uppercase">Volume Estimado de Buscas</span>
               <span className="text-xl font-black text-white">{buscasMes} buscas/mês</span>
@@ -3940,7 +3956,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4">
                 {opsList.map((item: string, idx: number) => (
                   <div key={idx} className="bg-[#0d0f19] p-4 rounded-xl border border-gray-800/80 flex items-start gap-3">
                     <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400 flex-shrink-0 mt-0.5">
@@ -4146,7 +4162,7 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
   return (
     <div className="flex h-screen flex-col md:flex-row bg-stone-50 p-2 gap-2 relative overflow-y-auto md:overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`w-full ${isLeftPanelCollapsed ? 'md:w-16' : 'md:w-80 lg:w-[360px]'} shrink-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm transition-all duration-300 h-[68vh] md:h-auto md:max-h-none ${isFullscreen ? 'hidden' : 'flex'}`}>
+      <div className={`w-full ${isLeftPanelCollapsed ? 'md:w-16' : 'md:w-64 xl:w-72 2xl:w-[360px]'} shrink-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 flex flex-col overflow-hidden shadow-sm transition-all duration-300 h-[68vh] md:h-auto md:max-h-none ${isFullscreen ? 'hidden' : 'flex'}`}>
         <div className="p-3 md:p-4 border-b border-stone-100">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2 min-w-0">
@@ -4400,11 +4416,11 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-screen md:min-h-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 overflow-hidden shadow-sm flex flex-col">
+      <div className="flex-1 min-w-0 min-h-screen md:min-h-0 bg-white rounded-2xl md:rounded-3xl border border-stone-200 overflow-hidden shadow-sm flex flex-col">
         {selectedProspect ? (
           <div className="h-full flex flex-col bg-[#0d0f19] rounded-2xl overflow-hidden">
             <div className="p-2 md:p-4 border-b border-gray-800 bg-[#1a1d2d] no-print">
-              <div className="grid grid-cols-2 md:flex items-stretch gap-1.5 md:gap-2 no-print">
+              <div className="grid grid-cols-2 md:flex md:flex-wrap items-stretch gap-1.5 md:gap-2 no-print">
                 <button
                   onClick={() => {
                     if (selectedText) {
@@ -4444,6 +4460,17 @@ export const MarketingDiagnosticView: React.FC<Props> = ({ companyId }) => {
                 >
                   <Brain size={14} />
                   {showDiagnosticForm ? 'Ver Relatório' : '✏️ Parâmetros / Novo Rastreamento'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => selectedProspect && enqueueDiagnostic(selectedProspect)}
+                  disabled={isGenerating}
+                  title="Adicionar à fila de processamento em segundo plano"
+                  className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border border-blue-400/30 px-2.5 md:px-3.5 py-2 rounded-xl font-bold text-[10px] md:text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md text-center cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  <span>Gerar Diagnóstico (Segundo Plano)</span>
                 </button>
 
                 {!showDiagnosticForm && (
